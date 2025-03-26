@@ -1,0 +1,4 @@
+ultralytics==8.3.91
+pillow==11.1.0
+matplotlib==3.10.1
+numpy==2.1.1
