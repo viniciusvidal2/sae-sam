@@ -6,7 +6,7 @@ import os
 def main():
     # Load YOLOv11 model
     print("Loading YOLOv11 model for segmentation task...")
-    yolo = YOLO("yolo11m-seg.pt", verbose=False)
+    yolo = YOLO("yolo11x-seg.pt", verbose=False)
 
     # Set the dataset subfolder in the settings
     dataset_subfolder = "full_train_set"
@@ -17,7 +17,7 @@ def main():
     # Train the model
     print("Training YOLOv11 model with the training set...")
     data_path = os.path.join(dataset_subfolder, "data.yaml")
-    results = yolo.train(data=data_path, epochs=1000,
+    results = yolo.train(data=data_path, epochs=2000,
                          batch=16, device="cpu", optimizer="adam", patience=0, lrf=0.0001)
 
 
