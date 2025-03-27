@@ -86,7 +86,7 @@ def main():
     # Load the best model from the training results
     print("Loading the best model from the training results...")
     results_folder = "runs/segment"
-    train_result_folder = "train10/weights/best.pt"
+    train_result_folder = "train2/weights/best.pt"
     trained_model = YOLO(os.path.join(results_folder, train_result_folder))
 
     # Test images list for inference
@@ -103,6 +103,11 @@ def main():
                                         show_labels=False, show_conf=False)
         end = time()
         print(f"Prediction time: {end-start:.2f} seconds")
+
+        # Prevent from crashing if no masks are detected
+        if results[0].masks == None:
+            print("No masks detected in this image.")
+            continue
 
         # Get a colormap based on the classes
         classes = results[0].names
