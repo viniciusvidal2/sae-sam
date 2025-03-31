@@ -83,7 +83,8 @@ if __name__ == "__main__":
     segmentation_model = ImageSegmentation(model_path)
     if segmentation_model.segment_classes(image_path):
         class_name = "sedimento"
-        masks, boxes, confidences = segmentation_model.get_detections_by_class(class_name)
+        masks, boxes, confidences = segmentation_model.get_detections_by_class(
+            class_name)
         print(f"Detected {len(boxes)} boxes for class {class_name}.")
         print(f"Detected {len(masks)} masks for class {class_name}.")
         print(f"Confidences: {confidences}")

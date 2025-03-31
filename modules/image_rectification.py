@@ -43,7 +43,8 @@ class ImageRectification:
             image_section = image[box[1]:box[3], box[0]:box[2]]
             rectified_section = self.rectify_image_section(
                 image_section, box_type)
-            self.rectified_image = np.hstack((self.rectified_image, rectified_section))
+            self.rectified_image = np.hstack(
+                (self.rectified_image, rectified_section))
 
         # Remove the first column of the image, which is empty, and return
         self.rectified_image = self.rectified_image[:, 1:, :]
