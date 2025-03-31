@@ -36,7 +36,7 @@ def get_masks_info(inference_data: Results, conf_thresh: float) -> Tuple:
     Returns:
         Tuple: masks list, class id list, confidence list
     """
-    # Output listt
+    # Output list
     detections_classes = []
     detections_confidence = []
     masks_images = []
@@ -53,7 +53,7 @@ def get_masks_info(inference_data: Results, conf_thresh: float) -> Tuple:
     return masks_images, detections_classes, detections_confidence
 
 
-def draw_masks(img: np.ndarray, masks: list, ids: list, colors: list, color_weight: float) -> np.ndarray:
+def draw_masks(img: np.ndarray, masks: np.ndarray, ids: list, colors: list, color_weight: float) -> np.ndarray:
     """Draw the masks on top of the original image
 
     Args:
