@@ -1,6 +1,8 @@
 from ultralytics import YOLO
 import os
 from typing import Tuple
+from PIL import Image
+import numpy as np
 
 
 class ImageSegmentation:
@@ -12,6 +14,9 @@ class ImageSegmentation:
         """
         self.model = YOLO(model_path)
         self.detections_by_class_dict = dict()
+        self.image_detections_mask = None  # All the classes for each pixel
+        # Class codes from the model, can be used in other modules
+        self.image_class_mask_codes = dict()
 
     def segment_classes(self, image_path: str) -> bool:
         """Predicts the segmentation masks, classes and boxes for the given image.
@@ -22,16 +27,34 @@ class ImageSegmentation:
         Returns:
             bool: True if masks and boxes were detected, False otherwise
         """
+        # Load the image to get the dimensions
+        image = Image.open(image_path)
+        image_width, image_height = image.size
+        # If image is not 640x640, resize it
+        if image_width != 640 or image_height != 640:
+            image = image.resize((640, 640), Image.Resampling.LANCZOS)
+            image_width, image_height = image.size
+
+        # Initialize the global mask
+        self.image_detections_mask = np.zeros(
+            (image_height, image_width), dtype=np.uint8)
+
         # Predict detections in the image
-        results = self.model.predict(source=image_path, show=True, save=False, conf=0.2,
+        results = self.model.predict(source=image, show=False, save=False, conf=0.2,
                                      line_width=1, save_crop=False, save_txt=False,
-                                     show_labels=True, show_conf=True)
+                                     show_labels=False, show_conf=False)
 
         # Check if the model has detected any masks or boxes
         if results[0].masks is None or results[0].boxes is None:
             print("No masks or boxes detected.")
             return False
 
+        # Build the class codes dictionary from the names
+        self.image_class_mask_codes["background"] = 0
+        for i, name in enumerate(results[0].names.values()):
+            self.image_class_mask_codes[name] = i + 1
+
+        # Iterate through the results and store the masks, boxes and confidences
         for result in results:
             for i in range(len(result.boxes)):
                 # Extract info
@@ -49,6 +72,11 @@ class ImageSegmentation:
                 self.detections_by_class_dict[class_name]["boxes"].append(box)
                 self.detections_by_class_dict[class_name]["confidences"].append(
                     conf)
+
+                # Save the mask in the global mask with the proper detection code
+                mask_region = mask.astype(bool)
+                class_code = self.image_class_mask_codes[class_name]
+                self.image_detections_mask[mask_region] = class_code
         return True
 
     def get_detections_by_class(self, class_name: str) -> Tuple[list, list, list]:
@@ -69,10 +97,28 @@ class ImageSegmentation:
             print(f"No detections found for class: {class_name}")
             return [], [], []
 
+    def get_detections_codes(self) -> dict:
+        """Returns the class codes dictionary.
+
+        Returns:
+            dict: class codes dictionary
+        """
+        return self.image_class_mask_codes
+
+    def get_detections_mask(self) -> np.ndarray:
+        """Returns the global detections mask.
+
+        Returns:
+            np.ndarray: global detections mask
+        """
+        return self.image_detections_mask
+
     def reset_detections(self) -> None:
         """Resets the detections dictionary.
         """
         self.detections_by_class_dict = dict()
+        self.image_class_mask_codes = dict()
+        self.image_detections_mask = None
 
 
 if __name__ == "__main__":
@@ -88,6 +134,15 @@ if __name__ == "__main__":
         print(f"Detected {len(boxes)} boxes for class {class_name}.")
         print(f"Detected {len(masks)} masks for class {class_name}.")
         print(f"Confidences: {confidences}")
+        # Get the class codes
+        class_codes = segmentation_model.get_detections_codes()
+        print(f"Class codes: {class_codes}")
+        # Get the global detections mask
+        classes_mask = segmentation_model.get_detections_mask()
+        # Convert the mask to PIL, apply scale to 255 and show
+        mask_image_pil = Image.fromarray(classes_mask.astype(
+            np.uint8) * 255/np.max(classes_mask))
+        mask_image_pil.show()
         # Optionally, reset detections
         segmentation_model.reset_detections()
     else:
