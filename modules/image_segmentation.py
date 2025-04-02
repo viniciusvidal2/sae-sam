@@ -17,6 +17,7 @@ class ImageSegmentation:
         self.image_detections_mask = None  # All the classes for each pixel
         # Class codes from the model, can be used in other modules
         self.image_class_mask_codes = dict()
+        self.image_class_mask_codes["background"] = 0
 
     def segment_classes(self, image_path: str) -> bool:
         """Predicts the segmentation masks, classes and boxes for the given image.
@@ -50,7 +51,6 @@ class ImageSegmentation:
             return False
 
         # Build the class codes dictionary from the names
-        self.image_class_mask_codes["background"] = 0
         for i, name in enumerate(results[0].names.values()):
             self.image_class_mask_codes[name] = i + 1
 
@@ -74,10 +74,25 @@ class ImageSegmentation:
                     conf)
 
                 # Save the mask in the global mask with the proper detection code
-                mask_region = mask.astype(bool)
-                class_code = self.image_class_mask_codes[class_name]
-                self.image_detections_mask[mask_region] = class_code
+                self.draw_detection_in_global_mask(mask, class_name)
         return True
+
+    def draw_detection_in_global_mask(self, mask: np.ndarray, class_name: str) -> None:
+        """Draws a single detection in the global mask.
+        Args:
+            mask (np.ndarray): mask of the detection
+            class_name (str): name of the class
+        """
+        mask_region = mask.astype(bool)
+        class_code = self.image_class_mask_codes[class_name]
+        for i in range(mask.shape[0]):
+            for j in range(mask.shape[1]):
+                # If the pixel is already marked as sedimento or macrofita, skip it
+                if self.image_detections_mask[i, j] == self.image_class_mask_codes["sedimento"] or self.image_detections_mask[i, j] == self.image_class_mask_codes["macrofita"]:
+                    continue
+                # If the pixel is part of the mask, set it to the class code
+                if mask_region[i, j]:
+                    self.image_detections_mask[i, j] = class_code
 
     def get_detections_by_class(self, class_name: str) -> Tuple[list, list, list]:
         """Returns the detections for a specific class.
@@ -118,13 +133,14 @@ class ImageSegmentation:
         """
         self.detections_by_class_dict = dict()
         self.image_class_mask_codes = dict()
+        self.image_class_mask_codes["background"] = 0
         self.image_detections_mask = None
 
 
 if __name__ == "__main__":
     # Sample usage
-    model_path = "runs/segment/train2/weights/best.pt"
-    image_path = "/home/grin/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"
+    model_path = "runs/segment/train_colunas/weights/best.pt"
+    image_path = "/home/vini/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"
 
     segmentation_model = ImageSegmentation(model_path)
     if segmentation_model.segment_classes(image_path):
@@ -138,10 +154,10 @@ if __name__ == "__main__":
         class_codes = segmentation_model.get_detections_codes()
         print(f"Class codes: {class_codes}")
         # Get the global detections mask
-        classes_mask = segmentation_model.get_detections_mask()
+        classes_mask = segmentation_model.get_detections_mask().astype(np.float32)
         # Convert the mask to PIL, apply scale to 255 and show
-        mask_image_pil = Image.fromarray(classes_mask.astype(
-            np.uint8) * 255/np.max(classes_mask))
+        mask_image_pil = Image.fromarray(
+            (classes_mask * 255/np.max(classes_mask)).astype(np.uint8))
         mask_image_pil.show()
         # Optionally, reset detections
         segmentation_model.reset_detections()
