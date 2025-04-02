@@ -1,5 +1,6 @@
 import numpy as np
 from PIL import Image
+import os
 
 
 class ImageRectification:
@@ -17,17 +18,15 @@ class ImageRectification:
         self.grid_width_px = int(grid_width_m / meters_pixel_ratio)
         self.collumn_width_px = int(collumn_width_m / meters_pixel_ratio)
         self.rectified_image = None
-        self.grid_boxes = []
         self.collumn_boxes = []
 
     def snip_rectify_image(self, image: np.ndarray) -> np.ndarray:
-        if not self.grid_boxes or not self.collumn_boxes:
+        if not self.collumn_boxes:
             raise ValueError(
-                "Grid and column boxes must be set before rectifying the image.")
+                "Column boxes must be set before rectifying the image.")
 
         # Sort the boxes and the type they belong to so we can rectify the image
-        boxes, types = self.sort_detected_boxes(
-            self.grid_boxes, self.collumn_boxes)
+        boxes, types = self.sort_enhance_detected_boxes(self.collumn_boxes)
 
         # Define the highest and lowest points of the grid, and update the boxes to match them
         grid_lowest_point = image.shape[0]
@@ -50,16 +49,26 @@ class ImageRectification:
         self.rectified_image = self.rectified_image[:, 1:, :]
         return self.rectified_image
 
-    def sort_detected_boxes(self, grid_boxes: list, collumn_boxes: list) -> tuple:
-        """Sorts the detected boxes and their types.
+    def sort_enhance_detected_boxes(self, collumn_boxes: list) -> tuple:
+        """Sorts the detected boxes and their types. Creates grid boxes in between the collumn boxes.
 
         Args:
-            grid_boxes (list): List of grid boxes
             collumn_boxes (list): List of collumn boxes
 
         Returns:
             tuple: Sorted boxes and their types
         """
+        # Sort the collumn boxes by their x-coordinates
+        collumn_boxes = sorted(collumn_boxes, key=lambda x: x[0])
+        # Create grid boxes between the collumn boxes
+        grid_boxes = []
+        for i in range(len(collumn_boxes) - 1):
+            left_box = collumn_boxes[i]
+            right_box = collumn_boxes[i + 1]
+            # Create a grid box between the two collumn boxes
+            grid_box = [
+                int(left_box[2]), int(left_box[1]), int(right_box[0]), int(right_box[3])]
+            grid_boxes.append(grid_box)
         # Sort the boxes by their x-coordinates and assign the proper types in the same order
         boxes = grid_boxes + collumn_boxes
         types = ['grid'] * len(grid_boxes) + ['collumn'] * len(collumn_boxes)
@@ -93,14 +102,30 @@ class ImageRectification:
         """
         return self.rectified_image
 
-    def set_detected_boxes(self, grid_boxes: list, collumn_boxes: list) -> None:
-        """Sets the detected boxes for the grid and collumn.
+    def get_original_image_section(self, image: np.ndarray) -> np.ndarray:
+        """Returns the original image section based on the detected boxes.
 
         Args:
-            grid_boxes (list): List of grid boxes
+            image (np.ndarray): Original image
+
+        Returns:
+            np.ndarray: Original image section
+        """
+        if not self.collumn_boxes:
+            raise ValueError(
+                "Column boxes must be set before getting the original image section.")
+
+        collumn_boxes = sorted(self.collumn_boxes, key=lambda x: x[0])
+        section = image[collumn_boxes[0][1]:collumn_boxes[-1][3],
+                        collumn_boxes[0][0]:collumn_boxes[-1][2]]
+        return section
+
+    def set_detected_boxes(self, collumn_boxes: list) -> None:
+        """Sets the detected boxes for the collumns.
+
+        Args:
             collumn_boxes (list): List of collumn boxes
         """
-        self.grid_boxes = grid_boxes
         self.collumn_boxes = collumn_boxes
 
     def set_image_real_params(self, grid_width_m: float, collumn_width_m: float, meters_pixel_ratio: float) -> None:
@@ -124,13 +149,15 @@ if __name__ == "__main__":
     rectifier = ImageRectification(
         grid_width_m, collumn_width_m, meters_pixel_ratio)
     # Load an image
-    image = np.array(Image.open(
-        "/home/grin/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"))
+    image = np.array(Image.open(os.path.join(os.getenv("HOME"), "yolo", "full_train_set",
+                     "train", "images", "snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")))
     # Set detected boxes (example values)
-    grid_boxes = [[100, 50, 200, 150], [300, 50, 400, 150]]
     collumn_boxes = [[50, 200, 150, 300], [250, 200, 350, 300]]
-    rectifier.set_detected_boxes(grid_boxes, collumn_boxes)
+    rectifier.set_detected_boxes(collumn_boxes)
+    # Get the original image section based on the detected boxes
+    original_image_section = rectifier.get_original_image_section(image)
     # Rectify the image
     rectified_image = rectifier.snip_rectify_image(image)
-    # Show the rectified image
+    # Show the original and rectified image
+    Image.fromarray(original_image_section).show()
     Image.fromarray(rectified_image).show()
