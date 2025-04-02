@@ -19,29 +19,29 @@ class ImageSegmentation:
         self.image_class_mask_codes = dict()
         self.image_class_mask_codes["background"] = 0
 
-    def segment_classes(self, image_path: str) -> bool:
+    def segment_classes(self, image: np.ndarray) -> bool:
         """Predicts the segmentation masks, classes and boxes for the given image.
 
         Args:
-            image_path (str): path to the image
+            image_path (np.ndarray): original image
 
         Returns:
             bool: True if masks and boxes were detected, False otherwise
         """
         # Load the image to get the dimensions
-        image = Image.open(image_path)
-        image_width, image_height = image.size
+        image_pil = Image.fromarray(image)
+        image_width, image_height = image_pil.size
         # If image is not 640x640, resize it
         if image_width != 640 or image_height != 640:
-            image = image.resize((640, 640), Image.Resampling.LANCZOS)
-            image_width, image_height = image.size
+            image_pil = image_pil.resize((640, 640), Image.Resampling.LANCZOS)
+            image_width, image_height = 640, 640
 
         # Initialize the global mask
         self.image_detections_mask = np.zeros(
             (image_height, image_width), dtype=np.uint8)
 
         # Predict detections in the image
-        results = self.model.predict(source=image, show=False, save=False, conf=0.2,
+        results = self.model.predict(source=image_pil, show=False, save=False, conf=0.2,
                                      line_width=1, save_crop=False, save_txt=False,
                                      show_labels=False, show_conf=False)
 
@@ -141,9 +141,10 @@ if __name__ == "__main__":
     # Sample usage
     model_path = "runs/segment/train_colunas/weights/best.pt"
     image_path = "/home/vini/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"
+    image = np.array(Image.open(image_path))
 
     segmentation_model = ImageSegmentation(model_path)
-    if segmentation_model.segment_classes(image_path):
+    if segmentation_model.segment_classes(image):
         class_name = "sedimento"
         masks, boxes, confidences = segmentation_model.get_detections_by_class(
             class_name)
