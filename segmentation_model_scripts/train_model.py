@@ -11,7 +11,7 @@ def main():
     # Set the dataset subfolder in the settings
     dataset_subfolder = "full_train_set"
     SETTINGS['datasets_dir'] = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), dataset_subfolder)
+        os.path.dirname(os.path.abspath(__file__)), "..", dataset_subfolder)
     print(f"Dataset subfolder set to: {SETTINGS['datasets_dir']}")
 
     # Train the model
