@@ -21,6 +21,17 @@ class ImageRectification:
         self.collumn_boxes = []
 
     def snip_rectify_image(self, image: np.ndarray) -> np.ndarray:
+        """Snips the region of interest and rectifies the content based on the detected boxes.
+
+        Args:
+            image (np.ndarray): input image
+
+        Raises:
+            ValueError: We must set the collumn boxes before rectifying the image
+
+        Returns:
+            np.ndarray: rectified image
+        """
         if not self.collumn_boxes:
             raise ValueError(
                 "Column boxes must be set before rectifying the image.")
