@@ -43,11 +43,12 @@ def volume_pipe():
         _, macrofitas_boxes, _ = image_segmentation.get_detections_by_class(class_name="macrofita")
         if not macrofitas_boxes:
             raise ValueError("Failed to find macrofitas in the image.")
-        for box in macrofitas_boxes:
-            # Estimate the volume of each macrofita group
-            volume = volume_estimation.estimate_blocking_volume(
-                image=rectified_image_resized, box=box, mask=global_classes_mask, class_name="macrofita", debug=True)
-            print(f"Estimated volume: {volume} m^3")
+        box = macrofitas_boxes[0]
+        # for box in macrofitas_boxes:
+        # Estimate the volume of each macrofita group
+        volume = volume_estimation.estimate_blocking_volume(
+            image=rectified_image_resized, box=box, mask=global_classes_mask, class_name="macrofita", debug=True)
+        print(f"Estimated volume: {volume} m^3")
 
 
 if __name__ == "__main__":

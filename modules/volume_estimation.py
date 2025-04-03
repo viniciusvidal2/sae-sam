@@ -55,10 +55,13 @@ class VolumeEstimation:
             rgb_image=image_bbox, class_name=class_name)
 
         # Obtain the estimated plane for the grid point cloud
-        grid_plane_model, _ = grid_ptc.segment_plane(
-            distance_threshold=1, ransac_n=50, num_iterations=1000)
+        grid_plane_model, plane_points_ptc = self.estimate_original_grid_plane(
+            grid_ptc=grid_ptc, n=100)
         plane_normal = grid_plane_model[:3]
         plane_d = grid_plane_model[3]
+        # Make sure the normal is pointing towards negative z
+        if plane_normal[2] > 0:
+            plane_normal = -plane_normal
         if debug:
             # Create a point cloud for the estimated plane
             plane_ptc = self.create_plane_ptc(plane_model=grid_plane_model)
@@ -67,10 +70,10 @@ class VolumeEstimation:
             class_ptc_debug = deepcopy(class_ptc)
             class_ptc_debug.paint_uniform_color([1, 0, 0])
             o3d.visualization.draw_geometries(
-                [grid_ptc, class_ptc_debug, axis, plane_ptc])
+                [grid_ptc, class_ptc_debug, axis, plane_ptc, plane_points_ptc])
 
-        # Get the rotation matrix to align the plane normal with the Z axis
-        z_axis = np.array([0, 0, 1])
+        # Get the rotation matrix to align the plane normal with the negative Z axis
+        z_axis = np.array([0, 0, -1])
         rotation_matrix = self.get_rotation_matrix_from_vectors(
             source_vector=plane_normal, target_vector=z_axis)
         # Rotate the point clouds to align with the Z axis
@@ -96,6 +99,19 @@ class VolumeEstimation:
             pixel_res=pixel_res, ptc=class_ptc)
 
         return class_volume
+    
+    def estimate_original_grid_plane(self, grid_ptc: o3d.geometry.PointCloud, n: int) -> Tuple:
+        # Get the n points that are the furthest away using the z coordinate
+        likely_grid_plane_points = sorted(np.array(grid_ptc.points), key=lambda x: x[2], reverse=True)[:n]
+        grid_plane_ptc = o3d.geometry.PointCloud()
+        grid_plane_ptc.points = o3d.utility.Vector3dVector(np.array(likely_grid_plane_points))
+        # Get the plane model using the points
+        plane_model, inliers = grid_plane_ptc.segment_plane(
+            distance_threshold=5, ransac_n=30, num_iterations=1000)
+        # Get the ptc with inliers
+        plane_ptc = grid_ptc.select_by_index(inliers)
+        return plane_model, plane_ptc.paint_uniform_color([0, 1, 0])
+
 
     def get_rotation_matrix_from_vectors(self, source_vector: np.ndarray, target_vector: np.ndarray) -> np.ndarray:
         """
