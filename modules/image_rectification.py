@@ -41,7 +41,7 @@ class ImageRectification:
 
         # Define the highest and lowest points of the grid, and update the boxes to match them
         grid_lowest_point = image.shape[0]
-        grid_highest_point = np.min(np.array([box[1] for box in boxes]))
+        grid_highest_point = int(np.min(np.array([box[1] for box in boxes])))
         for box in boxes:
             box[1] = int(grid_highest_point)
             box[3] = int(grid_lowest_point)
@@ -137,7 +137,10 @@ class ImageRectification:
         Args:
             collumn_boxes (list): List of collumn boxes
         """
-        self.collumn_boxes = collumn_boxes
+        collumn_boxes_int = []
+        for box in collumn_boxes:
+            collumn_boxes_int.append([int(p) for p in box])
+        self.collumn_boxes = self.filter_colliding_boxes(collumn_boxes_int)
 
     def set_image_real_params(self, grid_width_m: float, collumn_width_m: float, meters_pixel_ratio: float) -> None:
         """Sets the real parameters of the image.
@@ -150,6 +153,39 @@ class ImageRectification:
         self.grid_width_m = grid_width_m
         self.collumn_width_m = collumn_width_m
         self.meters_pixel_ratio = meters_pixel_ratio
+
+    def filter_colliding_boxes(self, boxes: list) -> list:
+        """
+        Filters a list of bounding boxes, removing the smallest area box in each collision.
+
+        Args:
+            boxes (list): A list of bounding boxes, where each box is represented as [x1, y1, x2, y2].
+
+        Returns:
+            A list of non-colliding bounding boxes.
+        """
+        non_colliding_boxes = []
+        removed_indices = set()
+
+        for i, box1 in enumerate(boxes):
+            if i in removed_indices:
+                continue
+            is_colliding = False
+            for j, box2 in enumerate(boxes):
+                if i == j or j in removed_indices:
+                    continue
+                is_colliding = not (
+                    box1[2] < box2[0] or box1[0] > box2[2] or box1[3] < box2[1] or box1[1] > box2[3])
+                if is_colliding:
+                    # Determine which box to remove based on area
+                    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+                    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+                    removed_indices.add(i if area1 < area2 else j)
+                    break
+
+            if not is_colliding:
+                non_colliding_boxes.append(box1)
+        return non_colliding_boxes
 
 
 if __name__ == "__main__":

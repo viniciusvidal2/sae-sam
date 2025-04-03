@@ -5,3 +5,4 @@
 /yolo11m.pt
 /yolo11s-seg.pt
 /yolo11x-seg.pt
+/modules/__pycache__
