@@ -4,18 +4,20 @@ import os
 
 
 class ImageRectification:
-    def __init__(self, grid_width_m: float, collumn_width_m: float, meters_pixel_ratio: float) -> None:
+    def __init__(self, barrier_dimensions: dict, undistort_meters_pixel_ratio: float) -> None:
         """This class is used to rectify the image in the X direction, given the varied boat velocity when acquiring the image.
 
         Args:
-            grid_width_m (float): grid width in meters
-            collumn_width_m (float): collumn width in meters
-            meters_pixel_ratio (float): ratio of meters per pixel
+            barrier_dimensions (dict): Dictionary containing the grid and collumn dimensions in meters
+            undistort_meters_pixel_ratio (float): Ratio of meters per pixel in the width direction for undistortion
         """
-        self.grid_width_m = grid_width_m
-        self.collumn_width_m = collumn_width_m
-        self.meters_pixel_ratio = meters_pixel_ratio
+        self.grid_width_m = barrier_dimensions["grid_width_m"]
+        self.grid_height_m = barrier_dimensions["grid_height_m"]
+        self.collumn_width_m = barrier_dimensions["collumn_width_m"]
+        self.meters_pixel_ratio = undistort_meters_pixel_ratio
         self.grid_width_px = int(grid_width_m / meters_pixel_ratio)
+        self.grid_height_px = None
+        self.row_direction_meters_pixel_ratio = None
         self.collumn_width_px = int(collumn_width_m / meters_pixel_ratio)
         self.rectified_image = None
         self.collumn_boxes = []
@@ -131,28 +133,28 @@ class ImageRectification:
                         collumn_boxes[0][0]:collumn_boxes[-1][2]]
         return section
 
-    def set_detected_boxes(self, collumn_boxes: list) -> None:
-        """Sets the detected boxes for the collumns.
+    def set_detected_boxes(self, collumn_boxes: list, barrier_boxes: list) -> None:
+        """Sets the detected boxes for the collumns and the main grid.
 
         Args:
             collumn_boxes (list): List of collumn boxes
+            barrier_boxes (list): List of grid boxes
         """
+        # Get organized collumn boxes
         collumn_boxes_int = []
         for box in collumn_boxes:
             collumn_boxes_int.append([int(p) for p in box])
         self.collumn_boxes = self.filter_colliding_boxes(collumn_boxes_int)
-
-    def set_image_real_params(self, grid_width_m: float, collumn_width_m: float, meters_pixel_ratio: float) -> None:
-        """Sets the real parameters of the image.
-
-        Args:
-            grid_width_m (float): Grid width in meters
-            collumn_width_m (float): Collumn width in meters
-            meters_pixel_ratio (float): Ratio of meters per pixel
-        """
-        self.grid_width_m = grid_width_m
-        self.collumn_width_m = collumn_width_m
-        self.meters_pixel_ratio = meters_pixel_ratio
+        # Set the barrier box as the biggest box
+        self.barrier_box = barrier_boxes[0]
+        barrier_box_area = (barrier_boxes[0][2] - barrier_boxes[0][0]) * \
+            (barrier_boxes[0][3] - barrier_boxes[0][1])
+        for box in barrier_boxes:
+            box_area = (box[2] - box[0]) * (box[3] - box[1])
+            if box_area > barrier_box_area:
+                barrier_box_area = box_area
+                self.barrier_box = box
+        self.barrier_box = [int(p) for p in self.barrier_box]
 
     def filter_colliding_boxes(self, boxes: list) -> list:
         """
@@ -186,6 +188,21 @@ class ImageRectification:
             if not is_colliding:
                 non_colliding_boxes.append(box1)
         return non_colliding_boxes
+
+    def get_meters_pixel_ratio(self) -> dict:
+        """Returns the meters per pixel ratio for both directions.
+
+        Returns:
+            dict: meters per pixel ratio for width and height
+        """
+        if self.barrier_box is None:
+            raise ValueError("Barrier box is not set.")
+        self.grid_height_px = abs(self.barrier_box[3] - self.barrier_box[1])
+        self.row_direction_meters_pixel_ratio = self.grid_height_m / self.grid_height_px
+        return {
+            "width": self.meters_pixel_ratio,
+            "height": self.row_direction_meters_pixel_ratio
+        }
 
 
 if __name__ == "__main__":
