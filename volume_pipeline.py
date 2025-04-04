@@ -9,7 +9,7 @@ from modules.volume_estimation import VolumeEstimation
 def volume_pipe():
     # Set the parameters
     seg_model_path = "runs/segment/train_colunas/weights/best.pt"
-    image_path = "/home/grin/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"
+    image_path = os.path.join(os.getenv("HOME"), "yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
     grid_width_m = 10
     collumn_width_m = 3
     meters_pixel_ratio = 0.1
@@ -43,12 +43,12 @@ def volume_pipe():
         _, macrofitas_boxes, _ = image_segmentation.get_detections_by_class(class_name="macrofita")
         if not macrofitas_boxes:
             raise ValueError("Failed to find macrofitas in the image.")
-        box = macrofitas_boxes[0]
-        # for box in macrofitas_boxes:
-        # Estimate the volume of each macrofita group
-        volume = volume_estimation.estimate_blocking_volume(
-            image=rectified_image_resized, box=box, mask=global_classes_mask, class_name="macrofita", debug=True)
-        print(f"Estimated volume: {volume} m^3")
+        for box in macrofitas_boxes:
+            # box = macrofitas_boxes[0]
+            # Estimate the volume of each macrofita group
+            volume = volume_estimation.estimate_blocking_volume(
+                image=rectified_image_resized, box=box, mask=global_classes_mask, class_name="macrofita", debug=True)
+            print(f"Estimated volume: {volume} m^3")
 
 
 if __name__ == "__main__":
