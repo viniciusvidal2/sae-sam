@@ -57,21 +57,12 @@ class VolumeEstimation:
         # Obtain the estimated plane for the grid point cloud
         grid_plane_model, plane_points_ptc = self.estimate_original_grid_plane(
             grid_ptc=grid_ptc)
-        if debug:
-            # Create a point cloud for the estimated plane
-            plane_ptc = self.create_plane_ptc(plane_model=grid_plane_model)
-            axis = o3d.geometry.TriangleMesh.create_coordinate_frame(
-                size=50, origin=[0, 0, 0])
-            class_ptc_debug = deepcopy(class_ptc)
-            class_ptc_debug.paint_uniform_color([1, 0, 0])
-            o3d.visualization.draw_geometries(
-                [grid_ptc, class_ptc_debug, axis, plane_ptc, plane_points_ptc])
 
         # Get the grid point cloud aligned to the plane and the detection class smoothed along it
         grid_aligned_ptc = self.create_grid_aligned_ptc(
-                grid_ptc=grid_ptc, plane_model=grid_plane_model)
+            grid_ptc=grid_ptc, plane_model=grid_plane_model)
         class_aligned_ptc = self.smooth_class_from_grid_plane(
-            grid_ptc=grid_aligned_ptc, class_ptc=class_ptc)
+            grid_ptc=grid_aligned_ptc, class_ptc=class_ptc, plane_model=grid_plane_model)
         if debug:
             axis = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=50, origin=[0, 0, 0])
@@ -227,13 +218,7 @@ class VolumeEstimation:
         for point in np.array(ptc.points):
             projection_distance, projected_point = self.point_plane_distance_and_projection(
                 point=point, plane_model=plane_model)
-            # If the angle between the projection to the point and the projection to the origin is greater than 90 degrees,
-            # then the point is outside the volume area
-            projection_point_vector = projected_point - point
-            projection_origin_vector = projected_point - np.array([0, 0, 0])
-            angle = np.arccos(np.dot(projection_point_vector, projection_origin_vector) /
-                              (np.linalg.norm(projection_point_vector) * np.linalg.norm(projection_origin_vector)))
-            if angle < np.pi/2:
+            if not self.point_hidden_behind_grid_plane(point=projected_point, plane_model=plane_model):
                 # Calculate the volume of the pixel
                 volume += pixel_res["x_res"] * pixel_res["y_res"] * \
                     pixel_res["z_res"] * projection_distance
@@ -281,31 +266,60 @@ class VolumeEstimation:
         out_ptc.colors = o3d.utility.Vector3dVector(np.array(projected_colors))
         return out_ptc
 
-    def smooth_class_from_grid_plane(self, grid_ptc: o3d.geometry.PointCloud, class_ptc: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
+    def smooth_class_from_grid_plane(self, grid_ptc: o3d.geometry.PointCloud, class_ptc: o3d.geometry.PointCloud, plane_model: list) -> o3d.geometry.PointCloud:
         """Smooths the class point cloud based on the grid plane
 
         Args:
             grid_ptc (o3d.geometry.PointCloud): The grid point cloud
             class_ptc (o3d.geometry.PointCloud): The class point cloud
+            plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
             o3d.geometry.PointCloud: The output smoothed class point cloud
         """
         smoothed_points = []
+        # Use both ptcs to find neighbors and smooth the grid result
         full_ptc = class_ptc + grid_ptc
         full_ptc_points = np.array(full_ptc.points)
         kdtree = o3d.geometry.KDTreeFlann(full_ptc)
         for p in np.array(class_ptc.points):
-            # Finds the 10 closest points in the grid point cloud
+            # If point is hidden behind the grid plane, use the projected point as smoothed one
+            if self.point_hidden_behind_grid_plane(point=p, plane_model=plane_model):
+                _, p = self.point_plane_distance_and_projection(
+                    point=p, plane_model=plane_model)
+                smoothed_points.append(p)
+                continue
+            # Finds the n closest points in the grid point cloud
             [_, idx, _] = kdtree.search_knn_vector_3d(p, 100)
             # Calculate average as the smoothed point
             smoothed_point = p
             for i in range(len(idx)):
-                smoothed_point += full_ptc_points[idx[i]] 
+                smoothed_point += full_ptc_points[idx[i]]
             smoothed_points.append(smoothed_point/(len(idx)+1))
         # Create a point cloud for the smoothed points
-        smoothed_ptc = o3d.geometry.PointCloud()
-        smoothed_ptc.points = o3d.utility.Vector3dVector(np.array(smoothed_points))
-        smoothed_ptc.colors = o3d.utility.Vector3dVector(
+        smoothed_class_ptc = o3d.geometry.PointCloud()
+        smoothed_class_ptc.points = o3d.utility.Vector3dVector(
+            np.array(smoothed_points))
+        smoothed_class_ptc.colors = o3d.utility.Vector3dVector(
             np.array(class_ptc.colors))
-        return smoothed_ptc
+        return smoothed_class_ptc
+
+    def point_hidden_behind_grid_plane(self, point: np.ndarray, plane_model: list) -> bool:
+        """Checks if a point is hidden behind the grid plane
+
+        Args:
+            point (np.ndarray): The point to check
+            plane_model (list): The plane model coefficients
+
+        Returns:
+            bool: True if the point is hidden behind the grid plane, False otherwise
+        """
+        # If the angle between the projection to the point and the projection to the origin is greater than 90 degrees,
+        # then the point is behind the grid plane
+        _, projected_point = self.point_plane_distance_and_projection(
+            point=point, plane_model=plane_model)
+        projection_point_vector = projected_point - point
+        projection_origin_vector = projected_point - np.array([0, 0, 0])
+        angle = np.arccos(np.dot(projection_point_vector, projection_origin_vector) /
+                          (np.linalg.norm(projection_point_vector) * np.linalg.norm(projection_origin_vector)))
+        return angle > np.pi/2
