@@ -64,6 +64,15 @@ class ImageSegmentation:
                 conf = result.boxes[i].conf[0].item()
                 mask = result.masks.data[i].cpu().numpy()
 
+                # Resize the mask to the original image size
+                mask = np.array(Image.fromarray(mask).resize(
+                    (image_width, image_height), Image.Resampling.NEAREST))
+                # Resize the box to the original image size
+                box[0] = int(box[0] * image_width / 640)
+                box[1] = int(box[1] * image_height / 640)
+                box[2] = int(box[2] * image_width / 640)
+                box[3] = int(box[3] * image_height / 640)
+
                 # Store in dictionary
                 cls_id = int(result.boxes[i].cls[0].item())
                 class_name = result.names[cls_id]
@@ -96,23 +105,22 @@ class ImageSegmentation:
                 if mask_region[i, j]:
                     self.image_detections_mask[i, j] = class_code
 
-    def get_detections_by_class(self, class_name: str) -> Tuple[list, list, list]:
+    def get_detections_by_class(self, class_name: str) -> Tuple[list, list]:
         """Returns the detections for a specific class.
 
         Args:
             class_name (str): name of the class
 
         Returns:
-            Tuple[list, list, list]: masks, boxes and confidences for the specified class
+            Tuple[list, list]: boxes and confidences for the specified class
         """
         if class_name in self.detections_by_class_dict:
-            masks = self.detections_by_class_dict[class_name]["masks"]
             boxes = self.detections_by_class_dict[class_name]["boxes"]
             confidences = self.detections_by_class_dict[class_name]["confidences"]
-            return masks, boxes, confidences
+            return boxes, confidences
         else:
             print(f"No such class in the model definitions: {class_name}")
-            return [], [], []
+            return [], []
 
     def get_detections_codes(self) -> dict:
         """Returns the class codes dictionary.
@@ -160,10 +168,9 @@ if __name__ == "__main__":
     segmentation_model = ImageSegmentation(model_path)
     if segmentation_model.segment_classes(image):
         class_name = "sedimento"
-        masks, boxes, confidences = segmentation_model.get_detections_by_class(
+        boxes, confidences = segmentation_model.get_detections_by_class(
             class_name)
         print(f"Detected {len(boxes)} boxes for class {class_name}.")
-        print(f"Detected {len(masks)} masks for class {class_name}.")
         print(f"Confidences: {confidences}")
         # Get the class codes
         class_codes = segmentation_model.get_detections_codes()

@@ -21,7 +21,7 @@ def volume_pipe():
     image_segmentation = ImageSegmentation(model_path=seg_model_path)
     collumn_boxes = []
     if image_segmentation.segment_classes(image=image):
-        _, collumn_boxes, _ = image_segmentation.get_detections_by_class(class_name="coluna")
+        collumn_boxes, _ = image_segmentation.get_detections_by_class(class_name="coluna")
     else:
         raise ValueError("Failed to find detections in the image.")
     
@@ -40,7 +40,7 @@ def volume_pipe():
         rectified_image_resized = image_segmentation.get_resized_image()
         # Get the global mask and macrofitas boxes
         global_classes_mask = image_segmentation.get_detections_mask()  # This mask has proper IDs
-        _, macrofitas_boxes, _ = image_segmentation.get_detections_by_class(class_name="macrofita")
+        macrofitas_boxes, _ = image_segmentation.get_detections_by_class(class_name="macrofita")
         if not macrofitas_boxes:
             raise ValueError("Failed to find macrofitas in the image.")
         for box in macrofitas_boxes:
