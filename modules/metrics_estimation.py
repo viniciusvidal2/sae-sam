@@ -32,7 +32,7 @@ class MetricsEstimation:
             Tuple: estimated area and volume of the object
         """
         # Enhance the box by h% in height and w% in width, making sure it does not go outside the image boundaries
-        h, w = 0.1, 0.3
+        h, w = 0.1, 0.1
         box[0] = max(0, int(box[0] - w * (box[2] - box[0])))
         box[1] = max(0, int(box[1] - h * (box[3] - box[1])))
         box[2] = min(image.shape[1], int(box[2] + w * (box[2] - box[0])))
@@ -225,7 +225,8 @@ class MetricsEstimation:
         for point in np.array(ptc.points):
             projection_distance, projected_point = self.point_plane_distance_and_projection(
                 point=point, plane_model=plane_model)
-            if not self.point_hidden_behind_grid_plane(point=projected_point, plane_model=plane_model):
+            # if not self.point_hidden_behind_grid_plane(point=projected_point, plane_model=plane_model):
+            if True:
                 # Calculate the volume of the pixel
                 volume += self.m_per_pixel["x_res"] * self.m_per_pixel["y_res"] * \
                     self.m_per_pixel["z_res"] * projection_distance
@@ -245,9 +246,8 @@ class MetricsEstimation:
         for point in np.array(ptc.points):
             _, projected_point = self.point_plane_distance_and_projection(
                 point=point, plane_model=plane_model)
-            if not self.point_hidden_behind_grid_plane(point=projected_point, plane_model=plane_model):
-                # Calculate the volume of the pixel
-                area += self.m_per_pixel["x_res"] * self.m_per_pixel["y_res"]
+            # Calculate the volume of the pixel
+            area += self.m_per_pixel["x_res"] * self.m_per_pixel["y_res"]
         return area
 
     def create_plane_ptc(self, plane_model: list) -> o3d.geometry.PointCloud:
@@ -309,12 +309,12 @@ class MetricsEstimation:
         full_ptc_points = np.array(full_ptc.points)
         kdtree = o3d.geometry.KDTreeFlann(full_ptc)
         for p in np.array(class_ptc.points):
-            # If point is hidden behind the grid plane, use the projected point as smoothed one
-            if self.point_hidden_behind_grid_plane(point=p, plane_model=plane_model):
-                _, p = self.point_plane_distance_and_projection(
-                    point=p, plane_model=plane_model)
-                smoothed_points.append(p)
-                continue
+            # # If point is hidden behind the grid plane, use the projected point as smoothed one
+            # if self.point_hidden_behind_grid_plane(point=p, plane_model=plane_model):
+            #     _, p = self.point_plane_distance_and_projection(
+            #         point=p, plane_model=plane_model)
+            #     smoothed_points.append(p)
+            #     continue
             # Finds the n closest points in the grid point cloud
             [_, idx, _] = kdtree.search_knn_vector_3d(p, 100)
             # Calculate average as the smoothed point
