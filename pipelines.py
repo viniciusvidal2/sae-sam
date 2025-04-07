@@ -45,7 +45,7 @@ def run_metrics_pipeline(image_path: str, barrier_dimensions: dict, undistort_m_
         rectified_global_classes_mask = image_segmentation.get_detections_mask()
     else:
         raise ValueError("Failed to find detections in the rectified image.")
-    
+
     # Lets estimate the metrics
     metrics_estimation = MetricsEstimation(
         model_name="xingyang1/Distill-Any-Depth-Large-hf", m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
@@ -60,7 +60,7 @@ def run_metrics_pipeline(image_path: str, barrier_dimensions: dict, undistort_m_
             # Estimate the volume of each macrofita group
             print(f"Class: {desired_class}")
             area, volume = metrics_estimation.estimate_blocking_area_volume(
-                image=rectified_image, box=box, mask=rectified_global_classes_mask, class_name=desired_class, debug=False)
+                image=rectified_image, box=box, mask=rectified_global_classes_mask, class_name=desired_class, debug=True)
             print(f"Estimated area: {area} m^2")
             print(f"Estimated volume: {volume} m^3")
 
@@ -69,6 +69,8 @@ if __name__ == "__main__":
     # Sample usage
     image_path = os.path.join(os.getenv(
         "HOME"), "yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
-    barrier_dimensions = {"grid_width": 10, "grid_height": 40, "collumn_width": 3}  # Example dimensions in meters
+    barrier_dimensions = {"grid_width": 10, "grid_height": 40,
+                          "collumn_width": 3}  # Example dimensions in meters
     undistort_m_pixel_ratio = 0.1  # Example meters per pixel ratio
-    run_metrics_pipeline(image_path, barrier_dimensions, undistort_m_pixel_ratio)
+    run_metrics_pipeline(image_path, barrier_dimensions,
+                         undistort_m_pixel_ratio)
