@@ -11,14 +11,15 @@ class ImageRectification:
             barrier_dimensions (dict): Dictionary containing the grid and collumn dimensions in meters
             undistort_meters_pixel_ratio (float): Ratio of meters per pixel in the width direction for undistortion
         """
-        self.grid_width_m = barrier_dimensions["grid_width_m"]
-        self.grid_height_m = barrier_dimensions["grid_height_m"]
-        self.collumn_width_m = barrier_dimensions["collumn_width_m"]
+        self.grid_width_m = barrier_dimensions["grid_width"]
+        self.grid_height_m = barrier_dimensions["grid_height"]
+        self.collumn_width_m = barrier_dimensions["collumn_width"]
         self.meters_pixel_ratio = undistort_meters_pixel_ratio
-        self.grid_width_px = int(grid_width_m / meters_pixel_ratio)
+        self.grid_width_px = int(self.grid_width_m / self.meters_pixel_ratio)
         self.grid_height_px = None
         self.row_direction_meters_pixel_ratio = None
-        self.collumn_width_px = int(collumn_width_m / meters_pixel_ratio)
+        self.collumn_width_px = int(
+            self.collumn_width_m / self.meters_pixel_ratio)
         self.rectified_image = None
         self.collumn_boxes = []
 
@@ -49,8 +50,12 @@ class ImageRectification:
             box[3] = int(grid_lowest_point)
 
         # For each box, rectify according to the desired dimension and add to the output image
-        self.rectified_image = np.ndarray(
-            shape=(grid_lowest_point - grid_highest_point, 1, 3), dtype=np.uint8)
+        if len(image.shape) == 2:
+            self.rectified_image = np.ndarray(
+                shape=(grid_lowest_point - grid_highest_point, 1), dtype=np.uint8)
+        else:
+            self.rectified_image = np.ndarray(
+                shape=(grid_lowest_point - grid_highest_point, 1, image.shape[2]), dtype=np.uint8)
         for box, box_type in zip(boxes, types):
             image_section = image[box[1]:box[3], box[0]:box[2]]
             rectified_section = self.rectify_image_section(
@@ -59,7 +64,7 @@ class ImageRectification:
                 (self.rectified_image, rectified_section))
 
         # Remove the first column of the image, which is empty, and return
-        self.rectified_image = self.rectified_image[:, 1:, :]
+        self.rectified_image = self.rectified_image[:, 1:]
         return self.rectified_image
 
     def sort_enhance_detected_boxes(self, collumn_boxes: list) -> tuple:
@@ -200,8 +205,8 @@ class ImageRectification:
         self.grid_height_px = abs(self.barrier_box[3] - self.barrier_box[1])
         self.row_direction_meters_pixel_ratio = self.grid_height_m / self.grid_height_px
         return {
-            "width": self.meters_pixel_ratio,
-            "height": self.row_direction_meters_pixel_ratio
+            "x_res": self.meters_pixel_ratio,
+            "y_res": self.row_direction_meters_pixel_ratio
         }
 
 

@@ -18,7 +18,6 @@ class ImageSegmentation:
         # Class codes from the model, can be used in other modules
         self.image_class_mask_codes = dict()
         self.image_class_mask_codes["background"] = 0
-        self.resized_image_pil = None  # Image with model input size
 
     def segment_classes(self, image: np.ndarray) -> bool:
         """Predicts the segmentation masks, classes and boxes for the given image.
@@ -30,20 +29,19 @@ class ImageSegmentation:
             bool: True if masks and boxes were detected, False otherwise
         """
         # Load the image to get the dimensions
-        self.resized_image_pil = Image.fromarray(image)
-        image_width, image_height = self.resized_image_pil.size
+        resized_image_pil = Image.fromarray(image)
+        image_width, image_height = resized_image_pil.size
         # If image is not 640x640, resize it
         if image_width != 640 or image_height != 640:
-            self.resized_image_pil = self.resized_image_pil.resize(
+            resized_image_pil = resized_image_pil.resize(
                 (640, 640), Image.Resampling.LANCZOS)
-            image_width, image_height = 640, 640
 
         # Initialize the global mask
         self.image_detections_mask = np.zeros(
             (image_height, image_width), dtype=np.uint8)
 
         # Predict detections in the image
-        results = self.model.predict(source=self.resized_image_pil, show=False, save=False, conf=0.2,
+        results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.2,
                                      line_width=1, save_crop=False, save_txt=False,
                                      show_labels=False, show_conf=False)
 
@@ -145,18 +143,6 @@ class ImageSegmentation:
         self.image_class_mask_codes = dict()
         self.image_class_mask_codes["background"] = 0
         self.image_detections_mask = None
-        self.resized_image_pil = None  # Image with model input size
-
-    def get_resized_image(self) -> np.ndarray:
-        """Returns the resized image.
-
-        Returns:
-            np.ndarray: resized image
-        """
-        if self.resized_image_pil is None:
-            raise ValueError(
-                "Resized image not available. Run segment_classes() first.")
-        return np.array(self.resized_image_pil)
 
 
 if __name__ == "__main__":

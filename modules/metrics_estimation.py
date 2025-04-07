@@ -3,24 +3,22 @@ from PIL import Image
 import numpy as np
 import open3d as o3d
 from typing import Tuple
-from copy import deepcopy
-from scipy.spatial.transform import Rotation
 
 
-class VolumeEstimation:
-    def __init__(self, model_name: str, m_per_pixel: float, class_ids: dict) -> None:
+class MetricsEstimation:
+    def __init__(self, model_name: str, m_per_pixel: dict, class_ids: dict) -> None:
         """This class is used to estimate the volume of objects in an image using a depth estimation model.
 
         Args:
             model_name (str): name of the depth estimation model
-            m_per_pixel (float): meters per pixel ratio
+            m_per_pixel (dict): meters per pixel ratio for x and y directions
             class_ids (dict): Dict of class IDs the model can detect in the form of 'name': code(int)
         """
         self.pipe = pipeline(task="depth-estimation", model=model_name)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids
 
-    def estimate_blocking_volume(self, image: np.ndarray, box: list, mask: np.ndarray, class_name: str, debug: bool = False) -> float:
+    def estimate_blocking_area_volume(self, image: np.ndarray, box: list, mask: np.ndarray, class_name: str, debug: bool = False) -> Tuple:
         """Estimates the volume of objects in the image.
 
         Args:
@@ -31,10 +29,10 @@ class VolumeEstimation:
             debug (bool, optional): if True, shows the debug point clouds. Defaults to False.
 
         Returns:
-            np.ndarray: estimated depth map
+            Tuple: estimated area and volume of the object
         """
         # Enhance the box by h% in height and w% in width, making sure it does not go outside the image boundaries
-        h, w = 0.1, 0.5
+        h, w = 0.1, 0.3
         box[0] = max(0, int(box[0] - w * (box[2] - box[0])))
         box[1] = max(0, int(box[1] - h * (box[3] - box[1])))
         box[2] = min(image.shape[1], int(box[2] + w * (box[2] - box[0])))
@@ -55,7 +53,7 @@ class VolumeEstimation:
             rgb_image=image_bbox, class_name=class_name)
 
         # Obtain the estimated plane for the grid point cloud
-        grid_plane_model, plane_points_ptc = self.estimate_original_grid_plane(
+        grid_plane_model, _ = self.estimate_original_grid_plane(
             grid_ptc=grid_ptc)
 
         # Get the grid point cloud aligned to the plane and the detection class smoothed along it
@@ -70,11 +68,13 @@ class VolumeEstimation:
                 [grid_aligned_ptc, class_aligned_ptc, axis])
 
         # Calculate the volume of the class point cloud based on the discrete integral for each point (pixel)
-        pixel_res = {"x_res": 0.5, "y_res": 0.5}
         class_volume = self.calculate_detection_volume(
-            pixel_res=pixel_res, ptc=class_aligned_ptc, plane_model=grid_plane_model)
+            ptc=class_aligned_ptc, plane_model=grid_plane_model)
+        # Calculate the area of the class point cloud based on the discrete integral for each point (pixel)
+        class_area = self.calculate_detection_area(
+            ptc=class_aligned_ptc, plane_model=grid_plane_model)
 
-        return class_volume
+        return class_area, class_volume
 
     def estimate_original_grid_plane(self, grid_ptc: o3d.geometry.PointCloud) -> Tuple:
         """Estimate the original grid plane using the grid point cloud
@@ -179,6 +179,11 @@ class VolumeEstimation:
         Returns:
             List: grid and desired class point clouds
         """
+        # If input mask and image are not the same size, raise an error
+        if mask.shape[:2] != depth_image.shape[:2] or mask.shape[:2] != rgb_image.shape[:2]:
+            raise ValueError(
+                "Mask, depth image and RGB image must be the same size")
+
         class_id = self.class_ids[class_name]
         barragem_id = self.class_ids["barragem"]
         class_points, class_colors = [], []
@@ -194,6 +199,7 @@ class VolumeEstimation:
                     grid_points.append([col, row, depth_image[row, col]])
                     grid_colors.append(
                         rgb_image[row, col].astype(np.float32)/255)
+
         # Create point clouds for the grid and the class
         class_ptc = o3d.geometry.PointCloud()
         grid_ptc = o3d.geometry.PointCloud()
@@ -203,26 +209,46 @@ class VolumeEstimation:
         grid_ptc.colors = o3d.utility.Vector3dVector(np.array(grid_colors))
         return grid_ptc, class_ptc
 
-    def calculate_detection_volume(self, pixel_res: dict, ptc: o3d.geometry.PointCloud, plane_model: list) -> float:
-        """Calculates the volume of a point cloud that is aligned to the Z axis based on the input pixel resolution
+    def calculate_detection_volume(self, ptc: o3d.geometry.PointCloud, plane_model: list) -> float:
+        """Calculates the volume of a class point cloud that is not hidden behind the grid plane
 
         Args:
-            pixel_res (dict): Resolution for x and y, in terms of meters per pixel (each point comes from a pixel)
             ptc (o3d.geometry.PointCloud): point cloud to calculate the volume for
+            plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
-            float: the estimated volume in meters
+            float: the estimated volume in meters cubed
         """
-        pixel_res["z_res"] = (pixel_res["x_res"] + pixel_res["y_res"])/2
+        self.m_per_pixel["z_res"] = (
+            self.m_per_pixel["x_res"] + self.m_per_pixel["y_res"])/2
         volume = 0
         for point in np.array(ptc.points):
             projection_distance, projected_point = self.point_plane_distance_and_projection(
                 point=point, plane_model=plane_model)
             if not self.point_hidden_behind_grid_plane(point=projected_point, plane_model=plane_model):
                 # Calculate the volume of the pixel
-                volume += pixel_res["x_res"] * pixel_res["y_res"] * \
-                    pixel_res["z_res"] * projection_distance
+                volume += self.m_per_pixel["x_res"] * self.m_per_pixel["y_res"] * \
+                    self.m_per_pixel["z_res"] * projection_distance
         return volume
+
+    def calculate_detection_area(self, ptc: o3d.geometry.PointCloud, plane_model: list) -> float:
+        """Calculates the area of a class point cloud that is not hidden behind the grid plane
+
+        Args:
+            ptc (o3d.geometry.PointCloud): point cloud to calculate the area for
+            plane_model (list): the plane model params ax + by + cz + d = 0
+
+        Returns:
+            float: the estimated area in meters squared
+        """
+        area = 0
+        for point in np.array(ptc.points):
+            _, projected_point = self.point_plane_distance_and_projection(
+                point=point, plane_model=plane_model)
+            if not self.point_hidden_behind_grid_plane(point=projected_point, plane_model=plane_model):
+                # Calculate the volume of the pixel
+                area += self.m_per_pixel["x_res"] * self.m_per_pixel["y_res"]
+        return area
 
     def create_plane_ptc(self, plane_model: list) -> o3d.geometry.PointCloud:
         """Creates a plane point cloud based on the input model
