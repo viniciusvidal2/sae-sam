@@ -54,16 +54,13 @@ def run_metrics_pipeline(image_path: str, barrier_dimensions: dict, undistort_m_
         # Get the global mask and macrofitas boxes
         boxes, _ = image_segmentation.get_detections_by_class(
             class_name=desired_class)
-        # show original image and mask
-        Image.fromarray(rectified_image).show()
-        Image.fromarray(rectified_global_classes_mask).show()
         if not boxes:
             raise ValueError("Failed to find macrofitas in the image.")
         for box in boxes:
             # Estimate the volume of each macrofita group
-            area, volume = metrics_estimation.estimate_blocking_area_volume(
-                image=rectified_image, box=box, mask=rectified_global_classes_mask, class_name="macrofita", debug=False)
             print(f"Class: {desired_class}")
+            area, volume = metrics_estimation.estimate_blocking_area_volume(
+                image=rectified_image, box=box, mask=rectified_global_classes_mask, class_name=desired_class, debug=False)
             print(f"Estimated area: {area} m^2")
             print(f"Estimated volume: {volume} m^3")
 
