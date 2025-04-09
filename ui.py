@@ -13,14 +13,14 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("SAE SAM")
         self.setGeometry(400, 400, 800, 600)
-
+        
         self.setup_background()
         self.setup_buttons()
 
     def setup_background(self):
-        background = QPixmap("resources/saesc1.png")
+        self.background = QPixmap("resources/saesc1.png")
         palette = QPalette()
-        palette.setBrush(QPalette.Window, QBrush(background.scaled(
+        palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
 
