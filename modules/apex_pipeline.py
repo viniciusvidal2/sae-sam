@@ -103,8 +103,8 @@ if __name__ == "__main__":
     # Sample usage
     image_path = os.path.join(os.getenv(
         "HOME"), "yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
-    barrier_dimensions = {"grid_width": 10, "grid_height": 40,
-                          "collumn_width": 3}  # Example dimensions in meters
+    barrier_dimensions = {"grid_width": 15.618, "grid_height": 40,
+                          "collumn_width": 5.232}  # Example dimensions in meters
     undistort_m_pixel_ratio = 0.1  # Example meters per pixel ratio
     # Initialize the pipeline with the given parameters and run it
     pipeline = ApexPipeline(undistort_m_pixel_ratio=undistort_m_pixel_ratio)
