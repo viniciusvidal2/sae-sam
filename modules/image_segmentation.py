@@ -3,6 +3,7 @@ import os
 from typing import Tuple
 from PIL import Image
 import numpy as np
+from matplotlib import colormaps
 
 
 class ImageSegmentation:
@@ -15,6 +16,7 @@ class ImageSegmentation:
         self.model = YOLO(model_path)
         self.detections_by_class_dict = dict()
         self.image_detections_mask = None  # All the classes for each pixel
+        self.masked_original_image = None
         # Class codes from the model, can be used in other modules
         self.image_class_mask_codes = dict()
         self.image_class_mask_codes["background"] = 0
@@ -28,6 +30,9 @@ class ImageSegmentation:
         Returns:
             bool: True if masks and boxes were detected, False otherwise
         """
+        # Start the masked image with the original one
+        self.masked_original_image = image.copy()
+
         # Load the image to get the dimensions
         resized_image_pil = Image.fromarray(image)
         image_width, image_height = resized_image_pil.size
@@ -53,6 +58,10 @@ class ImageSegmentation:
         # Build the class codes dictionary from the names
         for i, name in enumerate(results[0].names.values()):
             self.image_class_mask_codes[name] = i + 1
+
+        # Create colormap from the class codes
+        classes_colormap = self.create_colormap(
+            class_ids=self.image_class_mask_codes, colormap="viridis")
 
         # Iterate through the results and store the masks, boxes and confidences
         for result in results:
@@ -84,7 +93,50 @@ class ImageSegmentation:
 
                 # Save the mask in the global mask with the proper detection code
                 self.draw_detection_in_global_mask(mask, class_name)
+                self.draw_detection_in_original_image(
+                    mask, class_name, classes_colormap, 0.5)
         return True
+
+    def draw_detection_in_original_image(self, mask: np.ndarray, class_name: str, colors: list, color_weight: float) -> None:
+        """Draw the masks on top of the original image
+
+        Args:
+            img (np.ndarray): original image
+            masks (np.ndarray): the list of masks
+            ids (list): list of class ids for each mask
+            colors (list): list of colors for each class
+            color_weight (float): the weight we should use to average each class color
+        """
+        # Avoid classes that are not our interest
+        if class_name == "barragem" or class_name == "coluna":
+            return
+        # Output image with masks
+        masked_image = self.masked_original_image.astype(np.float32).copy()
+        mask_region = mask.astype(bool)
+        # Defines the colored mask with the colormap for the class id
+        colored_mask = np.zeros_like(masked_image)
+        class_id = self.image_class_mask_codes[class_name]
+        colored_mask[mask_region] = colors[class_id]
+        # Weighted sum to draw the class mask
+        masked_image[mask_region] = masked_image[mask_region] * (1 - color_weight) \
+            + colored_mask[mask_region] * color_weight
+        # Save the masked image
+        self.masked_original_image = masked_image.astype(np.uint8)
+
+    def create_colormap(self, class_ids: dict, colormap: str) -> list:
+        """Creates a colormap based on the input colormap and the number of classes
+
+        Args:
+            classes (dict): input classes with "names": id
+            colormap (str): colormap to create with
+
+        Returns:
+            list: RGB colors (np.ndarrays) for each class 
+        """
+        mock_class_intensity = np.arange(len(class_ids))/len(class_ids)
+        cmap = colormaps.get_cmap(colormap)
+        colors = cmap(mock_class_intensity)[:, :3] * 255
+        return colors.astype(np.uint8)
 
     def draw_detection_in_global_mask(self, mask: np.ndarray, class_name: str) -> None:
         """Draws a single detection in the global mask.
@@ -136,6 +188,14 @@ class ImageSegmentation:
         """
         return self.image_detections_mask
 
+    def get_masked_image(self) -> np.ndarray:
+        """Returns the masked image.
+
+        Returns:
+            np.ndarray: masked image
+        """
+        return self.masked_original_image
+
     def reset_detections(self) -> None:
         """Resets the detections dictionary.
         """
@@ -149,6 +209,8 @@ if __name__ == "__main__":
     # Sample usage
     model_path = "runs/segment/train_colunas/weights/best.pt"
     image_path = "/home/grin/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"
+    image_path = os.path.join(os.getenv(
+        "HOME"), "sae-sam/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
     image = np.array(Image.open(image_path))
 
     segmentation_model = ImageSegmentation(model_path)
@@ -167,6 +229,10 @@ if __name__ == "__main__":
         mask_image_pil = Image.fromarray(
             (classes_mask * 255/np.max(classes_mask)).astype(np.uint8))
         mask_image_pil.show()
+        # Get the masked image and show
+        masked_image = segmentation_model.get_masked_image()
+        masked_image_pil = Image.fromarray(masked_image)
+        masked_image_pil.show()
         # Optionally, reset detections
         segmentation_model.reset_detections()
     else:
