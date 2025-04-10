@@ -52,6 +52,8 @@ class ApexPipeline:
         else:
             raise ValueError("Failed to find detections in the image.")
         class_ids = image_segmentation.get_detections_codes()
+        # Store the segmented image
+        self.segmented_image = image_segmentation.get_masked_image()
 
         # Now lets rectify the image and the detected global mask
         image_rectification = ImageRectification(
@@ -69,8 +71,6 @@ class ApexPipeline:
         else:
             raise ValueError(
                 "Failed to find detections in the rectified image.")
-        # Store the segmented rectified image
-        self.segmented_image = image_segmentation.get_masked_image()
 
         # Lets estimate the metrics
         metrics_estimation = MetricsEstimation(
@@ -121,3 +121,5 @@ if __name__ == "__main__":
     pipeline = ApexPipeline(undistort_m_pixel_ratio=undistort_m_pixel_ratio)
     pipeline.set_barrier_dimensions(barrier_dimensions=barrier_dimensions)
     pipeline.run(image_path=image_path)
+    # Show segmented image
+    pipeline.get_segmented_image().show()
