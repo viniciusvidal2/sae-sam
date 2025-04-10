@@ -1,6 +1,9 @@
+from PIL import Image
+from PIL.ImageQt import ImageQt
 from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QFileDialog, QTextEdit
-from PySide6.QtGui import QPixmap, QPalette, QBrush
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap, QPalette, QBrush, QImage
+from PySide6.QtCore import Qt, QObject, Signal
+from apex_pipeline import ApexPipeline
 
 
 class ApexWindow(QWidget):
@@ -18,8 +21,12 @@ class ApexWindow(QWidget):
         self.setup_image_panel()
 
         # Images, original and processed one
+        self.image_path = None
         self.image_original = None
         self.image_segmented = None
+
+        # The Apex pipeline to call when running the process
+        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)
 
     # endregion
     ##############################################################################################
@@ -99,19 +106,32 @@ class ApexWindow(QWidget):
     ##############################################################################################
     # region Callbacks
     def load_image(self):
-        file_path, _ = QFileDialog.getOpenFileName(
+        self.image_path, _ = QFileDialog.getOpenFileName(
             self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg)"
         )
-        if file_path:
-            filename = file_path.split("/")[-1]
+        if self.image_path:
+            filename = self.image_path.split("/")[-1]
             self.image_label.setText(filename)
             self.log_output(f"Loaded image: {filename}")
-            self.image_original = QPixmap(file_path)
+            self.image_original = QPixmap(self.image_path)
             self.display_image(self.image_original)
 
     def run_process(self):
         self.log_output("Starting process...")
-        # Simulate something
+        if not self.image_original:
+            self.log_output("No image loaded.")
+            return
+        self.log_output("Processing image...")
+        barrier_dimensions = {"grid_width": 15.618, "grid_height": 40,
+                              "collumn_width": 5.232}
+        self.apex_pipeline.set_barrier_dimensions(
+            barrier_dimensions=barrier_dimensions)
+        self.apex_pipeline.run(image_path=self.image_path)
+        self.log_output("Image processed.")
+        self.image_segmented = QPixmap.fromImage(ImageQt(
+            self.apex_pipeline.get_segmented_image()))
+        self.display_image(self.image_segmented)
+        self.image_panel_state = "segmented"
         self.log_output("Processing complete!")
 
     def log_output(self, message):

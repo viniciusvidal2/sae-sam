@@ -194,6 +194,9 @@ class ImageSegmentation:
         Returns:
             np.ndarray: masked image
         """
+        if self.masked_original_image is None:
+            print("No masked image available.")
+            return None
         return self.masked_original_image
 
     def reset_detections(self) -> None:
@@ -208,7 +211,6 @@ class ImageSegmentation:
 if __name__ == "__main__":
     # Sample usage
     model_path = "runs/segment/train_colunas/weights/best.pt"
-    image_path = "/home/grin/yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg"
     image_path = os.path.join(os.getenv(
         "HOME"), "sae-sam/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
     image = np.array(Image.open(image_path))

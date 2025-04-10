@@ -16,6 +16,8 @@ class ApexPipeline:
         self.detections_metrics = dict()
         # Classes to keep track of metrics
         self.desired_classes = ["macrofita", "sedimento"]
+        # Segmented image to show after processing is done
+        self.segmented_image = None
 
     def set_barrier_dimensions(self, barrier_dimensions: dict) -> None:
         """Set the barrier dimensions for the pipeline.
@@ -67,6 +69,8 @@ class ApexPipeline:
         else:
             raise ValueError(
                 "Failed to find detections in the rectified image.")
+        # Store the segmented rectified image
+        self.segmented_image = image_segmentation.get_masked_image()
 
         # Lets estimate the metrics
         metrics_estimation = MetricsEstimation(
@@ -97,12 +101,19 @@ class ApexPipeline:
             dict: Dictionary containing the detected metrics.
         """
         return self.detections_metrics
+    
+    def get_segmented_image(self) -> Image.Image:
+        """Get the segmented image.
+        Returns:
+            Image.Image: Segmented image in PIL format.
+        """
+        return Image.fromarray(self.segmented_image)
 
 
 if __name__ == "__main__":
     # Sample usage
     image_path = os.path.join(os.getenv(
-        "HOME"), "yolo/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
+        "HOME"), "sae-sam/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
     barrier_dimensions = {"grid_width": 15.618, "grid_height": 40,
                           "collumn_width": 5.232}  # Example dimensions in meters
     undistort_m_pixel_ratio = 0.1  # Example meters per pixel ratio
