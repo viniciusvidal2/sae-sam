@@ -163,7 +163,7 @@ class ImageRectification:
 
     def filter_colliding_boxes(self, boxes: list) -> list:
         """
-        Filters a list of bounding boxes, removing the smallest area box in each collision.
+        Filters a list of bounding boxes, adding only the biggest one in each collision bin.
 
         Args:
             boxes (list): A list of bounding boxes, where each box is represented as [x1, y1, x2, y2].
@@ -171,27 +171,33 @@ class ImageRectification:
         Returns:
             A list of non-colliding bounding boxes.
         """
-        non_colliding_boxes = []
-        removed_indices = set()
-
+        # Split the boxes in bins if they collide
+        boxes_bins = []
+        added_boxes = []
         for i, box1 in enumerate(boxes):
-            if i in removed_indices:
+            if i in added_boxes:
                 continue
             is_colliding = False
+            boxes_bins.append([box1])
             for j, box2 in enumerate(boxes):
-                if i == j or j in removed_indices:
-                    continue
-                is_colliding = not (
-                    box1[2] < box2[0] or box1[0] > box2[2] or box1[3] < box2[1] or box1[1] > box2[3])
-                if is_colliding:
-                    # Determine which box to remove based on area
-                    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
-                    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
-                    removed_indices.add(i if area1 < area2 else j)
-                    break
+                if j > i:
+                    is_colliding = not (
+                        box1[2] < box2[0] or box1[0] > box2[2] or box1[3] < box2[1] or box1[1] > box2[3])
+                    if is_colliding:
+                        boxes_bins[-1].append(box2)
+                        added_boxes.append(j)
 
-            if not is_colliding:
-                non_colliding_boxes.append(box1)
+        # Filter the boxes, keeping only the non-colliding and the ones
+        # with the biggest area if they collide
+        non_colliding_boxes = []
+        for box_bin in boxes_bins:
+            if len(box_bin) == 1:
+                non_colliding_boxes.append(box_bin[0])
+            else:
+                # Find the box with the biggest area to add
+                biggest_box = max(box_bin, key=lambda box: (
+                    box[2] - box[0]) * (box[3] - box[1]))
+                non_colliding_boxes.append(biggest_box)
         return non_colliding_boxes
 
     def get_meters_pixel_ratio(self) -> dict:
