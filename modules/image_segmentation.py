@@ -14,8 +14,11 @@ class ImageSegmentation:
             model_path (str): path to the trained YOLOv11 model
         """
         self.model = YOLO(model_path)
+        # Output detections info
         self.detections_by_class_dict = dict()
-        self.image_detections_mask = None  # All the classes for each pixel
+        # Global mask for the image, with the class codes
+        self.image_detections_mask = None
+        # Original image with the masks drawn on top
         self.masked_original_image = None
         # Class codes from the model, can be used in other modules
         self.image_class_mask_codes = dict()
@@ -46,7 +49,7 @@ class ImageSegmentation:
             (image_height, image_width), dtype=np.uint8)
 
         # Predict detections in the image
-        results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.2,
+        results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.3,
                                      line_width=1, save_crop=False, save_txt=False,
                                      show_labels=False, show_conf=False)
 
@@ -70,6 +73,13 @@ class ImageSegmentation:
                 box = result.boxes[i].xyxy[0].tolist()
                 conf = result.boxes[i].conf[0].item()
                 mask = result.masks.data[i].cpu().numpy()
+                cls_id = int(result.boxes[i].cls[0].item())
+                class_name = result.names[cls_id]
+
+                # Depending on the class and confidence, avoid storing the detection:
+                if class_name == "macrofita" or class_name == "sedimento":
+                    if conf < 0.4:
+                        continue
 
                 # Resize the mask to the original image size
                 mask = np.array(Image.fromarray(mask).resize(
@@ -80,9 +90,7 @@ class ImageSegmentation:
                 box[2] = int(box[2] * image_width / 640)
                 box[3] = int(box[3] * image_height / 640)
 
-                # Store in dictionary
-                cls_id = int(result.boxes[i].cls[0].item())
-                class_name = result.names[cls_id]
+                # Store in the class dictionary
                 if class_name not in self.detections_by_class_dict:
                     self.detections_by_class_dict[class_name] = {
                         "masks": [], "boxes": [], "confidences": []}
@@ -95,7 +103,23 @@ class ImageSegmentation:
                 self.draw_detection_in_global_mask(mask, class_name)
                 self.draw_detection_in_original_image(
                     mask, class_name, classes_colormap, 0.5)
+
         return True
+
+    def create_colormap(self, class_ids: dict, colormap: str) -> list:
+        """Creates a colormap based on the input colormap and the number of classes
+
+        Args:
+            classes (dict): input classes with "names": id
+            colormap (str): colormap to create with
+
+        Returns:
+            list: RGB colors (np.ndarrays) for each class 
+        """
+        mock_class_intensity = np.arange(len(class_ids))/len(class_ids)
+        cmap = colormaps.get_cmap(colormap)
+        colors = cmap(mock_class_intensity)[:, :3] * 255
+        return colors.astype(np.uint8)
 
     def draw_detection_in_original_image(self, mask: np.ndarray, class_name: str, colors: list, color_weight: float) -> None:
         """Draw the masks on top of the original image
@@ -122,21 +146,6 @@ class ImageSegmentation:
             + colored_mask[mask_region] * color_weight
         # Save the masked image
         self.masked_original_image = masked_image.astype(np.uint8)
-
-    def create_colormap(self, class_ids: dict, colormap: str) -> list:
-        """Creates a colormap based on the input colormap and the number of classes
-
-        Args:
-            classes (dict): input classes with "names": id
-            colormap (str): colormap to create with
-
-        Returns:
-            list: RGB colors (np.ndarrays) for each class 
-        """
-        mock_class_intensity = np.arange(len(class_ids))/len(class_ids)
-        cmap = colormaps.get_cmap(colormap)
-        colors = cmap(mock_class_intensity)[:, :3] * 255
-        return colors.astype(np.uint8)
 
     def draw_detection_in_global_mask(self, mask: np.ndarray, class_name: str) -> None:
         """Draws a single detection in the global mask.
