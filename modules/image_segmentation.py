@@ -23,6 +23,8 @@ class ImageSegmentation:
         # Class codes from the model, can be used in other modules
         self.image_class_mask_codes = dict()
         self.image_class_mask_codes["background"] = 0
+        # Colormap for the classes
+        self.classes_colormap = None
 
     def segment_classes(self, image: np.ndarray) -> bool:
         """Predicts the segmentation masks, classes and boxes for the given image.
@@ -63,7 +65,7 @@ class ImageSegmentation:
             self.image_class_mask_codes[name] = i + 1
 
         # Create colormap from the class codes
-        classes_colormap = self.create_colormap(
+        self.classes_colormap = self.create_colormap(
             class_ids=self.image_class_mask_codes, colormap="viridis")
 
         # Iterate through the results and store the masks, boxes and confidences
@@ -102,7 +104,7 @@ class ImageSegmentation:
                 # Save the mask in the global mask with the proper detection code
                 self.draw_detection_in_global_mask(mask, class_name)
                 self.draw_detection_in_original_image(
-                    mask, class_name, classes_colormap, 0.5)
+                    mask, class_name, 0.5)
 
         return True
 
@@ -121,14 +123,13 @@ class ImageSegmentation:
         colors = cmap(mock_class_intensity)[:, :3] * 255
         return colors.astype(np.uint8)
 
-    def draw_detection_in_original_image(self, mask: np.ndarray, class_name: str, colors: list, color_weight: float) -> None:
+    def draw_detection_in_original_image(self, mask: np.ndarray, class_name: str, color_weight: float) -> None:
         """Draw the masks on top of the original image
 
         Args:
             img (np.ndarray): original image
             masks (np.ndarray): the list of masks
             ids (list): list of class ids for each mask
-            colors (list): list of colors for each class
             color_weight (float): the weight we should use to average each class color
         """
         # Avoid classes that are not our interest
@@ -140,7 +141,7 @@ class ImageSegmentation:
         # Defines the colored mask with the colormap for the class id
         colored_mask = np.zeros_like(masked_image)
         class_id = self.image_class_mask_codes[class_name]
-        colored_mask[mask_region] = colors[class_id]
+        colored_mask[mask_region] = self.classes_colormap[class_id]
         # Weighted sum to draw the class mask
         masked_image[mask_region] = masked_image[mask_region] * (1 - color_weight) \
             + colored_mask[mask_region] * color_weight
@@ -207,6 +208,14 @@ class ImageSegmentation:
             print("No masked image available.")
             return None
         return self.masked_original_image
+    
+    def get_colormap(self) -> list:
+        """Returns the colormap used for the classes.
+
+        Returns:
+            list: colormap
+        """
+        return self.classes_colormap
 
     def reset_detections(self) -> None:
         """Resets the detections dictionary.
