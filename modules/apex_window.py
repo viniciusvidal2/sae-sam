@@ -32,7 +32,7 @@ class ApexWindow(QWidget):
     ##############################################################################################
     # region Setup UI
     def setup_background(self):
-        self.background = QPixmap("resources/saesc1.png")
+        self.background = QPixmap("resources/background.png")
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
