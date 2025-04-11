@@ -14,7 +14,7 @@ class ApexPipeline:
             undistort_m_pixel_ratio (float): Ratio of meters per pixel in the width direction for undistortion.
         """
         self.undistort_m_pixel_ratio = undistort_m_pixel_ratio
-        self.detections_metrics = dict()
+        self.detections_metrics = list()
         # Classes to keep track of metrics
         self.desired_classes = ["macrofita", "sedimento"]
         # Segmented image to show after processing is done
@@ -103,19 +103,27 @@ class ApexPipeline:
             if not boxes:
                 print(f"No {desired_class} detected in the image.")
                 continue
-
             for box in boxes:
                 # Estimate the volume of each macrofita group
-                print(f"Class: {desired_class}")
                 area, volume = metrics_estimation.estimate_blocking_area_volume(
                     image=rectified_image, box=box, mask=rectified_mask, class_name=desired_class, debug=False)
-                print(f"Estimated area: {area} m^2")
-                print(f"Estimated volume: {volume} m^3")
+                if area < 10:
+                    continue
                 # Add the detection metrics to the dictionary
-                if not desired_class in self.detections_metrics:
-                    self.detections_metrics[desired_class] = []
-                self.detections_metrics[desired_class].append(
-                    {"area": area, "volume": volume, "box": box})
+                self.detections_metrics.append(
+                    {"area": area, "volume": volume, "box": box, "class": desired_class})
+        # Draw the codes in the image for each detection
+        colormap = image_segmentation.get_colormap()
+        for d, detection in enumerate(self.detections_metrics):
+            box = detection["box"]
+            pt1, pt2 = (box[0], box[1]), (box[2], box[3])
+            pt3 = ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
+            # Draw the bounding box and text on the image
+            class_id = class_ids[detection["class"]]
+            color = tuple(int(c) for c in colormap[class_id])
+            cv2.rectangle(self.segmented_image, pt1, pt2, color, 2)
+            cv2.putText(self.segmented_image, str(d), pt3,
+                        cv2.FONT_HERSHEY_SIMPLEX, 3, color, 2)
 
     def get_detections_metrics(self) -> dict:
         """Get the detected metrics.
