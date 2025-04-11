@@ -80,6 +80,10 @@ class ImageRectification:
         collumn_boxes = sorted(collumn_boxes, key=lambda x: x[0])
         # Create grid boxes between the collumn boxes
         grid_boxes = []
+        # If the grid box left point comes before the first collumn, add this as grid box first
+        if self.barrier_box[0] < collumn_boxes[0][0]:
+            grid_boxes.append(
+                [self.barrier_box[0], collumn_boxes[0][1], collumn_boxes[0][0], self.barrier_box[3]])
         for i in range(len(collumn_boxes) - 1):
             left_box = collumn_boxes[i]
             right_box = collumn_boxes[i + 1]
@@ -87,6 +91,10 @@ class ImageRectification:
             grid_box = [
                 int(left_box[2]), int(left_box[1]), int(right_box[0]), int(right_box[3])]
             grid_boxes.append(grid_box)
+        # If the grid box right point comes after the last collumn, add this as grid box last
+        if self.barrier_box[2] > collumn_boxes[-1][2]:
+            grid_boxes.append(
+                [collumn_boxes[-1][2], collumn_boxes[-1][1], self.barrier_box[2], self.barrier_box[3]])
         # Sort the boxes by their x-coordinates and assign the proper types in the same order
         boxes = grid_boxes + collumn_boxes
         types = ['grid'] * len(grid_boxes) + ['collumn'] * len(collumn_boxes)
