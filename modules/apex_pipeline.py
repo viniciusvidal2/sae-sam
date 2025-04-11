@@ -4,6 +4,7 @@ from PIL import Image
 from image_rectification import ImageRectification
 from image_segmentation import ImageSegmentation
 from metrics_estimation import MetricsEstimation
+import cv2
 
 
 class ApexPipeline:
@@ -25,6 +26,33 @@ class ApexPipeline:
             barrier_dimensions (dict): Dictionary containing the grid and collumn dimensions in meters.
         """
         self.barrier_dimensions = barrier_dimensions
+
+    def get_boxes_from_image(self, image: np.ndarray, class_id: int) -> list:
+        """Get bouding boxes and confidences from the image.
+
+        Args:
+            image (np.ndarray): input bounding box with the codes given by semantic segmentation class
+            class_id (int): the class id to get the boxes from
+
+        Returns:
+            list: boxes for this class id
+        """
+        binary = (image == class_id).astype(np.uint8) * 255
+        # Dilate the binary image to fill in gaps
+        kernel = np.ones((5, 5), np.uint8)
+        binary = cv2.dilate(binary, kernel, iterations=1)
+        contours, _ = cv2.findContours(
+            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        boxes = []
+        for contour in contours:
+            # if area is too small, skip it
+            if cv2.contourArea(contour) < 100:
+                continue
+            # Get the bounding box for the contour
+            x, y, w, h = cv2.boundingRect(contour)
+            boxes.append([x, y, x + w, y + h])
+
+        return boxes
 
     def run(self, image_path: str) -> None:
         """Run the pipeline with the given parameters.
@@ -52,8 +80,6 @@ class ApexPipeline:
         else:
             raise ValueError("Failed to find detections in the image.")
         class_ids = image_segmentation.get_detections_codes()
-        # Store the segmented image
-        self.segmented_image = image_segmentation.get_masked_image()
 
         # Now lets rectify the image and the detected global mask
         image_rectification = ImageRectification(
@@ -61,32 +87,28 @@ class ApexPipeline:
         image_rectification.set_detected_boxes(
             collumn_boxes=collumn_boxes, barrier_boxes=barrier_boxes)
         rectified_image = image_rectification.snip_rectify_image(image=image)
+        rectified_mask = image_rectification.snip_rectify_image(
+            image=image_segmentation.get_detections_mask())
         meter_pixel_ratios = image_rectification.get_meters_pixel_ratio()
-
-        # Perform another segmentation on the rectified image
-        image_segmentation.reset_detections()
-        if image_segmentation.segment_classes(image=rectified_image):
-            # Get the global mask and macrofitas boxes
-            rectified_global_classes_mask = image_segmentation.get_detections_mask()
-        else:
-            raise ValueError(
-                "Failed to find detections in the rectified image.")
+        self.segmented_image = image_rectification.snip_rectify_image(
+            image_segmentation.get_masked_image())
 
         # Lets estimate the metrics
         metrics_estimation = MetricsEstimation(
             model_name="xingyang1/Distill-Any-Depth-Large-hf", m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
         for desired_class in self.desired_classes:
             # Get the global mask and macrofitas boxes
-            boxes, _ = image_segmentation.get_detections_by_class(
-                class_name=desired_class)
+            boxes = self.get_boxes_from_image(
+                image=rectified_mask, class_id=class_ids[desired_class])
             if not boxes:
-                raise ValueError(
-                    f"Failed to find the class {desired_class} in the image.")
+                print(f"No {desired_class} detected in the image.")
+                continue
+
             for box in boxes:
                 # Estimate the volume of each macrofita group
                 print(f"Class: {desired_class}")
                 area, volume = metrics_estimation.estimate_blocking_area_volume(
-                    image=rectified_image, box=box, mask=rectified_global_classes_mask, class_name=desired_class, debug=False)
+                    image=rectified_image, box=box, mask=rectified_mask, class_name=desired_class, debug=False)
                 print(f"Estimated area: {area} m^2")
                 print(f"Estimated volume: {volume} m^3")
                 # Add the detection metrics to the dictionary
@@ -101,7 +123,7 @@ class ApexPipeline:
             dict: Dictionary containing the detected metrics.
         """
         return self.detections_metrics
-    
+
     def get_segmented_image(self) -> Image.Image:
         """Get the segmented image.
         Returns:
