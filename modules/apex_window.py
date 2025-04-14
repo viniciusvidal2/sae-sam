@@ -194,7 +194,8 @@ class ApexWindow(QWidget):
                               "collumn_width": column_width}
         self.apex_pipeline.set_barrier_dimensions(
             barrier_dimensions=barrier_dimensions)
-        self.apex_pipeline.run(image_path=self.image_path)
+        for state in self.apex_pipeline.run(self.image_path):
+            self.log_output(state)
         self.log_output("Image processed.")
         # Get the segmented image in 2d, plot it and set the image status
         self.image_segmented = QPixmap.fromImage(ImageQt(

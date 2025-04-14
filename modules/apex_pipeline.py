@@ -5,7 +5,7 @@ from image_rectification import ImageRectification
 from image_segmentation import ImageSegmentation
 from metrics_estimation import MetricsEstimation
 import cv2
-
+from typing import Generator, Any
 
 class ApexPipeline:
     def __init__(self, undistort_m_pixel_ratio: float) -> None:
@@ -16,7 +16,7 @@ class ApexPipeline:
         self.undistort_m_pixel_ratio = undistort_m_pixel_ratio
         self.detections_metrics = list()
         # Classes to keep track of metrics
-        self.desired_classes = ["macrofita", "sedimento"]
+        self.desired_classes = ["macrofita", "sedimento", "tronco"]
         # Segmented image to show after processing is done
         self.segmented_image = None
 
@@ -54,7 +54,7 @@ class ApexPipeline:
 
         return boxes
 
-    def run(self, image_path: str) -> None:
+    def run(self, image_path: str) -> Generator[float, str, Any]:
         """Run the pipeline with the given parameters.
         Args:
             image_path (str): Path to the image.
@@ -63,6 +63,7 @@ class ApexPipeline:
         if not hasattr(self, 'barrier_dimensions'):
             raise ValueError(
                 "Barrier dimensions must be set before running the pipeline.")
+        yield 0, "Starting the pipeline..."
 
         # Read image into numpy array
         image = np.array(Image.open(image_path))
@@ -80,6 +81,10 @@ class ApexPipeline:
         else:
             raise ValueError("Failed to find detections in the image.")
         class_ids = image_segmentation.get_detections_codes()
+        if not collumn_boxes or not barrier_boxes:
+            yield 30, "No collumns or barriers detected in the image."
+            return
+        yield 30, "Image segmented successfully. Starting rectification..."
 
         # Now lets rectify the image and the detected global mask
         image_rectification = ImageRectification(
@@ -92,16 +97,18 @@ class ApexPipeline:
         meter_pixel_ratios = image_rectification.get_meters_pixel_ratio()
         self.segmented_image = image_rectification.snip_rectify_image(
             image_segmentation.get_masked_image())
+        yield 60, "Image rectified successfully. Starting metrics estimation..."
 
         # Lets estimate the metrics
         metrics_estimation = MetricsEstimation(
             model_name="xingyang1/Distill-Any-Depth-Large-hf", m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
-        for desired_class in self.desired_classes:
+        for k, desired_class in enumerate(self.desired_classes):
+            pct = 60 + (k + 1) * 10
             # Get the global mask and macrofitas boxes
             boxes = self.get_boxes_from_image(
                 image=rectified_mask, class_id=class_ids[desired_class])
             if not boxes:
-                print(f"No {desired_class} detected in the image.")
+                yield pct, f"No {desired_class} detected in the image."
                 continue
             for box in boxes:
                 # Estimate the volume of each macrofita group
@@ -112,6 +119,9 @@ class ApexPipeline:
                 # Add the detection metrics to the dictionary
                 self.detections_metrics.append(
                     {"area": area, "volume": volume, "box": box, "class": desired_class})
+            yield pct, f"{desired_class} metrics estimated successfully."
+
+        yield pct, "Metrics estimation completed successfully. Generating image with detections..."
         # Draw the codes in the image for each detection
         colormap = image_segmentation.get_colormap()
         for d, detection in enumerate(self.detections_metrics):
@@ -124,6 +134,7 @@ class ApexPipeline:
             cv2.rectangle(self.segmented_image, pt1, pt2, color, 2)
             cv2.putText(self.segmented_image, str(d), pt3,
                         cv2.FONT_HERSHEY_SIMPLEX, 3, color, 2)
+        yield 100, "Masked image with detections was generated successfully."
 
     def get_detections_metrics(self) -> dict:
         """Get the detected metrics.
@@ -150,6 +161,7 @@ if __name__ == "__main__":
     # Initialize the pipeline with the given parameters and run it
     pipeline = ApexPipeline(undistort_m_pixel_ratio=undistort_m_pixel_ratio)
     pipeline.set_barrier_dimensions(barrier_dimensions=barrier_dimensions)
-    pipeline.run(image_path=image_path)
+    for state in pipeline.run(image_path=image_path):
+        print(f"Progress: {state[0]}%, Status: {state[1]}")
     # Show segmented image
     pipeline.get_segmented_image().show()
