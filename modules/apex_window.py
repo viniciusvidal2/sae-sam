@@ -1,9 +1,8 @@
-from PIL import Image
-from PIL.ImageQt import ImageQt
 from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QFileDialog, QTextEdit, QLineEdit
 from PySide6.QtGui import QPixmap, QPalette, QBrush
-from PySide6.QtCore import Qt, QObject, Signal, QSize
+from PySide6.QtCore import Qt, QThread, QSize
 from apex_pipeline import ApexPipeline
+from apex_worker import ApexWorker
 
 
 class ApexWindow(QWidget):
@@ -175,14 +174,12 @@ class ApexWindow(QWidget):
             self.log_output("No valid image path was inserted.")
 
     def run_process(self):
-        # Check if the image is loaded
         self.log_output(self.skip_print)
         self.log_output("Starting process...")
         if not self.image_original:
             self.log_output("No image loaded.")
             return
-        self.log_output("Processing image...")
-        # Set the dimensions of the barrier from the input boxes
+
         try:
             grid_height = float(self.grid_height_input.text())
             grid_width = float(self.grid_width_input.text())
@@ -190,21 +187,37 @@ class ApexWindow(QWidget):
         except ValueError:
             self.log_output("Invalid input for dimensions.")
             return
-        barrier_dimensions = {"grid_width": grid_width, "grid_height": grid_height,
-                              "collumn_width": column_width}
-        self.apex_pipeline.set_barrier_dimensions(
-            barrier_dimensions=barrier_dimensions)
-        for state in self.apex_pipeline.run(self.image_path):
-            self.log_output(state)
-        self.log_output("Image processed.")
-        # Get the segmented image in 2d, plot it and set the image status
-        self.image_segmented = QPixmap.fromImage(ImageQt(
-            self.apex_pipeline.get_segmented_image()))
+
+        barrier_dimensions = {
+            "grid_width": grid_width,
+            "grid_height": grid_height,
+            "collumn_width": column_width
+        }
+
+        # Deal with parallelism in the worker thread to run the pipeline
+        self.thread = QThread()
+        self.worker = ApexWorker(
+            self.apex_pipeline, self.image_path, barrier_dimensions)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.log.connect(self.log_output)
+        self.worker.set_segmented_image.connect(self._set_segmented_image)
+        self.worker.set_metrics.connect(self._log_metrics)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def _set_segmented_image(self, image):
+        self.image_segmented = QPixmap.fromImage(image)
+        if self.image_segmented.isNull():
+            self.log_output("Failed to generate segmented image.")
+            return
+        self.log_output("Segmented image generated successfully.")
         self.display_image(self.image_segmented)
         self.image_panel_state = "segmented"
-        self.log_output("Processing complete!")
-        # Log the output metrics
-        metrics = self.apex_pipeline.get_detections_metrics()
+
+    def _log_metrics(self, metrics):
         self.log_output(self.skip_print)
         self.log_output(self.skip_print)
         if metrics:

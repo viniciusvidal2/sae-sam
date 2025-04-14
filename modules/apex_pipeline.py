@@ -7,6 +7,7 @@ from metrics_estimation import MetricsEstimation
 import cv2
 from typing import Generator, Any
 
+
 class ApexPipeline:
     def __init__(self, undistort_m_pixel_ratio: float) -> None:
         """Initialize the pipeline with the given parameters.
@@ -63,9 +64,9 @@ class ApexPipeline:
         if not hasattr(self, 'barrier_dimensions'):
             raise ValueError(
                 "Barrier dimensions must be set before running the pipeline.")
-        yield 0, "Starting the pipeline..."
 
         # Read image into numpy array
+        yield 0, "Starting the pipeline..."
         image = np.array(Image.open(image_path))
 
         # Lets segment the image to find the collumns
