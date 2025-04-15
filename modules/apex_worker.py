@@ -1,7 +1,7 @@
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QImage
 from PIL.ImageQt import ImageQt
-from apex_pipeline import ApexPipeline
+from modules.apex_pipeline import ApexPipeline
 
 
 class ApexWorker(QObject):

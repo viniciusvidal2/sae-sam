@@ -4,8 +4,8 @@ from PySide6.QtGui import QPixmap, QPalette, QBrush, QFont
 from PySide6.QtCore import Qt, QTimer
 from pyvistaqt import QtInteractor
 import pyvista as pv
-# Assuming this is the correct import path for Window1
-from modules.apex_window import ApexWindow
+from windows.apex_window import ApexWindow
+from windows.saesc_window import SaescWindow
 
 
 class MainWindow(QMainWindow):
@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("SAE SAM")
         self.setGeometry(400, 400, 800, 600)
-        
+
         self.setup_background()
         self.setup_buttons()
 
@@ -61,7 +61,7 @@ class MainWindow(QMainWindow):
 
         self.button3 = QPushButton("SAESC - Scene Creator", self)
         self.button3.setGeometry(100, 220, 200, 40)
-        self.button3.clicked.connect(self.open_window3)
+        self.button3.clicked.connect(self.open_saesc_window)
 
     def open_apex_window(self):
         self.apex_window = ApexWindow()
@@ -71,9 +71,9 @@ class MainWindow(QMainWindow):
         # Placeholder for second window
         pass
 
-    def open_window3(self):
-        # Placeholder for third window
-        pass
+    def open_saesc_window(self):
+        self.saesc_window = SAESCWindow()
+        self.saesc_window.show()
 
 
 if __name__ == '__main__':

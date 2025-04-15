@@ -1,11 +1,11 @@
 import numpy as np
 import os
 from PIL import Image
-from image_rectification import ImageRectification
-from image_segmentation import ImageSegmentation
-from metrics_estimation import MetricsEstimation
 import cv2
 from typing import Generator, Any
+from modules.image_rectification import ImageRectification
+from modules.image_segmentation import ImageSegmentation
+from modules.metrics_estimation import MetricsEstimation
 
 
 class ApexPipeline:

@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QRadioButton, QFileDialog, QScrollArea,
-    QButtonGroup, QTextEdit, QFrame
+    QButtonGroup, QTextEdit
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt
