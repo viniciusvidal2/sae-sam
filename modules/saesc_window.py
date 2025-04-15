@@ -44,7 +44,8 @@ class PointCloudEntry(QWidget):
         self.setLayout(layout)
 
     def browse_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Point Cloud", "", "Point Cloud Files (*.pcd *.ply *.xyz)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Point Cloud", "", "Point Cloud Files (*.pcd *.ply *.xyz)")
         if file_path:
             self.full_path = file_path
             self.line_edit.setText(os.path.basename(file_path))
@@ -54,7 +55,7 @@ class PointCloudEntry(QWidget):
         self.full_path = None
 
 
-class MainWindow(QMainWindow):
+class SaescWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SAESC - SAE Scene Creator")
@@ -91,7 +92,8 @@ class MainWindow(QMainWindow):
 
         # Text panel (bottom of left column)
         self.text_panel = QTextEdit()
-        self.text_panel.setPlaceholderText("Logs, status, or descriptions here...")
+        self.text_panel.setPlaceholderText(
+            "Logs, status, or descriptions here...")
         self.text_panel.setReadOnly(True)
         self.text_panel.setFixedHeight(120)
         left_layout.addWidget(self.text_panel, stretch=1)
@@ -108,7 +110,7 @@ class MainWindow(QMainWindow):
 
         # We will have a list of entries to manage point clouds that will be processed
         self.entries = []
-        
+
         self.skip_print = "------------------------------------------------"
 
     def setup_background(self):
@@ -117,7 +119,7 @@ class MainWindow(QMainWindow):
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
-        
+
     def resizeEvent(self, event):
         # Rescale background
         scaled_bg = self.background.scaled(
@@ -126,7 +128,7 @@ class MainWindow(QMainWindow):
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
-        
+
     def add_entry(self):
         entry = PointCloudEntry()
         self.scroll_layout.addWidget(entry)
@@ -135,6 +137,6 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication([])
-    window = MainWindow()
+    window = SaescWindow()
     window.show()
     app.exec()
