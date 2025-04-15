@@ -8,6 +8,8 @@ from PySide6.QtCore import Qt
 from pyvistaqt import QtInteractor
 import os
 
+# region Point Cloud Entries
+
 
 class PointCloudEntry(QWidget):
     def __init__(self):
@@ -53,6 +55,9 @@ class PointCloudEntry(QWidget):
     def remove_entry(self):
         self.line_edit.clear()
         self.full_path = None
+# endregion
+
+# region Main Window
 
 
 class SaescWindow(QMainWindow):
@@ -133,6 +138,7 @@ class SaescWindow(QMainWindow):
         entry = PointCloudEntry()
         self.scroll_layout.addWidget(entry)
         self.entries.append(entry)
+# endregion
 
 
 if __name__ == "__main__":
