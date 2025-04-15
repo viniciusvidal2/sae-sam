@@ -72,41 +72,42 @@ class MainWindow(QMainWindow):
         pass
 
     def open_saesc_window(self):
-        self.saesc_window = SAESCWindow()
+        self.saesc_window = SaescWindow()
         self.saesc_window.show()
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    # Splash screen
-    original_pix = QPixmap("resources/saesam.png")
-    scaled_pix = original_pix.scaled(
-        original_pix.width() // 4,
-        original_pix.height() // 4,
-        Qt.KeepAspectRatio,
-        Qt.SmoothTransformation)
-    splash = QSplashScreen(scaled_pix)
-    splash.setFont(QFont("Arial", 20))
-    splash.show()
+    # # Splash screen
+    # original_pix = QPixmap("resources/saesam.png")
+    # scaled_pix = original_pix.scaled(
+    #     original_pix.width() // 4,
+    #     original_pix.height() // 4,
+    #     Qt.KeepAspectRatio,
+    #     Qt.SmoothTransformation)
+    # splash = QSplashScreen(scaled_pix)
+    # splash.setFont(QFont("Arial", 20))
+    # splash.show()
 
-    # Animate "Loading..." text
-    dots = ["", ".", "..", "..."]
-    current_index = [0]  # Using list to make it mutable in closure
+    # # Animate "Loading..." text
+    # dots = ["", ".", "..", "..."]
+    # current_index = [0]  # Using list to make it mutable in closure
 
-    def update_loading_text():
-        splash.showMessage(f"Loading{dots[current_index[0]]}",
-                           Qt.AlignCenter,
-                           Qt.white)
-        current_index[0] = (current_index[0] + 1) % len(dots)
+    # def update_loading_text():
+    #     splash.showMessage(f"Loading{dots[current_index[0]]}",
+    #                        Qt.AlignCenter,
+    #                        Qt.white)
+    #     current_index[0] = (current_index[0] + 1) % len(dots)
 
-    timer = QTimer()
-    timer.timeout.connect(update_loading_text)
-    timer.start(1000)
+    # timer = QTimer()
+    # timer.timeout.connect(update_loading_text)
+    # timer.start(1000)
 
     # After 6 seconds, close splash and open main window
     window = MainWindow()
-    QTimer.singleShot(6000, timer.stop)
-    QTimer.singleShot(6000, splash.close)
-    QTimer.singleShot(6000, window.show)
+    # QTimer.singleShot(6000, timer.stop)
+    # QTimer.singleShot(6000, splash.close)
+    # QTimer.singleShot(6000, window.show)
+    window.show()
     sys.exit(app.exec())
