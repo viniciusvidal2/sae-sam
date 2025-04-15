@@ -8,7 +8,9 @@ from apex_worker import ApexWorker
 class ApexWindow(QWidget):
     ##############################################################################################
     # region Constructor
-    def __init__(self):
+    def __init__(self) -> None:
+        """Constructor for the main window
+        """
         super().__init__()
         self.setWindowTitle("Apex Window")
         self.setGeometry(300, 300, 1500, 900)
@@ -39,14 +41,18 @@ class ApexWindow(QWidget):
     # endregion
     ##############################################################################################
     # region Setup UI
-    def setup_background(self):
+    def setup_background(self) -> None:
+        """Generates the background with proper image and scales
+        """
         self.background = QPixmap("resources/background.png")
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
 
-    def setup_input_labels_boxes(self):
+    def setup_input_labels_boxes(self) -> None:
+        """Setups the labels in the window
+        """
         # Dimensions to use as basis
         step = self.item_width + self.margin
         # Labels for the values
@@ -81,7 +87,9 @@ class ApexWindow(QWidget):
         self.column_width_input.move(
             self.column_width_label.x() + step, self.base_y)
 
-    def setup_buttons(self):
+    def setup_buttons(self) -> None:
+        """Setups the buttons in the window
+        """
         # Dimensions to use as basis
         base_y = self.grid_height_label.y() + self.grid_height_label.height() + self.margin
         step = self.item_width + self.margin
@@ -106,7 +114,9 @@ class ApexWindow(QWidget):
                        self.download_image_btn, self.download_report_btn]:
             button.resize(self.item_width, self.item_height)
 
-    def setup_text_panel(self):
+    def setup_text_panel(self) -> None:
+        """Setups the log text panel in the window
+        """
         self.output_panel = QTextEdit(self)
         self.output_panel.setReadOnly(True)
         self.output_panel.setStyleSheet(
@@ -117,7 +127,9 @@ class ApexWindow(QWidget):
         self.output_panel.resize(
             self.width() // 2 - self.base_x - self.margin, self.height() // 2 - self.base_y)
 
-    def setup_image_panel(self):
+    def setup_image_panel(self) -> None:
+        """Setups the image panel in the window
+        """
         self.image_display = QLabel(self)
         self.image_display.setStyleSheet(
             "border: 1px solid white; background-color: rgba(0,0,0,50);")
@@ -129,7 +141,9 @@ class ApexWindow(QWidget):
             self.output_panel.y())
         self.image_panel_state = "None"
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event) -> None:
+        """Resizes the window and all the elements in it when resize callback is called
+        """
         # Rescale background
         scaled_bg = self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation
@@ -160,7 +174,9 @@ class ApexWindow(QWidget):
     # endregion
     ##############################################################################################
     # region Callbacks
-    def load_image(self):
+    def load_image(self) -> None:
+        """Callback for the load image button
+        """
         self.log_output(self.skip_print)
         self.image_path, _ = QFileDialog.getOpenFileName(
             self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg)"
@@ -173,7 +189,9 @@ class ApexWindow(QWidget):
         else:
             self.log_output("No valid image path was inserted.")
 
-    def run_process(self):
+    def run_process(self) -> None:
+        """Callback for the process button
+        """
         self.log_output(self.skip_print)
         self.log_output("Starting process...")
         if not self.image_original:
@@ -208,7 +226,11 @@ class ApexWindow(QWidget):
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
 
-    def _set_segmented_image(self, image):
+    def _set_segmented_image(self, image: QPixmap) -> None:
+        """Callback for the segmented image
+        Args:
+            image (QPixmap): The segmented image to be displayed
+        """
         self.image_segmented = QPixmap.fromImage(image)
         if self.image_segmented.isNull():
             self.log_output("Failed to generate segmented image.")
@@ -217,7 +239,12 @@ class ApexWindow(QWidget):
         self.display_image(self.image_segmented)
         self.image_panel_state = "segmented"
 
-    def _log_metrics(self, metrics):
+    def _log_metrics(self, metrics: list) -> None:
+        """Logs the metrics from the pipeline
+
+        Args:
+            metrics (list): the metrics output from the pipeline
+        """
         self.log_output(self.skip_print)
         self.log_output(self.skip_print)
         if metrics:
@@ -229,10 +256,17 @@ class ApexWindow(QWidget):
         else:
             self.log_output("No metrics detected.")
 
-    def log_output(self, message):
+    def log_output(self, message: str) -> None:
+        """Logs the output in the text panel
+        
+        Args:
+            message (str): The message to be logged
+        """
         self.output_panel.append(message)
 
-    def toggle_image(self):
+    def toggle_image(self) -> None:
+        """Callback for the toggle image button
+        """
         self.log_output(self.skip_print)
         if self.image_panel_state == "segmented" and self.image_original:
             self.display_image(self.image_original)
@@ -246,13 +280,20 @@ class ApexWindow(QWidget):
             self.log_output("No image to toggle.")
             self.image_panel_state = "None"
 
-    def display_image(self, image):
+    def display_image(self, image: QPixmap) -> None:
+        """Displays the image in the image panel
+        
+        Args:
+            image (QPixmap): The image to be displayed
+        """
         scaled = image.scaled(
             self.image_display.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
         self.image_display.setPixmap(scaled)
 
-    def download_image(self):
+    def download_image(self) -> None:
+        """Callback for the download image button
+        """
         self.log_output(self.skip_print)
         if not self.image_segmented:
             self.log_output("No image to download.")
@@ -264,7 +305,9 @@ class ApexWindow(QWidget):
             self.image_segmented.save(save_path)
             self.log_output(f"Segmented image saved to {save_path}")
 
-    def download_report(self):
+    def download_report(self) -> None:
+        """Callback for the download report button
+        """
         self.log_output(self.skip_print)
         save_path, _ = QFileDialog.getSaveFileName(
             self, "Save Report As", "report.txt", "Text Files (*.txt)"
