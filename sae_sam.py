@@ -16,6 +16,8 @@ class MainWindow(QMainWindow):
 
         self.setup_background()
         self.setup_buttons()
+        # The windows we can open from the main interface
+        self.child_windows = []
 
     def setup_background(self):
         self.background = QPixmap("resources/background.png")
@@ -64,16 +66,33 @@ class MainWindow(QMainWindow):
         self.button3.clicked.connect(self.open_saesc_window)
 
     def open_apex_window(self):
-        self.apex_window = ApexWindow()
-        self.apex_window.show()
+        apex_window = ApexWindow()
+        apex_window.setAttribute(Qt.WA_DeleteOnClose)
+        self.child_windows.append(apex_window)
+        apex_window.destroyed.connect(
+            lambda: self.child_windows.remove(apex_window))
+        apex_window.show()
 
     def open_window2(self):
         # Placeholder for second window
         pass
 
     def open_saesc_window(self):
-        self.saesc_window = SaescWindow()
-        self.saesc_window.show()
+        saesc_window = SaescWindow()
+        saesc_window.setAttribute(Qt.WA_DeleteOnClose)
+        self.child_windows.append(saesc_window)
+        saesc_window.destroyed.connect(
+            lambda: self.child_windows.remove(saesc_window))
+        saesc_window.show()
+
+    def closeEvent(self, event):
+        for window in self.child_windows:
+            if window is not None and window.isVisible():
+                window.close()
+        event.accept()
+        
+    def _remove_dead_child(self, ref):
+        self.child_windows = [r for r in self.child_windows if r is not ref]
 
 
 if __name__ == '__main__':
