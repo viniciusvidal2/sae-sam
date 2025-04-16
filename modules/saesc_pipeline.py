@@ -8,9 +8,9 @@ from matplotlib import colormaps
 from typing import Generator
 
 
-class CloudMerger:
+class SaescPipeline:
     def __init__(self, input_clouds_paths: list, input_clouds_types: list, clouds_folder: str, merged_cloud_name: str, sea_level_ref: float) -> None:
-        """Initializes the CloudMerger class with the output path and the input point clouds paths and types.
+        """Initializes the SaescPipeline class with the output path and the input point clouds paths and types.
 
         Args:
             input_clouds_paths (list): input point clouds paths
@@ -213,7 +213,7 @@ if __name__ == "__main__":
     print(f"Input clouds types: {input_clouds_types}")
 
     # Merge the point clouds
-    cloud_merger = CloudMerger(input_clouds_paths=input_clouds_paths,
+    cloud_merger = SaescPipeline(input_clouds_paths=input_clouds_paths,
                                input_clouds_types=input_clouds_types,
                                clouds_folder=os.path.join(
                                    os.path.dirname(output_path), ".."),
