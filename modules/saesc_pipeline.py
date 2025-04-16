@@ -28,6 +28,34 @@ class SaescPipeline:
         self.input_clouds_types = input_clouds_types
         self.sea_level_ref = sea_level_ref  # Reference sea level [m]
 
+    def xyz_to_point_cloud(self, filename: str, invert_z: bool = True) -> o3d.geometry.PointCloud:
+        """Converts a .xyz file to an open3d point cloud.
+
+        Args:
+            filename (str): _path to the .xyz file
+            invert_z (bool, optional): If we must invert the z coordinate from the sonar acquisition frame. Defaults to True.
+
+        Returns:
+            o3d.geometry.PointCloud: point cloud object
+        """
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+
+        # Extract x, y, z coordinates from each line
+        points = []
+        invert_z_mult = -1 if invert_z else 1
+        for line in lines:
+            coords = line.strip().split()
+            if len(coords) >= 3:
+                points.append([float(coords[0]), float(
+                    coords[1]), invert_z_mult*float(coords[2])])
+
+        # Convert points to numpy array and then to open3d point cloud
+        point_cloud = o3d.geometry.PointCloud()
+        point_cloud.points = o3d.utility.Vector3dVector(np.asarray(points))
+
+        return point_cloud
+
     def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """Processes the sonar point cloud by removing the noise and the ground plane.
 
@@ -39,8 +67,11 @@ class SaescPipeline:
         """
         # Voxelgrid
         cloud = cloud.voxel_down_sample(voxel_size=0.05)
-        # Flip the point cloud in z direction and correct sea level
-        points = np.array(cloud.points) * np.array([1, 1, -1])
+        # Remove SOR noise
+        cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
+                                                    std_ratio=2.0)
+        # Correct sea level
+        points = np.array(cloud.points)
         points[:, 2] += self.sea_level_ref - self.sonar_depth
         cloud.points = o3d.utility.Vector3dVector(points)
         # Calculate the normals, flipping towards positive z
@@ -106,7 +137,8 @@ class SaescPipeline:
             yield {"status": f"Processing point cloud {i + 1} out of {len(self.input_clouds_paths)}", "result": True, "pct": pct}
 
             # Load the point cloud
-            cloud = o3d.io.read_point_cloud(c_path)
+            cloud = o3d.io.read_point_cloud(
+                c_path) if c_type == "drone" else self.xyz_to_point_cloud(c_path)
             if cloud is None:
                 yield {"status": f"Error: could not load point cloud from {c_path}", "result": False, "pct": 0}
 

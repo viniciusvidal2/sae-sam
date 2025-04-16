@@ -172,6 +172,7 @@ cython_debug/
 
 # Custom entries
 *.ply
+*.xyz
 /first_train_set_2
 /full_train_set
 /runs
