@@ -90,10 +90,6 @@ class SaescPipeline:
         Returns:
             dict: Status: message of the process. Result: true if the point cloud was merged successfully. Pct: percentage of the process [0.0, 1.0].
         """
-        # If output directory does not exist, call an error
-        if not os.path.exists(os.path.dirname(self.output_path)):
-            yield {"status": f"Error: output directory {os.path.dirname(self.output_path)} does not exist", "result": False, "pct": 0}
-
         if len(self.input_clouds_paths) == 0:
             yield {"status": "Error: no input point clouds were provided", "result": False, "pct": 0}
 
@@ -126,12 +122,7 @@ class SaescPipeline:
             pct = float(i + 1) / process_count
             yield {"status": f"Processed point cloud {i + 1}!", "result": True, "pct": pct}
 
-        # Save the merged point cloud
-        yield {"status": "Saving merged cloud ...", "result": True, "pct": pct}
-        if not self.save_merged_cloud():
-            yield {"status": f"Unable to save the merged cloud to {self.output_path}", "result": False, "pct": 0}
-
-        yield {"status": "Point cloud was merged succesfully", "result": True, "pct": 1.0}
+        yield {"status": "Point cloud was merged succesfully and is ready for download.", "result": True, "pct": 1.0}
 
     def save_merged_cloud(self) -> bool:
         """Saves the merged point cloud to the output path.
