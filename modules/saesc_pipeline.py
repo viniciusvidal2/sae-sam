@@ -9,22 +9,24 @@ from typing import Generator
 
 
 class SaescPipeline:
-    def __init__(self, input_clouds_paths: list, input_clouds_types: list, clouds_folder: str, merged_cloud_name: str, sea_level_ref: float) -> None:
-        """Initializes the SaescPipeline class with the output path and the input point clouds paths and types.
+    def __init__(self) -> None:
+        """Initializes the SaescPipeline class.
+        """
+        self.merged_cloud = o3d.geometry.PointCloud()
+        self.output_path = ""
+        self.sonar_depth = 0.5  # [m]
+
+    def set_input_data(self, input_clouds_paths: list, input_clouds_types: list, sea_level_ref: float) -> None:
+        """Sets the input data for the pipeline.
 
         Args:
             input_clouds_paths (list): input point clouds paths
-            input_clouds_types (list): input point clouds types, wether sonar or sfm
-            clouds_folder (str): folder where the point clouds are stored
-            merged_cloud_name (str): name of the merged point cloud
+            input_clouds_types (list): input point clouds types, wether sonar or drone
             sea_level_ref (float): reference sea level to add to Z readings
         """
         self.input_clouds_paths = input_clouds_paths
         self.input_clouds_types = input_clouds_types
-        self.merged_cloud = o3d.geometry.PointCloud()
-        self.output_path = os.path.join(clouds_folder, merged_cloud_name)
         self.sea_level_ref = sea_level_ref  # Reference sea level [m]
-        self.sonar_depth = 0.5  # [m]
 
     def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """Processes the sonar point cloud by removing the noise and the ground plane.
@@ -56,18 +58,18 @@ class SaescPipeline:
 
         return deepcopy(cloud)
 
-    def process_sfm_cloud(self, cloud: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
-        """Processes the sfm point cloud by removing the noise and the ground plane.
+    def process_drone_cloud(self, cloud: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
+        """Processes the drone point cloud by removing the noise and the ground plane.
 
         Args:
-            cloud (o3d.geometry.PointCloud): input sfm point cloud
+            cloud (o3d.geometry.PointCloud): input drone point cloud
 
         Returns:
-            o3d.geometry.PointCloud: processed sfm point cloud
+            o3d.geometry.PointCloud: processed drone point cloud
         """
         # Remove SOR noise
         cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
-                                                      std_ratio=2.0)
+                                                    std_ratio=2.0)
         points = np.array(cloud.points)
         # Find the minimum Z that should be close to the water level
         min_z = np.min(points[:, 2])
@@ -117,8 +119,8 @@ class SaescPipeline:
                 yield {"status": f"Error: unknown point cloud type {c_type} for point cloud {c_path}", "result": False, "pct": 0}
             elif c_type == "sonar":
                 self.merged_cloud += self.process_sonar_cloud(cloud)
-            elif c_type == "sfm":
-                self.merged_cloud += self.process_sfm_cloud(cloud)
+            elif c_type == "drone":
+                self.merged_cloud += self.process_drone_cloud(cloud)
 
             # Final percentage yield
             pct = float(i + 1) / process_count
@@ -177,7 +179,7 @@ class SaescPipeline:
         """
         with open(self.output_path, "rb") as f:
             return f.read()
-        
+
     def set_sea_level_ref(self, sea_level_ref: float) -> None:
         """Sets the sea level reference.
 
@@ -199,7 +201,7 @@ if __name__ == "__main__":
                         default=[os.path.join(root_path, "../barragem.ply"), os.path.join(root_path, "../espigao.ply")], required=False,
                         help="list of paths to the input point clouds")
     parser.add_argument("--input_clouds_types", type=list,
-                        default=["sonar", "sfm"], required=False,
+                        default=["sonar", "drone"], required=False,
                         help="list of types of the input point clouds")
     args = parser.parse_args()
 
@@ -214,10 +216,10 @@ if __name__ == "__main__":
 
     # Merge the point clouds
     cloud_merger = SaescPipeline(input_clouds_paths=input_clouds_paths,
-                               input_clouds_types=input_clouds_types,
-                               clouds_folder=os.path.join(
-                                   os.path.dirname(output_path), ".."),
-                               merged_cloud_name=output_path,
-                               sea_level_ref=71.3)
+                                 input_clouds_types=input_clouds_types,
+                                 clouds_folder=os.path.join(
+                                     os.path.dirname(output_path), ".."),
+                                 merged_cloud_name=output_path,
+                                 sea_level_ref=71.3)
     for status in cloud_merger.merge_clouds():
         print(status)
