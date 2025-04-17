@@ -87,7 +87,9 @@ class PointCloudEntry(QWidget):
 ##############################################################################################
 # region Main Window
 class SaescWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the main window for the SAESC application.
+        """
         super().__init__()
         self.setWindowTitle("SAESC - SAE Scene Creator")
         self.setMinimumSize(1700, 600)
@@ -157,7 +159,9 @@ class SaescWindow(QMainWindow):
         self.merged_ptc_pyvista = None
         self.merged_ptc_ply = None
 
-    def setup_background(self):
+    def setup_background(self) -> None:
+        """Set up the background image for the main window.
+        """
         self.background = QPixmap("resources/background.png")
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
@@ -174,12 +178,16 @@ class SaescWindow(QMainWindow):
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
 
-    def add_entry(self):
+    def add_entry(self) -> None:
+        """Add a new entry for point cloud selection.
+        """
         entry = PointCloudEntry()
         self.scroll_layout.addWidget(entry)
         self.entries.append(entry)
 
-    def process_button_callback(self):
+    def process_button_callback(self) -> None:
+        """Process the selected point clouds in a parallel thread that uses the pipeline.
+        """
         # Obtaining the input data from the entires and organizing to the worker thread
         input_paths = []
         input_types = []
@@ -213,7 +221,7 @@ class SaescWindow(QMainWindow):
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
 
-    def reset_button_callback(self):
+    def reset_button_callback(self) -> None:
         """Reset the data and clear the visualizer.
         """
         self.log_output("Resetting data...")
@@ -224,7 +232,7 @@ class SaescWindow(QMainWindow):
         self.visualizer.update()
         self.log_output("Merged point cloud data cleared.")
 
-    def download_button_callback(self):
+    def download_button_callback(self) -> None:
         """Download the merged point cloud.
         """
         if self.merged_ptc_ply is None:
@@ -248,6 +256,8 @@ class SaescWindow(QMainWindow):
 
     def _set_merged_point_cloud(self, ptcs: dict) -> None:
         """Set the merged point clouds for visualization and download.
+        Args:
+            ptcs (dict): Dictionary containing the merged point clouds.
         """
         self.merged_ptc_ply = ptcs["ply"]
         self.merged_ptc_pyvista = ptcs["pyvista"]
@@ -257,7 +267,6 @@ class SaescWindow(QMainWindow):
         self.visualizer.reset_camera()
         self.visualizer.enable_anti_aliasing()
         self.visualizer.update()
-
         self.log_output("Merged point cloud set for visualization.")
 
 # endregion

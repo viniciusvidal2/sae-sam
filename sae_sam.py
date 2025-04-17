@@ -42,24 +42,6 @@ class MainWindow(QMainWindow):
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
 
-    def init_3d_tab(self):
-        layout = QVBoxLayout(self.tab_3d)
-
-        # Create a pyvista Plotter embedded in a Qt widget
-        self.plotter = QtInteractor(self.tab_3d)
-        layout.addWidget(self.plotter.interactor)
-        self.tab_3d.setLayout(layout)
-
-        # Example: Load a mesh or point cloud and add it to the plotter
-        try:
-            # Example with a simple sphere
-            mesh = pv.Sphere()
-            self.plotter.add_mesh(mesh)
-            self.plotter.reset_camera()
-
-        except Exception as e:
-            print(f"Error loading or displaying with PyVista: {e}")
-
     def setup_buttons(self) -> None:
         """Set up the buttons for the main window.
         """
