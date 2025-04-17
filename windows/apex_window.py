@@ -119,9 +119,6 @@ class ApexWindow(QWidget):
         """
         self.output_panel = QTextEdit(self)
         self.output_panel.setReadOnly(True)
-        self.output_panel.setStyleSheet(
-            "background-color: rgba(255, 255, 255, 200); font-family: monospace;"
-        )
         self.output_panel.move(self.base_x, self.load_button.y(
         ) + self.load_button.height() + self.margin)
         self.output_panel.resize(
