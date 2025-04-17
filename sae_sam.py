@@ -9,7 +9,11 @@ from windows.saesc_window import SaescWindow
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the main window with a background image and buttons.
+        The main window contains buttons to open different functionalities of the application.
+        The buttons are connected to their respective functions which open new windows.
+        """
         super().__init__()
         self.setWindowTitle("SAE SAM")
         self.setGeometry(400, 400, 800, 600)
@@ -19,14 +23,19 @@ class MainWindow(QMainWindow):
         # The windows we can open from the main interface
         self.child_windows = []
 
-    def setup_background(self):
+    def setup_background(self) -> None:
+        """Set up the background image for the main window.
+        """
         self.background = QPixmap("resources/background.png")
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: None) -> None:
+        """Resize the contents when the window is resized.
+        """
+        # Resizing background
         scaled_bg = self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
         palette = self.palette()
@@ -51,8 +60,10 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error loading or displaying with PyVista: {e}")
 
-    def setup_buttons(self):
-        # Create three buttons
+    def setup_buttons(self) -> None:
+        """Set up the buttons for the main window.
+        """
+        # Create one button for each isolated program module
         self.button_appex = QPushButton("Apex image processing", self)
         self.button_appex.setGeometry(100, 100, 200, 40)
         self.button_appex.clicked.connect(self.open_apex_window)
@@ -61,14 +72,18 @@ class MainWindow(QMainWindow):
         self.button2.setGeometry(100, 160, 200, 40)
         self.button2.clicked.connect(self.open_window2)
 
-        self.button3 = QPushButton("SAESC - Scene Creator", self)
-        self.button3.setGeometry(100, 220, 200, 40)
-        self.button3.clicked.connect(self.open_saesc_window)
+        self.button_saesc = QPushButton("SAESC - Scene Creator", self)
+        self.button_saesc.setGeometry(100, 220, 200, 40)
+        self.button_saesc.clicked.connect(self.open_saesc_window)
 
-    def open_apex_window(self):
+    def open_apex_window(self) -> None:
+        """Open the Apex window.
+        """
+        # Create and add to the list of child windows
+        # The child windows are stored in a list to be closed when the main window is closed
         apex_window = ApexWindow()
-        apex_window.setAttribute(Qt.WA_DeleteOnClose)
         self.child_windows.append(apex_window)
+        apex_window.setAttribute(Qt.WA_DeleteOnClose)
         apex_window.destroyed.connect(
             lambda: self.child_windows.remove(apex_window))
         apex_window.show()
@@ -77,22 +92,25 @@ class MainWindow(QMainWindow):
         # Placeholder for second window
         pass
 
-    def open_saesc_window(self):
+    def open_saesc_window(self) -> None:
+        """Open the SAESC window.
+        """
+        # Create and add to the list of child windows
+        # The child windows are stored in a list to be closed when the main window is closed
         saesc_window = SaescWindow()
-        saesc_window.setAttribute(Qt.WA_DeleteOnClose)
         self.child_windows.append(saesc_window)
+        saesc_window.setAttribute(Qt.WA_DeleteOnClose)
         saesc_window.destroyed.connect(
             lambda: self.child_windows.remove(saesc_window))
         saesc_window.show()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: None) -> None:
+        """Close all child windows when the main window is closed.
+        """
         for window in self.child_windows:
             if window is not None and window.isVisible():
                 window.close()
         event.accept()
-        
-    def _remove_dead_child(self, ref):
-        self.child_windows = [r for r in self.child_windows if r is not ref]
 
 
 if __name__ == '__main__':
