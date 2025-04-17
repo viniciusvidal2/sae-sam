@@ -4,10 +4,12 @@ from PySide6.QtWidgets import (
     QButtonGroup, QTextEdit
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
 from pyvistaqt import QtInteractor
+from pyvista import PolyData
 import os
 from modules.saesc_pipeline import SaescPipeline
+from modules.saesc_worker import SaescWorker
 
 
 ##############################################################################################
@@ -82,7 +84,7 @@ class SaescWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
 
-        # Left panel layout (vertical)
+        # Left panel layout - scroll area, buttons and text panel
         self.left_panel = QWidget()
         self.left_panel.setFixedWidth(550)
         left_layout = QVBoxLayout(self.left_panel)
@@ -93,8 +95,6 @@ class SaescWindow(QMainWindow):
         self.scroll_layout = QVBoxLayout(self.scroll_widget)
         self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.scroll_area.setWidget(self.scroll_widget)
-        left_layout.addWidget(self.scroll_area, stretch=3)
-
         # Add/Process buttons
         btn_layout = QHBoxLayout()
         self.add_btn = QPushButton("Add Point Cloud")
@@ -103,24 +103,35 @@ class SaescWindow(QMainWindow):
         self.process_btn = QPushButton("Start Processing")
         self.process_btn.clicked.connect(self.process_button_callback)
         btn_layout.addWidget(self.process_btn)
-        left_layout.addLayout(btn_layout)
-
         # Text panel (bottom of left column)
         self.text_panel = QTextEdit()
         self.text_panel.setPlaceholderText(
             "Logs, status, or descriptions here...")
         self.text_panel.setReadOnly(True)
         self.text_panel.setFixedHeight(120)
+        # Filling left panel
+        left_layout.addWidget(self.scroll_area, stretch=3)
+        left_layout.addLayout(btn_layout)
         left_layout.addWidget(self.text_panel, stretch=1)
 
-        # Finish the left layout in the main layout
-        main_layout.addWidget(self.left_panel)
-
-        # Right panel (PyVista Visualizer placeholder)
+        # Right panel - PyVista Visualizer placeholder plus buttons
+        self.right_panel = QWidget()
+        self.right_panel.setFixedWidth(900)
+        right_layout = QVBoxLayout(self.right_panel)
+        self.reset_data_button = QPushButton("Reset Data")
+        self.reset_data_button.setEnabled(True)
         self.visualizer = QtInteractor(self)
         self.visualizer.set_background(color="gray")
-        main_layout.addWidget(self.visualizer, stretch=1)
         self.visualizer.add_axes()
+        self.download_button = QPushButton("Download Merged Point Cloud")
+        self.download_button.setEnabled(True)
+        right_layout.addWidget(self.reset_data_button)
+        right_layout.addWidget(self.visualizer.interactor, stretch=1)
+        right_layout.addWidget(self.download_button)
+        
+        # Fill the main layout with both panels
+        main_layout.addWidget(self.left_panel)
+        main_layout.addWidget(self.right_panel)
 
         # We will have a list of entries to manage point clouds that will be processed
         self.entries = []
@@ -128,6 +139,8 @@ class SaescWindow(QMainWindow):
         self.skip_print = "------------------------------------------------"
         # The pipeline object to call the processing functions
         self.pipeline = SaescPipeline()
+        # The generated merged point cloud to be downloaded
+        self.merged_ptc = None
 
     def setup_background(self):
         self.background = QPixmap("resources/background.png")
@@ -151,43 +164,53 @@ class SaescWindow(QMainWindow):
         self.entries.append(entry)
 
     def process_button_callback(self):
+        # Obtaining the input data from the entires and organizing to the worker thread
         input_paths = []
         input_types = []
-        self.text_panel.append(self.skip_print)
-        self.text_panel.append(
-            "Reading the input point clouds and its types...")
-        self.text_panel.append("Processing started...")
+        self.log_output(self.skip_print)
+        self.log_output("Reading the input point clouds and its types...")
         for entry in self.entries:
             if entry.full_path:
                 input_paths.append(entry.full_path)
                 input_types.append(
                     "drone" if entry.radio_drone.isChecked() else "sonar")
             else:
-                self.text_panel.append("No file selected, nothing to process.")
+                self.log_output("No file selected, nothing to process.")
                 return
-        # Set input data and process
-        self.pipeline.set_input_data(input_clouds_paths=input_paths,
-                                     input_clouds_types=input_types,
-                                     sea_level_ref=71.3)
-        for stage_msg in self.pipeline.merge_clouds():
-            status = stage_msg["status"]
-            pct = 100.0 * stage_msg["pct"]
-            if stage_msg["result"]:
-                self.text_panel.append(f"{status} ({pct:.2f}%)")
-            else:
-                self.text_panel.append(f"Error: {status} ({pct:.2f}%)")
-                return
-        self.text_panel.append(
-            "Processing finished. Setting cloud for visualization ...")
-        # Set the merged cloud for visualization
+        input_data = {"paths": input_paths,
+                      "types": input_types, "sea_level_ref": 71.3}
+
+        # Create a worker to deal with the pipeline in a separate thread
+        self.log_output("Processing started...")
+        self.thread = QThread()
+        self.worker = SaescWorker(self.pipeline, input_data)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.log.connect(self.log_output)
+        self.worker.set_merged_point_cloud.connect(
+            self._set_merged_point_cloud)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def log_output(self, msg: str) -> None:
+        """Log output to the text panel.
+        Args:
+            msg (str): The message to log.
+        """
+        self.text_panel.append(msg)
+
+    def _set_merged_point_cloud(self, merged_ptc: PolyData) -> None:
+        """Set the merged point cloud for visualization."""
+        self.merged_ptc = merged_ptc
         self.visualizer.clear()
-        merged_cloud = self.pipeline.get_merged_cloud_pyvista()
         self.visualizer.add_mesh(
-            merged_cloud, scalars="RGB", show_scalar_bar=False)
+            merged_ptc, scalars=merged_ptc.point_data["RGB"], rgb=True)
         self.visualizer.reset_camera()
         self.visualizer.enable_anti_aliasing()
         self.visualizer.update()
-        self.text_panel.append("Cloud set for visualization.")
+        self.log_output("Merged point cloud set for visualization.")
 
 # endregion
 

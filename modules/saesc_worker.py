@@ -1,6 +1,5 @@
 from PySide6.QtCore import QObject, Signal, Slot
-from PySide6.QtGui import QImage
-from PIL.ImageQt import ImageQt
+from pyvista import PolyData
 from modules.saesc_pipeline import SaescPipeline
 
 
@@ -8,31 +7,38 @@ class SaescWorker(QObject):
     # Declaring Signals at the class level
     finished = Signal()
     log = Signal(str)
-    set_segmented_image = Signal(QImage)
-    set_metrics = Signal(list)
+    set_merged_point_cloud = Signal(PolyData)
 
-    def __init__(self, saesc_pipeline, image_path, barrier_dimensions):
+    def __init__(self, saesc_pipeline: SaescPipeline, input_data: dict) -> None:
+        """Initialize the worker with the pipeline and input data.
+        Args:
+            saesc_pipeline (SaescPipeline): The pipeline object to process the image.
+            input_data (dict): A dictionary containing the paths, types, and sea level reference.
+        """
         super().__init__()
         self.saesc_pipeline = saesc_pipeline
-        self.image_path = image_path
-        self.barrier_dimensions = barrier_dimensions
+        self.cloud_paths = input_data["paths"]
+        self.cloud_types = input_data["types"]
+        self.sea_level_ref = input_data["sea_level_ref"]
 
     @Slot()
     def run(self):
-        self.log.emit("Setting up image and parameters...")
-        self.saesc_pipeline.set_barrier_dimensions(
-            barrier_dimensions=self.barrier_dimensions)
-        self.log.emit("Loading image and processing pipeline...")
-        for state in self.saesc_pipeline.run(self.image_path):
-            self.log.emit(f"Progress: {state[0]}%, Status: {state[1]}")
-
-        segmented = self.saesc_pipeline.get_segmented_image()
-        if segmented:
-            image_qt = ImageQt(segmented)
-            qimage = QImage(image_qt)
-            self.set_segmented_image.emit(qimage)
-        self.log.emit("Processing complete!")
-
-        metrics = self.saesc_pipeline.get_detections_metrics()
-        self.set_metrics.emit(metrics or [])
+        # Set input data and process
+        self.saesc_pipeline.set_input_data(input_clouds_paths=self.cloud_paths,
+                                           input_clouds_types=self.cloud_types,
+                                           sea_level_ref=self.sea_level_ref)
+        # Run pipeline and get each stage feedback
+        for stage_msg in self.saesc_pipeline.merge_clouds():
+            status = stage_msg["status"]
+            pct = 100.0 * stage_msg["pct"]
+            if stage_msg["result"]:
+                self.log.emit(f"{status} ({pct:.2f}%)")
+            else:
+                self.log.emit(f"Error: {status} ({pct:.2f}%)")
+                return
+        # Obtain merged cloud to display
+        self.log.emit(
+            "Processing finished. Setting cloud for visualization ...")
+        self.set_merged_point_cloud.emit(
+            self.saesc_pipeline.get_merged_cloud_pyvista())
         self.finished.emit()
