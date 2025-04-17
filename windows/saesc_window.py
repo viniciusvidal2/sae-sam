@@ -6,8 +6,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
 from pyvistaqt import QtInteractor
-from pyvista import PolyData
 import os
+import open3d as o3d
 from modules.saesc_pipeline import SaescPipeline
 from modules.saesc_worker import SaescWorker
 
@@ -120,11 +120,13 @@ class SaescWindow(QMainWindow):
         right_layout = QVBoxLayout(self.right_panel)
         self.reset_data_button = QPushButton("Reset Data")
         self.reset_data_button.setEnabled(True)
+        self.reset_data_button.clicked.connect(self.reset_button_callback)
         self.visualizer = QtInteractor(self)
         self.visualizer.set_background(color="gray")
         self.visualizer.add_axes()
         self.download_button = QPushButton("Download Merged Point Cloud")
         self.download_button.setEnabled(True)
+        self.download_button.clicked.connect(self.download_button_callback)
         right_layout.addWidget(self.reset_data_button)
         right_layout.addWidget(self.visualizer.interactor, stretch=1)
         right_layout.addWidget(self.download_button)
@@ -140,7 +142,8 @@ class SaescWindow(QMainWindow):
         # The pipeline object to call the processing functions
         self.pipeline = SaescPipeline()
         # The generated merged point cloud to be downloaded
-        self.merged_ptc = None
+        self.merged_ptc_pyvista = None
+        self.merged_ptc_ply = None
 
     def setup_background(self):
         self.background = QPixmap("resources/background.png")
@@ -149,7 +152,9 @@ class SaescWindow(QMainWindow):
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: None) -> None:
+        """Resize the contents when the window is resized.
+        """
         # Rescale background
         scaled_bg = self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation
@@ -193,6 +198,32 @@ class SaescWindow(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
+        
+    def reset_button_callback(self):
+        """Reset the data and clear the visualizer.
+        """
+        self.log_output("Resetting data...")
+        self.merged_ptc_pyvista = None
+        self.merged_ptc_ply = None
+        self.visualizer.clear()
+        self.visualizer.add_axes()
+        self.visualizer.update()
+        self.log_output("Merged point cloud data cleared.")
+        
+    def download_button_callback(self):
+        """Download the merged point cloud.
+        """
+        if self.merged_ptc_ply is None:
+            self.log_output("No merged point cloud to download.")
+            return
+        # Open file dialog to save the merged point cloud
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Merged Point Cloud", "merged_point_cloud.ply", "Point Cloud Files (*.ply)")
+        if file_path:
+            o3d.io.write_point_cloud(file_path, self.merged_ptc_ply)
+            self.log_output(f"Merged point cloud saved to: {file_path}")
+        else:
+            self.log_output("Download cancelled.")
 
     def log_output(self, msg: str) -> None:
         """Log output to the text panel.
@@ -201,15 +232,18 @@ class SaescWindow(QMainWindow):
         """
         self.text_panel.append(msg)
 
-    def _set_merged_point_cloud(self, merged_ptc: PolyData) -> None:
-        """Set the merged point cloud for visualization."""
-        self.merged_ptc = merged_ptc
+    def _set_merged_point_cloud(self, ptcs: dict) -> None:
+        """Set the merged point clouds for visualization and download.
+        """
+        self.merged_ptc_ply = ptcs["ply"]
+        self.merged_ptc_pyvista = ptcs["pyvista"]
         self.visualizer.clear()
         self.visualizer.add_mesh(
-            merged_ptc, scalars=merged_ptc.point_data["RGB"], rgb=True)
+            self.merged_ptc_pyvista, scalars=self.merged_ptc_pyvista.point_data["RGB"], rgb=True)
         self.visualizer.reset_camera()
         self.visualizer.enable_anti_aliasing()
         self.visualizer.update()
+        
         self.log_output("Merged point cloud set for visualization.")
 
 # endregion

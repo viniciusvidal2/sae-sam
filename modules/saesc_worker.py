@@ -1,5 +1,4 @@
 from PySide6.QtCore import QObject, Signal, Slot
-from pyvista import PolyData
 from modules.saesc_pipeline import SaescPipeline
 
 
@@ -7,7 +6,7 @@ class SaescWorker(QObject):
     # Declaring Signals at the class level
     finished = Signal()
     log = Signal(str)
-    set_merged_point_cloud = Signal(PolyData)
+    set_merged_point_cloud = Signal(dict)
 
     def __init__(self, saesc_pipeline: SaescPipeline, input_data: dict) -> None:
         """Initialize the worker with the pipeline and input data.
@@ -39,6 +38,7 @@ class SaescWorker(QObject):
         # Obtain merged cloud to display
         self.log.emit(
             "Processing finished. Setting cloud for visualization ...")
-        self.set_merged_point_cloud.emit(
-            self.saesc_pipeline.get_merged_cloud_pyvista())
+        ptcs = {"pyvista": self.saesc_pipeline.get_merged_cloud_pyvista(),
+                "ply": self.saesc_pipeline.get_merged_cloud()}
+        self.set_merged_point_cloud.emit(ptcs)
         self.finished.emit()
