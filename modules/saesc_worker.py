@@ -18,14 +18,16 @@ class SaescWorker(QObject):
         self.saesc_pipeline = saesc_pipeline
         self.cloud_paths = input_data["paths"]
         self.cloud_types = input_data["types"]
-        self.sea_level_ref = input_data["sea_level_ref"]
+        self.sea_level_refs = input_data["sea_level_refs"]
 
     @Slot()
-    def run(self):
+    def run(self) -> None:
+        """Run the processing pipeline.
+        """
         # Set input data and process
         self.saesc_pipeline.set_input_data(input_clouds_paths=self.cloud_paths,
                                            input_clouds_types=self.cloud_types,
-                                           sea_level_ref=self.sea_level_ref)
+                                           sea_level_refs=self.sea_level_refs)
         # Run pipeline and get each stage feedback
         for stage_msg in self.saesc_pipeline.merge_clouds():
             status = stage_msg["status"]

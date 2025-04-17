@@ -16,17 +16,17 @@ class SaescPipeline:
         self.output_path = ""
         self.sonar_depth = 0.5  # [m]
 
-    def set_input_data(self, input_clouds_paths: list, input_clouds_types: list, sea_level_ref: float) -> None:
+    def set_input_data(self, input_clouds_paths: list, input_clouds_types: list, sea_level_refs: list) -> None:
         """Sets the input data for the pipeline.
 
         Args:
             input_clouds_paths (list): input point clouds paths
             input_clouds_types (list): input point clouds types, wether sonar or drone
-            sea_level_ref (float): reference sea level to add to Z readings
+            sea_level_ref (list): reference sea level [m] to add to Z readings
         """
         self.input_clouds_paths = input_clouds_paths
         self.input_clouds_types = input_clouds_types
-        self.sea_level_ref = sea_level_ref  # Reference sea level [m]
+        self.sea_level_refs = sea_level_refs  # Reference sea level [m]
 
     def xyz_to_point_cloud(self, filename: str, invert_z: bool = True) -> o3d.geometry.PointCloud:
         """Converts a .xyz file to an open3d point cloud.
@@ -56,11 +56,12 @@ class SaescPipeline:
 
         return point_cloud
 
-    def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
+    def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float) -> o3d.geometry.PointCloud:
         """Processes the sonar point cloud by removing the noise and the ground plane.
 
         Args:
             cloud (o3d.geometry.PointCloud): input sonar point cloud
+            sea_level_ref (float): reference sea level to add to Z readings
 
         Returns:
             o3d.geometry.PointCloud: processed sonar point cloud
@@ -72,7 +73,7 @@ class SaescPipeline:
                                                     std_ratio=2.0)
         # Correct sea level
         points = np.array(cloud.points)
-        points[:, 2] += self.sea_level_ref - self.sonar_depth
+        points[:, 2] += sea_level_ref - self.sonar_depth
         cloud.points = o3d.utility.Vector3dVector(points)
         # Calculate the normals, flipping towards positive z
         cloud.estimate_normals(
@@ -89,11 +90,12 @@ class SaescPipeline:
 
         return deepcopy(cloud)
 
-    def process_drone_cloud(self, cloud: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
+    def process_drone_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float) -> o3d.geometry.PointCloud:
         """Processes the drone point cloud by removing the noise and the ground plane.
 
         Args:
             cloud (o3d.geometry.PointCloud): input drone point cloud
+            sea_level_ref (float): reference sea level to add to Z readings
 
         Returns:
             o3d.geometry.PointCloud: processed drone point cloud
@@ -105,7 +107,7 @@ class SaescPipeline:
         # Find the minimum Z that should be close to the water level
         min_z = np.min(points[:, 2])
         # Add the sea level reference to ajust the Z values
-        points[:, 2] += self.sea_level_ref - min_z
+        points[:, 2] += sea_level_ref - min_z
         cloud.points = o3d.utility.Vector3dVector(points)
         # Calculate the normals, flipping towards positive z
         cloud.estimate_normals(
@@ -115,6 +117,18 @@ class SaescPipeline:
 
         return deepcopy(cloud)
 
+    def calculate_global_sea_level_reference(self) -> float:
+        """Calculates the global sea level reference.
+
+        Returns:
+            float: global sea level reference
+        """
+        highest_ref = 0  # We compare to 0 to account for the drone values
+        for ref in self.sea_level_refs:
+            if ref > highest_ref:
+                highest_ref = ref
+        return highest_ref
+
     def merge_clouds(self) -> Generator[dict, None, None]:
         """Merges the point clouds properly into a single point cloud object.
 
@@ -123,6 +137,9 @@ class SaescPipeline:
         """
         if len(self.input_clouds_paths) == 0:
             yield {"status": "Error: no input point clouds were provided", "result": False, "pct": 0}
+
+        # Get the global sea level that we will refer to for drone ptcs
+        global_sea_level_ref = self.calculate_global_sea_level_reference()
 
         # Amount of processes to run
         process_count = float(len(self.input_clouds_paths) + 1)
@@ -146,9 +163,11 @@ class SaescPipeline:
             if c_type == "unknown":
                 yield {"status": f"Error: unknown point cloud type {c_type} for point cloud {c_path}", "result": False, "pct": 0}
             elif c_type == "sonar":
-                self.merged_cloud += self.process_sonar_cloud(cloud)
+                self.merged_cloud += self.process_sonar_cloud(
+                    cloud, self.sea_level_refs[i])
             elif c_type == "drone":
-                self.merged_cloud += self.process_drone_cloud(cloud)
+                self.merged_cloud += self.process_drone_cloud(
+                    cloud, global_sea_level_ref)
 
             # Final percentage yield
             pct = float(i + 1) / process_count

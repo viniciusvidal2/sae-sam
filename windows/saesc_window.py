@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QRadioButton, QFileDialog, QScrollArea,
-    QButtonGroup, QTextEdit
+    QButtonGroup, QTextEdit, QLabel
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
@@ -15,40 +15,53 @@ from modules.saesc_worker import SaescWorker
 ##############################################################################################
 # region Point Cloud Entries
 class PointCloudEntry(QWidget):
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the point cloud entry widget.
+        """
         super().__init__()
+        # The path to the point cloud to be processed
         self.full_path = None
         layout = QHBoxLayout()
-
+        # Line edit for the path
         self.line_edit = QLineEdit()
         self.line_edit.setReadOnly(True)
-        layout.addWidget(self.line_edit)
-
+        # Browse button
         self.browse_btn = QPushButton("Browse")
         self.browse_btn.clicked.connect(self.browse_file)
-        layout.addWidget(self.browse_btn)
-
+        # Radio buttons to set for drone or sonar
         self.radio_drone = QRadioButton("Drone")
         self.radio_sonar = QRadioButton("Sonar")
         self.radio_drone.setChecked(True)
         radio_style = "color: black; background-color: rgba(100,100,100,150); padding: 4px; border-radius: 4px;"
         self.radio_drone.setStyleSheet(radio_style)
         self.radio_sonar.setStyleSheet(radio_style)
-
         group = QButtonGroup(self)
         group.addButton(self.radio_drone)
         group.addButton(self.radio_sonar)
-
-        layout.addWidget(self.radio_drone)
-        layout.addWidget(self.radio_sonar)
-
+        # Label to ask for the acquisition quote
+        self.label = QLabel("Acquisition Quote [m]:")
+        self.label.setStyleSheet(radio_style)
+        # Line edit for the acquisition quote
+        self.quote_edit = QLineEdit()
+        self.quote_edit.setText("0")
+        self.quote_edit.setFixedWidth(70)
+        # Remove button
         self.remove_btn = QPushButton("Remove")
         self.remove_btn.clicked.connect(self.remove_entry)
-        layout.addWidget(self.remove_btn)
 
+        # Fill the layout
+        layout.addWidget(self.line_edit)
+        layout.addWidget(self.browse_btn)
+        layout.addWidget(self.radio_drone)
+        layout.addWidget(self.radio_sonar)
+        layout.addWidget(self.label)
+        layout.addWidget(self.quote_edit)
+        layout.addWidget(self.remove_btn)
         self.setLayout(layout)
 
-    def browse_file(self):
+    def browse_file(self) -> None:
+        """Open a file dialog to select a point cloud file.
+        """
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Select Point Cloud", "", "Point Cloud Files (*.ply *.xyz)")
         if file_path:
@@ -62,7 +75,9 @@ class PointCloudEntry(QWidget):
                 self.radio_drone.setChecked(True)
                 self.radio_sonar.setChecked(False)
 
-    def remove_entry(self):
+    def remove_entry(self) -> None:
+        """Remove the entry from the layout and clear the line edit.
+        """
         self.line_edit.clear()
         self.full_path = None
 
@@ -75,7 +90,7 @@ class SaescWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SAESC - SAE Scene Creator")
-        self.setMinimumSize(1500, 600)
+        self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
         self.setup_background()
 
@@ -86,7 +101,6 @@ class SaescWindow(QMainWindow):
 
         # Left panel layout - scroll area, buttons and text panel
         self.left_panel = QWidget()
-        self.left_panel.setFixedWidth(550)
         left_layout = QVBoxLayout(self.left_panel)
         # Scroll area for entries
         self.scroll_area = QScrollArea()
@@ -108,7 +122,6 @@ class SaescWindow(QMainWindow):
         self.text_panel.setPlaceholderText(
             "Logs, status, or descriptions here...")
         self.text_panel.setReadOnly(True)
-        self.text_panel.setFixedHeight(120)
         # Filling left panel
         left_layout.addWidget(self.scroll_area, stretch=3)
         left_layout.addLayout(btn_layout)
@@ -116,7 +129,6 @@ class SaescWindow(QMainWindow):
 
         # Right panel - PyVista Visualizer placeholder plus buttons
         self.right_panel = QWidget()
-        self.right_panel.setFixedWidth(900)
         right_layout = QVBoxLayout(self.right_panel)
         self.reset_data_button = QPushButton("Reset Data")
         self.reset_data_button.setEnabled(True)
@@ -130,7 +142,7 @@ class SaescWindow(QMainWindow):
         right_layout.addWidget(self.reset_data_button)
         right_layout.addWidget(self.visualizer.interactor, stretch=1)
         right_layout.addWidget(self.download_button)
-        
+
         # Fill the main layout with both panels
         main_layout.addWidget(self.left_panel)
         main_layout.addWidget(self.right_panel)
@@ -157,8 +169,7 @@ class SaescWindow(QMainWindow):
         """
         # Rescale background
         scaled_bg = self.background.scaled(
-            self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation
-        )
+            self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
@@ -172,6 +183,7 @@ class SaescWindow(QMainWindow):
         # Obtaining the input data from the entires and organizing to the worker thread
         input_paths = []
         input_types = []
+        sea_level_refs = []
         self.log_output(self.skip_print)
         self.log_output("Reading the input point clouds and its types...")
         for entry in self.entries:
@@ -179,11 +191,13 @@ class SaescWindow(QMainWindow):
                 input_paths.append(entry.full_path)
                 input_types.append(
                     "drone" if entry.radio_drone.isChecked() else "sonar")
+                sea_level_refs.append(float(entry.quote_edit.text()))
             else:
                 self.log_output("No file selected, nothing to process.")
                 return
         input_data = {"paths": input_paths,
-                      "types": input_types, "sea_level_ref": 71.3}
+                      "types": input_types,
+                      "sea_level_refs": sea_level_refs}
 
         # Create a worker to deal with the pipeline in a separate thread
         self.log_output("Processing started...")
@@ -198,7 +212,7 @@ class SaescWindow(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
-        
+
     def reset_button_callback(self):
         """Reset the data and clear the visualizer.
         """
@@ -209,7 +223,7 @@ class SaescWindow(QMainWindow):
         self.visualizer.add_axes()
         self.visualizer.update()
         self.log_output("Merged point cloud data cleared.")
-        
+
     def download_button_callback(self):
         """Download the merged point cloud.
         """
@@ -243,7 +257,7 @@ class SaescWindow(QMainWindow):
         self.visualizer.reset_camera()
         self.visualizer.enable_anti_aliasing()
         self.visualizer.update()
-        
+
         self.log_output("Merged point cloud set for visualization.")
 
 # endregion
