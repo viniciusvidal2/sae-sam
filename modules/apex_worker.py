@@ -11,28 +11,40 @@ class ApexWorker(QObject):
     set_segmented_image = Signal(QImage)
     set_metrics = Signal(list)
 
-    def __init__(self, apex_pipeline, image_path, barrier_dimensions):
+    def __init__(self, apex_pipeline: ApexPipeline, image_path: str, barrier_dimensions: dict) -> None:
+        """Initialize the worker with the pipeline and image path.
+
+        Args:
+            apex_pipeline (ApexPipeline): The pipeline object to process the image.
+            image_path (str): The path to the image to be processed.
+            barrier_dimensions (dict): The dimensions of the barriers in the image.
+        """
         super().__init__()
         self.apex_pipeline = apex_pipeline
         self.image_path = image_path
         self.barrier_dimensions = barrier_dimensions
 
     @Slot()
-    def run(self):
+    def run(self) -> None:
+        """Run the image processing pipeline.
+        This method emits logs and signals during the processing.
+        """
+        # Emitting log messages to indicate the progress of the pipeline
         self.log.emit("Setting up image and parameters...")
         self.apex_pipeline.set_barrier_dimensions(
             barrier_dimensions=self.barrier_dimensions)
         self.log.emit("Loading image and processing pipeline...")
+        # Running the pipeline and emitting progress updates
         for state in self.apex_pipeline.run(self.image_path):
             self.log.emit(f"Progress: {state[0]}%, Status: {state[1]}")
-
+        # Getting the segmented image and emitting it as a signal
         segmented = self.apex_pipeline.get_segmented_image()
         if segmented:
             image_qt = ImageQt(segmented)
             qimage = QImage(image_qt)
             self.set_segmented_image.emit(qimage)
         self.log.emit("Processing complete!")
-
+        # Getting the detection metrics and emitting them as a signal
         metrics = self.apex_pipeline.get_detections_metrics()
         self.set_metrics.emit(metrics or [])
         self.finished.emit()

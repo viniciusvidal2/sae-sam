@@ -9,9 +9,9 @@ from pyvistaqt import QtInteractor
 import os
 from modules.saesc_pipeline import SaescPipeline
 
+
+##############################################################################################
 # region Point Cloud Entries
-
-
 class PointCloudEntry(QWidget):
     def __init__(self):
         super().__init__()
@@ -63,11 +63,12 @@ class PointCloudEntry(QWidget):
     def remove_entry(self):
         self.line_edit.clear()
         self.full_path = None
-# endregion
 
+ # endregion
+
+
+##############################################################################################
 # region Main Window
-
-
 class SaescWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -153,7 +154,8 @@ class SaescWindow(QMainWindow):
         input_paths = []
         input_types = []
         self.text_panel.append(self.skip_print)
-        self.text_panel.append("Reading the input point clouds and its types...")
+        self.text_panel.append(
+            "Reading the input point clouds and its types...")
         self.text_panel.append("Processing started...")
         for entry in self.entries:
             if entry.full_path:
@@ -175,15 +177,18 @@ class SaescWindow(QMainWindow):
             else:
                 self.text_panel.append(f"Error: {status} ({pct:.2f}%)")
                 return
-        self.text_panel.append("Processing finished. Setting cloud for visualization ...")
+        self.text_panel.append(
+            "Processing finished. Setting cloud for visualization ...")
         # Set the merged cloud for visualization
         self.visualizer.clear()
         merged_cloud = self.pipeline.get_merged_cloud_pyvista()
-        self.visualizer.add_mesh(merged_cloud, scalars="RGB", show_scalar_bar=False)
+        self.visualizer.add_mesh(
+            merged_cloud, scalars="RGB", show_scalar_bar=False)
         self.visualizer.reset_camera()
         self.visualizer.enable_anti_aliasing()
         self.visualizer.update()
         self.text_panel.append("Cloud set for visualization.")
+
 # endregion
 
 
