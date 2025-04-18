@@ -201,8 +201,10 @@ class SaescWindow(QMainWindow):
                     "drone" if entry.radio_drone.isChecked() else "sonar")
                 sea_level_refs.append(float(entry.quote_edit.text()))
             else:
-                self.log_output("No file selected, nothing to process.")
-                return
+                continue
+        if len(input_paths) == 0:
+            self.log_output("No point clouds selected.")
+            return
         input_data = {"paths": input_paths,
                       "types": input_types,
                       "sea_level_refs": sea_level_refs}
