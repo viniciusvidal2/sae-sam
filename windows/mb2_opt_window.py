@@ -82,8 +82,7 @@ class Mb2OptWindow(QMainWindow):
         bin_text_edit.setPlaceholderText(
             "Path to the BIN file, where the Pixhawk data is stored.")
         bin_browse_btn = QPushButton("Browse")
-        bin_browse_btn.clicked.connect(
-            lambda: bin_text_edit.setText(QFileDialog.getOpenFileName(self, "Select BIN File")[0]))
+        bin_browse_btn.clicked.connect(self.bin_browse_btn_callback)
         bin_view_data_btn = QPushButton("View Data")
         bin_btn_layout.addWidget(bin_label)
         bin_btn_layout.addWidget(bin_text_edit)
@@ -208,6 +207,15 @@ class Mb2OptWindow(QMainWindow):
                 self.log_output("No valid HSX or RAW log files found in the project folder.")
         else:
             self.log_output("No valid HSX file selected.")
+
+    def bin_browse_btn_callback(self) -> None:
+        """Open a file dialog to select the BIN file.
+        """
+        bin_file_path = QFileDialog.getOpenFileName(self, "Select BIN file", "", "BIN files (*.bin)")
+        if bin_file_path[0]:
+            self.log_output(f"Selected BIN file: {bin_file_path[0]}")
+        else:
+            self.log_output("No valid BIN file selected.")
 
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
