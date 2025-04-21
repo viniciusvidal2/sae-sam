@@ -13,9 +13,9 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 
-##############################################################################################
-# region Main Window
 class Mb2OptWindow(QMainWindow):
+    ##############################################################################################
+    # region window setup
     def __init__(self) -> None:
         """Initialize the main window for the Mb2 raw data optimization application.
         """
@@ -175,6 +175,10 @@ class Mb2OptWindow(QMainWindow):
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
+
+# endregion
+##############################################################################################
+# region processing callbacks
 
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
