@@ -64,13 +64,12 @@ class Mb2OptWindow(QMainWindow):
         """
         # Hypack project data from HSX and RAW files in the project folder
         hsx_btn_layout = QHBoxLayout()
-        hsx_label = QLabel("Hypack project folder")
+        hsx_label = QLabel("Hypack HSX file:")
         hsx_text_edit = QLineEdit()
         hsx_text_edit.setPlaceholderText(
-            "Path to the project folder, where HSX and RAW files are file.")
+            "Path to the HSX file. Make sure RAW and LOG files are in the same project folder.")
         hsx_browse_btn = QPushButton("Browse")
-        hsx_browse_btn.clicked.connect(
-            lambda: hsx_text_edit.setText(QFileDialog.getExistingDirectory(self, "Select Project Folder")))
+        hsx_browse_btn.clicked.connect(self.hsx_browse_btn_callback)
         hsx_view_data_btn = QPushButton("View Data")
         hsx_btn_layout.addWidget(hsx_label)
         hsx_btn_layout.addWidget(hsx_text_edit)
@@ -179,6 +178,36 @@ class Mb2OptWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region processing callbacks
+    def hsx_browse_btn_callback(self) -> None:
+        """Open a file dialog to select the HSX file.
+        """
+        hsx_file_path = QFileDialog.getExistingDirectory(self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.")
+        if hsx_file_path:
+            # Find the project root folder and proper raw file
+            project_folder = os.path.dirname(hsx_file_path)
+            self.log_output(f"Selected HSX file: {hsx_file_path}")
+            self.log_output(f"Selected project folder: {project_folder}")
+            raw_file_path = os.path.join(project_folder, hsx_file_path.split("/")[-1].replace(".HSX", ".RAW"))
+            if os.path.exists(raw_file_path):
+                self.log_output(f"Selected RAW file: {raw_file_path}")
+            else:
+                self.log_output("No valid RAW file found in the project folder.")
+            # Check for HSX and RAW log files
+            files_in_folder = os.listdir(project_folder)
+            hsx_log = ""
+            raw_log = ""
+            for f in files_in_folder:
+                if f.endswith(".LOG") and f.startswith("HSX"):
+                    hsx_log = f
+                if f.endswith(".LOG") and f.startswith("RAW"):
+                    raw_log = f
+            if os.path.exists(raw_log) and os.path.exists(hsx_log):
+                self.log_output(f"HSX log file: {hsx_log}")
+                self.log_output(f"RAW log file: {raw_log}")
+            else:
+                self.log_output("No valid HSX or RAW log files found in the project folder.")
+        else:
+            self.log_output("No valid HSX file selected.")
 
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
