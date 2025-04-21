@@ -11,6 +11,8 @@ import open3d as o3d
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from modules.hypack_file_manipulator import HypackFileManipulator
+from modules.ardupilot_log_reader import ArdupilotLogReader
 
 
 class Mb2OptWindow(QMainWindow):
@@ -47,6 +49,11 @@ class Mb2OptWindow(QMainWindow):
 
         # Help the printing in the text panel
         self.skip_print = "------------------------------------------------"
+        # Object to manipulate and process HSX files
+        self.hypack_file_manipulator = HypackFileManipulator()
+        self.hypack_file_manipulator.set_timezone_offset(-3)
+        # Object to manipulate and process BIN files
+        self.pixhawk_log_manipulator = ArdupilotLogReader()
 
     def setup_background(self) -> None:
         """Set up the background image for the main window.
@@ -180,17 +187,21 @@ class Mb2OptWindow(QMainWindow):
     def hsx_browse_btn_callback(self) -> None:
         """Open a file dialog to select the HSX file.
         """
-        hsx_file_path = QFileDialog.getExistingDirectory(self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.")
+        hsx_file_path = QFileDialog.getExistingDirectory(
+            self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.")
         if hsx_file_path:
             # Find the project root folder and proper raw file
             project_folder = os.path.dirname(hsx_file_path)
             self.log_output(f"Selected HSX file: {hsx_file_path}")
             self.log_output(f"Selected project folder: {project_folder}")
-            raw_file_path = os.path.join(project_folder, hsx_file_path.split("/")[-1].replace(".HSX", ".RAW"))
+            raw_file_path = os.path.join(
+                project_folder, hsx_file_path.split("/")[-1].replace(".HSX", ".RAW"))
             if os.path.exists(raw_file_path):
                 self.log_output(f"Selected RAW file: {raw_file_path}")
             else:
-                self.log_output("No valid RAW file found in the project folder.")
+                self.log_output(
+                    "No valid RAW file found in the project folder.")
+                return
             # Check for HSX and RAW log files
             files_in_folder = os.listdir(project_folder)
             hsx_log = ""
@@ -204,14 +215,25 @@ class Mb2OptWindow(QMainWindow):
                 self.log_output(f"HSX log file: {hsx_log}")
                 self.log_output(f"RAW log file: {raw_log}")
             else:
-                self.log_output("No valid HSX or RAW log files found in the project folder.")
+                self.log_output(
+                    "No valid HSX or RAW log files found in the project folder.")
+                return
+            # Set the files to be processed
+            self.hypack_file_manipulator.set_hsx_file_path(hsx_file_path)
+            self.hypack_file_manipulator.set_raw_file_path(raw_file_path)
+            self.hypack_file_manipulator.set_hsx_log_file_path(
+                os.path.join(project_folder, hsx_log))
+            self.hypack_file_manipulator.set_raw_log_file_path(
+                os.path.join(project_folder, raw_log))
+            self.log_output("HSX and RAW files set for processing.")
         else:
             self.log_output("No valid HSX file selected.")
 
     def bin_browse_btn_callback(self) -> None:
         """Open a file dialog to select the BIN file.
         """
-        bin_file_path = QFileDialog.getOpenFileName(self, "Select BIN file", "", "BIN files (*.bin)")
+        bin_file_path = QFileDialog.getOpenFileName(
+            self, "Select BIN file", "", "BIN files (*.bin)")
         if bin_file_path[0]:
             self.log_output(f"Selected BIN file: {bin_file_path[0]}")
         else:

@@ -1,0 +1,412 @@
+#!/usr/bin/env python3
+
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+from datetime import datetime, timedelta
+import utm
+
+
+class HypackFileManipulator:
+    def __init__(self):
+        """Constructor
+        """
+        self.input_hsx_file_path = ''
+        self.input_raw_file_path = ''
+        self.input_hsx_log_file_path = ''
+        self.input_raw_log_file_path = ''
+        self.output_files_suffix = '_selected.'
+        # list of dictionaries containing utm_east, utm_north and timestamp
+        self.gps_coordinates = []
+        
+# region Setters
+
+    def set_hsx_file_path(self, file_path: str) -> None:
+        """Set the path to the HSX file
+
+        Args:
+            file_path (str): the HSX path
+        """
+        self.input_hsx_file_path = file_path
+
+    def set_raw_file_path(self, file_path: str) -> None:
+        """Set the path to the RAW file
+
+        Args:
+            file_path (str): the RAW path
+        """
+        self.input_raw_file_path = file_path
+
+    def set_hsx_log_file_path(self, file_path: str) -> None:
+        """Set the path to the HSX log file
+
+        Args:
+            file_path (str): the HSX log path
+        """
+        self.input_hsx_log_file_path = file_path
+
+    def set_raw_log_file_path(self, file_path: str) -> None:
+        """Set the path to the RAW log file
+
+        Args:
+            file_path (str): the RAW log path
+        """
+        self.input_raw_log_file_path = file_path
+
+    def set_output_files_suffix(self, suffix: str) -> None:
+        """Set the suffix for the output files
+
+        Args:
+            suffix (str): the suffix to be added to the output files
+        """
+        self.output_files_suffix = '_' + suffix + '.'
+
+    def set_timezone_offset(self, offset: int) -> None:
+        """Set the timezone offset in hours
+
+        Args:
+            offset (int): Timezone offset in hours
+        """
+        self.time_zone_offset_hours = offset
+# endregion
+# region FileReading
+
+    def read_coordinates(self) -> None:
+        """Read the coordinates from the HSX file in UTM, with the timestamp
+        """
+        if self.input_hsx_file_path == '':
+            print('No file path set')
+            return
+        # Fill the gps_coordinates list with the UTM coordinates and the timestamp, reset the list
+        self.gps_coordinates = []
+        with open(self.input_hsx_file_path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line_split = line.split()
+                if line_split[0] == 'POS' and len(line_split) >= 4:
+                    gps_point = {
+                        'utm_east': float(line.split()[3]),
+                        'utm_north': float(line.split()[4]),
+                        'timestamp': float(line.split()[2])
+                    }
+                    self.gps_coordinates.append(gps_point)
+            f.close()
+
+    def get_date_from_file(self, file_path: str) -> str:
+        """Gets the date in the file header
+
+        Args:
+            file_path (str): the file path
+
+        Returns:
+            str: the date in the file header
+        """
+        date = ''
+        if not os.path.exists(file_path):
+            return date
+        with open(file_path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line_split = line.split()
+                if line_split[0] == 'TND':
+                    date = line_split[2]
+                    break
+        f.close()
+        return date
+
+    def get_data_file_content(self, initial_point_index: int, final_point_index: int, file_path: str = None) -> list:
+        """Get the content of the file from the initial to the final point
+
+        Args:
+            initial_point_index (int): the index of the initial point
+            final_point_index (int): the index of the final point
+            file_path (str, optional): the file path. Defaults to None.
+
+        Returns:
+            list: the content of the file from the initial to the final point
+        """
+        initial_timestamp = self.gps_coordinates[initial_point_index]['timestamp']
+        final_timestamp = self.gps_coordinates[final_point_index]['timestamp']
+        base_timestamp = self.gps_coordinates[0]['timestamp']
+        with open(file_path, 'r') as f:
+            lines = f.readlines()
+            output_lines = []
+            header_section = True
+            data_section = False
+            for line in lines:
+                line_split = line.split()
+                if header_section:
+                    output_lines.append(line)
+                    if line_split[0] == 'EOH':
+                        header_section = False
+                    continue
+                elif not data_section:
+                    if len(line_split) < 3:
+                        continue
+                    timestamp_candidate = line_split[2]
+                    # Check if the candidate is a string
+                    if not timestamp_candidate.replace('.', '', 1).isdigit():
+                        continue
+                    if float(timestamp_candidate) == initial_timestamp:
+                        data_section = True
+                        output_lines.append(line)
+                else:
+                    if len(line_split) < 3:
+                        output_lines.append(line)
+                        continue
+                    timestamp_candidate = line_split[2]
+                    # Check if the candidate is a string, and if it is, add the line to the output
+                    if not timestamp_candidate.replace('.', '', 1).isdigit():
+                        output_lines.append(line)
+                        continue
+                    # If any number is found, it should be lower than the max timestamp diff
+                    timestamp_candidate = float(timestamp_candidate)
+                    if timestamp_candidate > final_timestamp:
+                        break
+                    if timestamp_candidate > initial_timestamp or timestamp_candidate < base_timestamp:
+                        output_lines.append(line)
+
+        f.close()
+        return output_lines
+# endregion
+# region FileSelectionAndGeneration
+
+    def generate_selected_file(self, initial_point_pct: float, final_point_pct: float, file_path: str = None) -> str:
+        """Generate a selected file from the initial to the final point
+
+        Args:
+            initial_point_pct (float): the percentage of the initial point
+            final_point_pct (float): the percentage of the final point
+            file_path (str, optional): the file path. Defaults to None.
+
+        Returns:
+            str: the name of the selected file
+        """
+        file_name = os.path.basename(file_path)
+        file_name_split = file_name.split('.')
+        selected_file_name = file_name_split[0] + \
+            self.output_files_suffix + file_name_split[1]
+        selected_file_path = os.path.join(os.path.dirname(
+            file_path), selected_file_name)
+
+        initial_point_index = int(
+            len(self.gps_coordinates) * initial_point_pct) - 1
+        final_point_index = int(
+            len(self.gps_coordinates) * final_point_pct) - 1
+        # Warp the indices to the limits
+        initial_point_index = max(0, initial_point_index)
+        final_point_index = min(
+            len(self.gps_coordinates) - 1, final_point_index)
+        # Init value cannot be bigger or equal than the final value
+        if initial_point_index >= final_point_index:
+            return ''
+
+        selected_content = self.getDataFileContent(
+            initial_point_index, final_point_index, file_path)
+
+        with open(selected_file_path, 'w') as f:
+            for line in selected_content:
+                f.write(line)
+        f.close()
+        return selected_file_name
+
+    def append_selected_file_to_log(self, file_path: str, log_file_path: str) -> None:
+        """Append the selected file to the log, if necessary
+
+        Args:
+            file_path (str): the new file path
+            log_file_path (str): the original log path
+        """
+        file_name = os.path.basename(file_path)
+        # Check if the file is already in the log
+        files_present_in_log = []
+        with open(log_file_path, 'r') as f:
+            files_present_in_log = f.readlines()
+        f.close()
+        if file_name+"\n" in files_present_in_log:
+            return
+        # Write the file name to the log
+        with open(log_file_path, 'a') as f:
+            f.write(file_name + '\n')
+        f.close()
+
+    def create_selected_files(self, initial_point_pct: float, final_point_pct: float) -> bool:
+        """Perform the selection and save the HSX and RAW files
+
+        Args:
+            initial_point_pct (float): the percentage of the initial point
+            final_point_pct (float): the percentage of the final point
+
+        Returns:
+            bool: if the operation was successful
+        """
+        try:
+            # Select the region and update the log for the HSX file
+            selected_hsx_name = self.generateSelectedFile(
+                initial_point_pct, final_point_pct, self.input_hsx_file_path)
+            self.appendSelectedFileToLog(
+                selected_hsx_name, self.input_hsx_log_file_path)
+            # Select the region and update the log for the RAW file
+            selected_raw_name = self.generateSelectedFile(
+                initial_point_pct, final_point_pct, self.input_raw_file_path)
+            self.appendSelectedFileToLog(
+                selected_raw_name, self.input_raw_log_file_path)
+            return True
+        except Exception as e:
+            print(f'Error: {e}')
+            return False
+# endregion
+# region FileGPSOptimization
+
+    def calculate_utc_timestamp(self) -> datetime:
+        """Calculate the UTC timestamp from the original file date
+
+        Returns:
+            datetime: the UTC timestamp
+        """
+        hsx_date = self.getDateFromFile(self.input_hsx_file_path)
+        # Convert the hsx date to UTC seconds timestamp considering the time zone offset
+        hsx_date_split = hsx_date.split('/')
+        hsx_datetime_timezone = datetime(year=int(hsx_date_split[2]), month=int(hsx_date_split[0]), day=int(hsx_date_split[1]),
+                                         hour=0, minute=0, second=0)
+        return hsx_datetime_timezone - timedelta(hours=self.time_zone_offset_hours)
+
+    def get_utm_points_with_utc_timestamps(self) -> list:
+        """Get the UTM points with the UTC timestamps
+
+        Returns:
+            list: the UTM points with the UTC timestamps
+        """
+        hsx_time_utc = self.calculateUTCTimestamp()
+        return [{'utm_east': gps['utm_east'], 'utm_north': gps['utm_north'],
+                 'timestamp': (hsx_time_utc + timedelta(seconds=gps["timestamp"])).timestamp()}
+                for gps in self.gps_coordinates]
+
+    def optimize_gps_data(self, reference_gps_points: list, output_file_name: str) -> None:
+        """Optimize the GPS data based on the reference GPS points and write to the output files
+
+        Args:
+            reference_gps_points (list): the reference GPS points
+            output_file_name (str): the output file name
+        """
+        # Creating the optimized gps data based on timestamps interpolation between the reference gps points and the
+        # hypack gps points, considering the timestamps of the hypack gps points
+        hsx_time_utc = self.calculateUTCTimestamp()
+        optimized_gps_data = []
+        for hypack_point in self.gps_coordinates:
+            original_hypack_time = hypack_point["timestamp"]
+            hypack_time = (
+                hsx_time_utc + timedelta(seconds=original_hypack_time)).timestamp()
+            previous_ref_point = None
+            next_ref_point = None
+            for i, ref_point in enumerate(reference_gps_points):
+                if i == len(reference_gps_points) - 1:
+                    continue
+                ref_time = ref_point['timestamp']
+                if ref_time == hypack_time:
+                    optimized_gps_data.append(ref_point)
+                    break
+                elif hypack_time > ref_time:
+                    previous_ref_point = ref_point
+                elif hypack_time < ref_time and previous_ref_point is not None:
+                    next_ref_point = ref_point
+                    break
+            if previous_ref_point is not None and next_ref_point is not None:
+                previous_time = previous_ref_point['timestamp']
+                previous_utm = np.array(
+                    [previous_ref_point['utm_east'], previous_ref_point['utm_north'], previous_ref_point['altitude']])
+                next_time = next_ref_point['timestamp']
+                next_utm = np.array(
+                    [next_ref_point['utm_east'], next_ref_point['utm_north'], next_ref_point['altitude']])
+
+                diff_time_hypack = abs(hypack_time - previous_time)
+                diff_time_ref = abs(next_time - previous_time)
+
+                scaled_point_utm = previous_utm + \
+                    (next_utm - previous_utm) * \
+                    (diff_time_hypack / diff_time_ref)
+                optimized_gps_data.append(
+                    {'utm_east': scaled_point_utm[0], 'utm_north': scaled_point_utm[1], 'altitude': scaled_point_utm[2], 'timestamp': original_hypack_time})
+
+        # Save the optimized data to new files
+        output_hsx_file_path = os.path.join(os.path.dirname(
+            self.input_hsx_file_path), output_file_name + '.HSX')
+        output_raw_file_path = os.path.join(os.path.dirname(
+            self.input_raw_file_path), output_file_name + '.RAW')
+        self.writeOptimizedFile(
+            optimized_gps_data, self.input_hsx_file_path, output_hsx_file_path)
+        self.writeOptimizedFile(
+            optimized_gps_data, self.input_raw_file_path, output_raw_file_path)
+
+    def write_optimized_file(self, optimized_gps_data: list, input_file_path: str, output_file_path: str) -> bool:
+        """Write the optimized file
+
+        Args:
+            optimized_gps_data (list): the optimized GPS data
+            input_file_path (str): the input file path
+            output_file_path (str): the output file path
+
+        Returns:
+            bool: if the operation was successful
+        """
+        # Read the file and alter the lines that contain GPS information
+        with open(input_file_path, 'r') as f:
+            lines = f.readlines()
+            zone_number = 23
+            # Get the zone we are at
+            for i, line in enumerate(lines):
+                line_split = line.split()
+                if line_split[0] == "INI" and len(line_split) >= 3 and line_split[1] == "ZoneName=Zone":
+                    zone_number = int(line_split[-1].split('(')[0])
+                    break
+            # Substitute the GPS data with the optimized data by searching the timestamp
+            for i, line in enumerate(lines):
+                line_split = line.split()
+                if line_split[0] == "POS" or line_split[0] == "RAW":
+                    timestamp = float(line_split[2])
+                    new_line = ''
+                    for new_data in optimized_gps_data:
+                        if abs(new_data['timestamp'] - timestamp) < 0.1:
+                            utm_east = new_data['utm_east']
+                            utm_north = new_data['utm_north']
+                            alt = new_data['altitude']
+                            if line_split[0] == "POS":
+                                new_line = f'POS {line_split[1]} {line_split[2]} {utm_east} {utm_north}\n'
+                            elif line_split[0] == "RAW":
+                                lat, lon = utm.to_latlon(
+                                    utm_east, utm_north, zone_number, northern=False)
+                                new_line = f'RAW {line_split[1]} {line_split[2]} {line_split[3]} {lat*1e4} {lon*1e4} {alt} {line_split[7]}\n'
+                            break
+                    lines[i] = new_line
+        f.close()
+
+        with open(output_file_path, 'w') as f:
+            for line in lines:
+                f.write(line)
+        f.close()
+
+        return True
+
+# endregion
+# region TestPlot
+    def plot_gps_data(self, initial_point_pct: float, final_point_pct: float) -> None:
+        """Plot the GPS data
+
+        Args:
+            initial_point_pct (float): the percentage of the initial point
+            final_point_pct (float): the percentage of the final point
+        """
+        _, ax = plt.subplots()
+        ini_idx = int(len(self.gps_coordinates) * initial_point_pct) - 1
+        fin_idx = int(len(self.gps_coordinates) * final_point_pct) - 1
+        ax.plot([gps['utm_east'] for gps in self.gps_coordinates], [gps['utm_north']
+                for gps in self.gps_coordinates], 'o-', color='red')
+        ax.plot([gps['utm_east'] for gps in self.gps_coordinates[ini_idx:fin_idx]], [
+                gps['utm_north'] for gps in self.gps_coordinates[ini_idx:fin_idx]], 'o-', color='blue')
+        ax.set_xlabel('UTM Easting')
+        ax.set_ylabel('UTM Northing')
+        ax.set_aspect('equal', adjustable='datalim')
+        ax.set_title(
+            f'GPS Data')
+        plt.show()
+# endregion
