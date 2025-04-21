@@ -110,7 +110,6 @@ class Mb2OptWindow(QMainWindow):
         self.process_btn_layout.setAlignment(Qt.AlignTop)
         self.process_btn_layout.setSpacing(10)
         self.process_btn_layout.setContentsMargins(0, 0, 0, 0)
-        self.process_btn_layout.addStretch(1)
         self.optimize_gps_btn = QPushButton("Optimize GPS")
         self.optimize_gps_btn.setEnabled(True)
         self.split_line_mission_btn = QPushButton("Split Line with Mission")
@@ -131,7 +130,7 @@ class Mb2OptWindow(QMainWindow):
             "Logs, status, or descriptions here...")
         self.text_panel.setReadOnly(True)
         # Add everything to the left layout
-        left_layout.addStretch(1)
+        # left_layout.addStretch(1)
         left_layout.addLayout(self.process_btn_layout)
         left_layout.addWidget(self.text_panel, stretch=1)
 
