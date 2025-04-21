@@ -8,6 +8,9 @@ from PySide6.QtCore import Qt, QThread
 from pyvistaqt import QtInteractor
 import os
 import open3d as o3d
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 
 ##############################################################################################
@@ -22,7 +25,7 @@ class Mb2OptWindow(QMainWindow):
         # Setup background with proper image and style
         self.setup_background()
 
-        # Main layout split: left (fixed width) and right (visualizer)
+        # Main layout split into left and right panels
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
@@ -30,22 +33,13 @@ class Mb2OptWindow(QMainWindow):
         # Left panel layout - data input btns, process btns and text panel
         self.left_panel = QWidget()
         left_layout = QVBoxLayout(self.left_panel)
-        # Input data
         self.setup_input_data_section(left_layout)
-        # Processing and pannel
         self.setup_processing_section(left_layout)
 
-        # Right panel - PyVista Visualizer placeholder plus btns
+        # Right panel - Plot visualizer placeholder plus btns
         self.right_panel = QWidget()
         right_layout = QVBoxLayout(self.right_panel)
-        self.reset_data_btn = QPushButton("Reset Data")
-        self.reset_data_btn.setEnabled(True)
-        self.reset_data_btn.clicked.connect(self.reset_btn_callback)
-        self.download_btn = QPushButton("Download optimized project files")
-        self.download_btn.setEnabled(True)
-        self.download_btn.clicked.connect(self.download_btn_callback)
-        right_layout.addWidget(self.reset_data_btn)
-        right_layout.addWidget(self.download_btn)
+        self.setup_right_panel(right_layout)
 
         # Fill the main layout with both panels
         main_layout.addWidget(self.left_panel)
@@ -133,6 +127,44 @@ class Mb2OptWindow(QMainWindow):
         # left_layout.addStretch(1)
         left_layout.addLayout(self.process_btn_layout)
         left_layout.addWidget(self.text_panel, stretch=1)
+
+    def setup_right_panel(self, right_layout: QVBoxLayout) -> None:
+        """Set up the right panel with its elements.
+        Args:
+            right_layout (QVBoxLayout): The layout to add the elements to.
+        """
+        # Reset button
+        self.reset_data_btn = QPushButton("Reset Data")
+        self.reset_data_btn.setEnabled(True)
+        self.reset_data_btn.clicked.connect(self.reset_btn_callback)
+        # Canvas for plots with toolbar
+        self.figure = Figure()
+        self.canvas = FigureCanvas(self.figure)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar.setStyleSheet(""" 
+            QToolBar {
+                background: white;
+                spacing: 6px;
+                padding: 4px;
+            }
+            QToolButton {
+                background: transparent;
+                border: none;
+                padding: 4px;
+            }
+            QToolButton:hover {
+                background: #e0e0e0;
+            }
+        """)
+        # Download button
+        self.download_btn = QPushButton("Download optimized project files")
+        self.download_btn.setEnabled(True)
+        self.download_btn.clicked.connect(self.download_btn_callback)
+        # Add it all to the right layout
+        right_layout.addWidget(self.reset_data_btn)
+        right_layout.addWidget(self.toolbar)
+        right_layout.addWidget(self.canvas)
+        right_layout.addWidget(self.download_btn)
 
     def resizeEvent(self, event: None) -> None:
         """Resize the contents when the window is resized.
