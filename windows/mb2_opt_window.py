@@ -1,11 +1,9 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QRadioButton, QFileDialog, QScrollArea,
-    QButtonGroup, QTextEdit, QLabel
+    QPushButton, QLineEdit, QFileDialog, QTextEdit, QLabel
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
-from pyvistaqt import QtInteractor
 import os
 import open3d as o3d
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,6 +11,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from modules.hypack_file_manipulator import HypackFileManipulator
 from modules.ardupilot_log_reader import ArdupilotLogReader
+from workers.mb2_opt_worker import Mb2OptWorker
 
 
 class Mb2OptWindow(QMainWindow):
@@ -54,6 +53,15 @@ class Mb2OptWindow(QMainWindow):
         self.hypack_file_manipulator.set_timezone_offset(-3)
         # Object to manipulate and process BIN files
         self.pixhawk_log_manipulator = ArdupilotLogReader()
+        # Specific paths to the several files we must control
+        self.hsx_path = None
+        self.hsx_log_path = None
+        self.raw_path = None
+        self.raw_log_path = None
+        self.bin_path = None
+        self.project_root_path = None
+        # Optimized data we get after calling the GPS process from pixhawk log
+        self.optimized_hypack_points_data = None
 
     def setup_background(self) -> None:
         """Set up the background image for the main window.
@@ -72,27 +80,27 @@ class Mb2OptWindow(QMainWindow):
         # Hypack project data from HSX and RAW files in the project folder
         hsx_btn_layout = QHBoxLayout()
         hsx_label = QLabel("Hypack HSX file:")
-        hsx_text_edit = QLineEdit()
-        hsx_text_edit.setPlaceholderText(
+        self.hsx_text_edit = QLineEdit()
+        self.hsx_text_edit.setPlaceholderText(
             "Path to the HSX file. Make sure RAW and LOG files are in the same project folder.")
         hsx_browse_btn = QPushButton("Browse")
         hsx_browse_btn.clicked.connect(self.hsx_browse_btn_callback)
         hsx_view_data_btn = QPushButton("View Data")
         hsx_btn_layout.addWidget(hsx_label)
-        hsx_btn_layout.addWidget(hsx_text_edit)
+        hsx_btn_layout.addWidget(self.hsx_text_edit)
         hsx_btn_layout.addWidget(hsx_browse_btn)
         hsx_btn_layout.addWidget(hsx_view_data_btn)
         # Pixhawk data from bin file
         bin_btn_layout = QHBoxLayout()
         bin_label = QLabel("Pixhawk log file in BIN format")
-        bin_text_edit = QLineEdit()
-        bin_text_edit.setPlaceholderText(
+        self.bin_text_edit = QLineEdit()
+        self.bin_text_edit.setPlaceholderText(
             "Path to the BIN file, where the Pixhawk data is stored.")
         bin_browse_btn = QPushButton("Browse")
         bin_browse_btn.clicked.connect(self.bin_browse_btn_callback)
         bin_view_data_btn = QPushButton("View Data")
         bin_btn_layout.addWidget(bin_label)
-        bin_btn_layout.addWidget(bin_text_edit)
+        bin_btn_layout.addWidget(self.bin_text_edit)
         bin_btn_layout.addWidget(bin_browse_btn)
         bin_btn_layout.addWidget(bin_view_data_btn)
         # Add the btns to the main layout
@@ -111,10 +119,15 @@ class Mb2OptWindow(QMainWindow):
         self.process_btn_layout.setContentsMargins(0, 0, 0, 0)
         self.optimize_gps_btn = QPushButton("Optimize GPS")
         self.optimize_gps_btn.setEnabled(True)
+        self.optimize_gps_btn.clicked.connect(self.optimize_gps_btn_callback)
         self.split_line_mission_btn = QPushButton("Split Line with Mission")
         self.split_line_mission_btn.setEnabled(True)
+        self.split_line_mission_btn.clicked.connect(
+            self.split_line_mission_btn_callback)
         self.split_line_manual_btn = QPushButton("Split Line Manually")
         self.split_line_manual_btn.setEnabled(True)
+        self.split_line_manual_btn.clicked.connect(
+            self.split_line_manual_btn_callback)
         self.split_line_pct_lide_edit = QLineEdit()
         self.split_line_pct_lide_edit.setPlaceholderText(
             "Percentage of the line to split (0 - 100)")
@@ -187,13 +200,14 @@ class Mb2OptWindow(QMainWindow):
     def hsx_browse_btn_callback(self) -> None:
         """Open a file dialog to select the HSX file.
         """
-        hsx_file_path = QFileDialog.getExistingDirectory(
-            self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.")
+        hsx_file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.", "", "HSX files (*.HSX)")
         if hsx_file_path:
             # Find the project root folder and proper raw file
             project_folder = os.path.dirname(hsx_file_path)
             self.log_output(f"Selected HSX file: {hsx_file_path}")
             self.log_output(f"Selected project folder: {project_folder}")
+            self.hsx_text_edit.setText(hsx_file_path.split("/")[-1])
             raw_file_path = os.path.join(
                 project_folder, hsx_file_path.split("/")[-1].replace(".HSX", ".RAW"))
             if os.path.exists(raw_file_path):
@@ -208,9 +222,9 @@ class Mb2OptWindow(QMainWindow):
             raw_log = ""
             for f in files_in_folder:
                 if f.endswith(".LOG") and f.startswith("HSX"):
-                    hsx_log = f
+                    hsx_log = os.path.join(project_folder, f)
                 if f.endswith(".LOG") and f.startswith("RAW"):
-                    raw_log = f
+                    raw_log = os.path.join(project_folder, f)
             if os.path.exists(raw_log) and os.path.exists(hsx_log):
                 self.log_output(f"HSX log file: {hsx_log}")
                 self.log_output(f"RAW log file: {raw_log}")
@@ -219,12 +233,11 @@ class Mb2OptWindow(QMainWindow):
                     "No valid HSX or RAW log files found in the project folder.")
                 return
             # Set the files to be processed
-            self.hypack_file_manipulator.set_hsx_file_path(hsx_file_path)
-            self.hypack_file_manipulator.set_raw_file_path(raw_file_path)
-            self.hypack_file_manipulator.set_hsx_log_file_path(
-                os.path.join(project_folder, hsx_log))
-            self.hypack_file_manipulator.set_raw_log_file_path(
-                os.path.join(project_folder, raw_log))
+            self.project_root_path = project_folder
+            self.hsx_path = hsx_file_path
+            self.hsx_log_path = hsx_log
+            self.raw_path = raw_file_path
+            self.raw_log_path = raw_log
             self.log_output("HSX and RAW files set for processing.")
         else:
             self.log_output("No valid HSX file selected.")
@@ -232,12 +245,47 @@ class Mb2OptWindow(QMainWindow):
     def bin_browse_btn_callback(self) -> None:
         """Open a file dialog to select the BIN file.
         """
-        bin_file_path = QFileDialog.getOpenFileName(
+        bin_file_path, _ = QFileDialog.getOpenFileName(
             self, "Select BIN file", "", "BIN files (*.bin)")
-        if bin_file_path[0]:
-            self.log_output(f"Selected BIN file: {bin_file_path[0]}")
+        if bin_file_path:
+            self.log_output(f"Selected BIN file: {bin_file_path}")
+            self.bin_path = bin_file_path
+            self.bin_text_edit.setText(bin_file_path.split("/")[-1])
         else:
             self.log_output("No valid BIN file selected.")
+
+    def optimize_gps_btn_callback(self) -> None:
+        """Optimize the Hypack gps points with the ardupilot (pixhawk) ones
+        """
+        # Dict with the paths to the files
+        input_paths = {
+            "hsx_path": self.hsx_path,
+            "hsx_log_path": self.hsx_log_path,
+            "raw_path": self.raw_path,
+            "raw_log_path": self.raw_log_path,
+            "bin_path": self.bin_path,
+            "project_path": self.project_root_path
+        }
+        # Start the parallel process
+        self.log_output(self.skip_print)
+        self.thread = QThread()
+        self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
+                                   hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run_gps_opt)
+        self.worker.log.connect(self.log_output)
+        self.worker.optimized_hypack_data_signal.connect(
+            self.optimized_hypack_points_data)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def split_line_mission_btn_callback(self) -> None:
+        pass
+
+    def split_line_manual_btn_callback(self) -> None:
+        pass
 
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
