@@ -182,3 +182,4 @@ cython_debug/
 /yolo11x-seg.pt
 /modules/__pycache__
 demo_image.jpg
+/hsx_raw_bin
