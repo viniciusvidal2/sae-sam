@@ -67,10 +67,12 @@ class SaescPipeline:
             o3d.geometry.PointCloud: processed sonar point cloud
         """
         # Voxelgrid
-        cloud = cloud.voxel_down_sample(voxel_size=0.05)
+        cloud = cloud.voxel_down_sample(voxel_size=0.2)
         # Remove SOR noise
         cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
-                                                    std_ratio=2.0)
+                                                    std_ratio=1)
+        # Remove spikes in the Z axis
+        cloud = self.remove_spikes(pcd=cloud, radius=2, deviation=1.5)
         # Correct sea level
         points = np.array(cloud.points)
         points[:, 2] += sea_level_ref - self.sonar_depth
@@ -116,6 +118,33 @@ class SaescPipeline:
             np.array(cloud.normals) * np.array([1, 1, -1]))
 
         return deepcopy(cloud)
+
+    def remove_spikes(self, pcd: o3d.geometry.PointCloud, radius: float, deviation: float) -> o3d.geometry.PointCloud:
+        """Remove spikes from the point cloud.
+
+        Args:
+            pcd (o3d.geometry.PointCloud): input point cloud
+            radius (float): radius to search for neighbors
+            deviation (float): deviation to filter points
+
+        Returns:
+            o3d.geometry.PointCloud: processed point cloud
+        """
+        # Count neighbors within radius for each point
+        kdtree = o3d.geometry.KDTreeFlann(pcd)
+        neighbor_counts = []
+        for i in range(len(pcd.points)):
+            [_, idx, _] = kdtree.search_radius_vector_3d(pcd.points[i], radius)
+            neighbor_counts.append(len(idx) - 1)
+        # Filter metrics
+        neighbor_counts = np.array(neighbor_counts)
+        median = np.median(neighbor_counts)
+        std_dev = np.std(neighbor_counts)
+        # Filter points
+        min_neighbors = median - deviation * std_dev
+        mask = (neighbor_counts >= min_neighbors)
+        filtered_points = np.asarray(pcd.points)[mask]
+        return o3d.geometry.PointCloud() if np.sum(mask) == 0 else o3d.geometry.PointCloud(o3d.utility.Vector3dVector(filtered_points))
 
     def calculate_global_sea_level_reference(self) -> float:
         """Calculates the global sea level reference.
