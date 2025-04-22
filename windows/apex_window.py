@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QFileDialog, QTextEd
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread, QSize
 from modules.apex_pipeline import ApexPipeline
-from modules.apex_worker import ApexWorker
+from workers.apex_worker import ApexWorker
 
 
 class ApexWindow(QWidget):

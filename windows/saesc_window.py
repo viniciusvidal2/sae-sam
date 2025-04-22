@@ -9,7 +9,7 @@ from pyvistaqt import QtInteractor
 import os
 import open3d as o3d
 from modules.saesc_pipeline import SaescPipeline
-from modules.saesc_worker import SaescWorker
+from workers.saesc_worker import SaescWorker
 
 
 ##############################################################################################
