@@ -6,6 +6,7 @@ from pyvistaqt import QtInteractor
 import pyvista as pv
 from windows.apex_window import ApexWindow
 from windows.saesc_window import SaescWindow
+from windows.mb2_opt_window import Mb2OptWindow
 
 
 class MainWindow(QMainWindow):
@@ -52,7 +53,7 @@ class MainWindow(QMainWindow):
 
         self.button2 = QPushButton("MB2 data optimization", self)
         self.button2.setGeometry(100, 160, 200, 40)
-        self.button2.clicked.connect(self.open_window2)
+        self.button2.clicked.connect(self.open_hypack_window)
 
         self.button_saesc = QPushButton("SAESC - Scene Creator", self)
         self.button_saesc.setGeometry(100, 220, 200, 40)
@@ -70,9 +71,17 @@ class MainWindow(QMainWindow):
             lambda: self.child_windows.remove(apex_window))
         apex_window.show()
 
-    def open_window2(self):
-        # Placeholder for second window
-        pass
+    def open_hypack_window(self) -> None:
+        """Open the MB2 data optimization window.
+        """
+        # Create and add to the list of child windows
+        # The child windows are stored in a list to be closed when the main window is closed
+        mb2_window = Mb2OptWindow()
+        self.child_windows.append(mb2_window)
+        mb2_window.setAttribute(Qt.WA_DeleteOnClose)
+        mb2_window.destroyed.connect(
+            lambda: self.child_windows.remove(mb2_window))
+        mb2_window.show()
 
     def open_saesc_window(self) -> None:
         """Open the SAESC window.
