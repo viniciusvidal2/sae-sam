@@ -18,7 +18,7 @@ class HypackFileManipulator:
         self.output_files_suffix = '_selected.'
         # list of dictionaries containing utm_east, utm_north and timestamp
         self.gps_coordinates = []
-        
+
 # region Setters
 
     def set_hsx_file_path(self, file_path: str) -> None:
@@ -201,7 +201,7 @@ class HypackFileManipulator:
         if initial_point_index >= final_point_index:
             return ''
 
-        selected_content = self.getDataFileContent(
+        selected_content = self.get_data_file_content(
             initial_point_index, final_point_index, file_path)
 
         with open(selected_file_path, 'w') as f:
@@ -242,14 +242,14 @@ class HypackFileManipulator:
         """
         try:
             # Select the region and update the log for the HSX file
-            selected_hsx_name = self.generateSelectedFile(
+            selected_hsx_name = self.generate_selected_file(
                 initial_point_pct, final_point_pct, self.input_hsx_file_path)
-            self.appendSelectedFileToLog(
+            self.append_selected_file_to_log(
                 selected_hsx_name, self.input_hsx_log_file_path)
             # Select the region and update the log for the RAW file
-            selected_raw_name = self.generateSelectedFile(
+            selected_raw_name = self.generate_selected_file(
                 initial_point_pct, final_point_pct, self.input_raw_file_path)
-            self.appendSelectedFileToLog(
+            self.append_selected_file_to_log(
                 selected_raw_name, self.input_raw_log_file_path)
             return True
         except Exception as e:
@@ -264,7 +264,7 @@ class HypackFileManipulator:
         Returns:
             datetime: the UTC timestamp
         """
-        hsx_date = self.getDateFromFile(self.input_hsx_file_path)
+        hsx_date = self.get_date_from_file(self.input_hsx_file_path)
         # Convert the hsx date to UTC seconds timestamp considering the time zone offset
         hsx_date_split = hsx_date.split('/')
         hsx_datetime_timezone = datetime(year=int(hsx_date_split[2]), month=int(hsx_date_split[0]), day=int(hsx_date_split[1]),
@@ -277,21 +277,23 @@ class HypackFileManipulator:
         Returns:
             list: the UTM points with the UTC timestamps
         """
-        hsx_time_utc = self.calculateUTCTimestamp()
+        hsx_time_utc = self.calculate_utc_timestamp()
         return [{'utm_east': gps['utm_east'], 'utm_north': gps['utm_north'],
                  'timestamp': (hsx_time_utc + timedelta(seconds=gps["timestamp"])).timestamp()}
                 for gps in self.gps_coordinates]
 
-    def optimize_gps_data(self, reference_gps_points: list, output_file_name: str) -> None:
+    def optimize_gps_data(self, reference_gps_points: list) -> list:
         """Optimize the GPS data based on the reference GPS points and write to the output files
 
         Args:
             reference_gps_points (list): the reference GPS points
-            output_file_name (str): the output file name
+
+        Returns:
+            list: the optimized GPS data
         """
         # Creating the optimized gps data based on timestamps interpolation between the reference gps points and the
         # hypack gps points, considering the timestamps of the hypack gps points
-        hsx_time_utc = self.calculateUTCTimestamp()
+        hsx_time_utc = self.calculate_utc_timestamp()
         optimized_gps_data = []
         for hypack_point in self.gps_coordinates:
             original_hypack_time = hypack_point["timestamp"]
@@ -328,15 +330,16 @@ class HypackFileManipulator:
                 optimized_gps_data.append(
                     {'utm_east': scaled_point_utm[0], 'utm_north': scaled_point_utm[1], 'altitude': scaled_point_utm[2], 'timestamp': original_hypack_time})
 
-        # Save the optimized data to new files
-        output_hsx_file_path = os.path.join(os.path.dirname(
-            self.input_hsx_file_path), output_file_name + '.HSX')
-        output_raw_file_path = os.path.join(os.path.dirname(
-            self.input_raw_file_path), output_file_name + '.RAW')
-        self.writeOptimizedFile(
-            optimized_gps_data, self.input_hsx_file_path, output_hsx_file_path)
-        self.writeOptimizedFile(
-            optimized_gps_data, self.input_raw_file_path, output_raw_file_path)
+        # # Save the optimized data to new files
+        # output_hsx_file_path = os.path.join(os.path.dirname(
+        #     self.input_hsx_file_path), output_file_name + '.HSX')
+        # output_raw_file_path = os.path.join(os.path.dirname(
+        #     self.input_raw_file_path), output_file_name + '.RAW')
+        # self.writeOptimizedFile(
+        #     optimized_gps_data, self.input_hsx_file_path, output_hsx_file_path)
+        # self.writeOptimizedFile(
+        #     optimized_gps_data, self.input_raw_file_path, output_raw_file_path)
+        return optimized_gps_data
 
     def write_optimized_file(self, optimized_gps_data: list, input_file_path: str, output_file_path: str) -> bool:
         """Write the optimized file

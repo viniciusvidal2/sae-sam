@@ -57,7 +57,7 @@ class ArdupilotLogReader:
                 "latitude": msg.Lat,
                 "longitude": msg.Lng,
                 "altitude": msg.Alt,
-                "timestamp": self.calculateUTCTimestamp(msg.GMS, msg.GWk),
+                "timestamp": self.calculate_utc_timestamp(msg.GMS, msg.GWk),
                 "TimeUS": msg.TimeUS
             })
         log_file.close()
