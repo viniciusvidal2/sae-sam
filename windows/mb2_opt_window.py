@@ -175,14 +175,14 @@ class Mb2OptWindow(QMainWindow):
             }
         """)
         # Download button
-        self.download_btn = QPushButton("Download optimized project files")
-        self.download_btn.setEnabled(True)
-        self.download_btn.clicked.connect(self.download_btn_callback)
+        self.download_opt_data_btn = QPushButton("Download optimized project files")
+        self.download_opt_data_btn.setEnabled(True)
+        self.download_opt_data_btn.clicked.connect(self.download_optimized_data_callback)
         # Add it all to the right layout
         right_layout.addWidget(self.reset_data_btn)
         right_layout.addWidget(self.toolbar)
         right_layout.addWidget(self.canvas)
-        right_layout.addWidget(self.download_btn)
+        right_layout.addWidget(self.download_opt_data_btn)
 
     def resizeEvent(self, event: None) -> None:
         """Resize the contents when the window is resized.
@@ -200,6 +200,7 @@ class Mb2OptWindow(QMainWindow):
     def hsx_browse_btn_callback(self) -> None:
         """Open a file dialog to select the HSX file.
         """
+        self.log_output(self.skip_print)
         hsx_file_path, _ = QFileDialog.getOpenFileName(
             self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.", "", "HSX files (*.HSX)")
         if hsx_file_path:
@@ -245,6 +246,7 @@ class Mb2OptWindow(QMainWindow):
     def bin_browse_btn_callback(self) -> None:
         """Open a file dialog to select the BIN file.
         """
+        self.log_output(self.skip_print)
         bin_file_path, _ = QFileDialog.getOpenFileName(
             self, "Select BIN file", "", "BIN files (*.bin)")
         if bin_file_path:
@@ -275,11 +277,18 @@ class Mb2OptWindow(QMainWindow):
         self.thread.started.connect(self.worker.run_gps_opt)
         self.worker.log.connect(self.log_output)
         self.worker.optimized_hypack_data_signal.connect(
-            self.optimized_hypack_points_data)
+            self._set_optimized_hsx_points_data)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
+        
+    def _set_optimized_hsx_points_data(self, optimized_hypack_points_data: list) -> None:
+        """Set the optimized HSX points data.
+        Args:
+            optimized_hypack_points_data (list): The optimized HSX points data.
+        """
+        self.optimized_hypack_points_data = optimized_hypack_points_data
 
     def split_line_mission_btn_callback(self) -> None:
         pass
@@ -290,23 +299,28 @@ class Mb2OptWindow(QMainWindow):
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
         """
+        self.log_output(self.skip_print)
         self.log_output("Resetting data...")
         self.log_output("Merged point cloud data cleared.")
 
-    def download_btn_callback(self) -> None:
+    def download_optimized_data_callback(self) -> None:
         """Download the merged point cloud.
         """
-        if self.merged_ptc_ply is None:
-            self.log_output("No merged point cloud to download.")
+        self.log_output(self.skip_print)
+        if self.optimized_hypack_points_data is None:
+            self.log_output("No optimized HSX data to be saved.")
             return
         # Open file dialog to save the merged point cloud
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Merged Point Cloud", "merged_point_cloud.ply", "Point Cloud Files (*.ply)")
-        if file_path:
-            o3d.io.write_point_cloud(file_path, self.merged_ptc_ply)
-            self.log_output(f"Merged point cloud saved to: {file_path}")
+        optimized_file_name = self.hsx_path.split("/")[-1].replace(".HSX", "_optimized")
+        optimized_files_dir = QFileDialog.getExistingDirectory(
+            self, "Select folder to save the optimized files", "", QFileDialog.ShowDirsOnly)
+        if optimized_files_dir:
+            output_path = os.path.join(optimized_files_dir, optimized_file_name)
+            self.hypack_file_manipulator.write_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
+                                                               output_files_base_path=output_path)
+            self.log_output(f"Optimized files saved to: {optimized_files_dir}")
         else:
-            self.log_output("Download cancelled.")
+            self.log_output("Optimized files download cancelled.")
 
     def log_output(self, msg: str) -> None:
         """Log output to the text panel.

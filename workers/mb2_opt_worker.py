@@ -31,6 +31,7 @@ class Mb2OptWorker(QObject):
         self.hypack_reader.set_hsx_log_file_path(self.hsx_log_path)
         self.hypack_reader.set_raw_file_path(self.raw_path)
         self.hypack_reader.set_raw_log_file_path(self.raw_log_path)
+        self.hypack_reader.set_project_folder_path(self.project_path)
         self.pixhawk_reader.set_log_file_path(self.bin_path)
         self.optimized_points_hypack = None
         
