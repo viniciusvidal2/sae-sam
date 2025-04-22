@@ -11,11 +11,12 @@ class HypackFileManipulator:
     def __init__(self):
         """Constructor
         """
-        self.input_hsx_file_path = ''
-        self.input_raw_file_path = ''
-        self.input_hsx_log_file_path = ''
-        self.input_raw_log_file_path = ''
-        self.output_files_suffix = '_selected.'
+        self.input_hsx_file_path = ""
+        self.input_raw_file_path = ""
+        self.input_hsx_log_file_path = ""
+        self.input_raw_log_file_path = ""
+        self.output_files_suffix = "_selected."
+        self.project_folder_path = ""
         # list of dictionaries containing utm_east, utm_north and timestamp
         self.gps_coordinates = []
 
@@ -52,6 +53,14 @@ class HypackFileManipulator:
             file_path (str): the RAW log path
         """
         self.input_raw_log_file_path = file_path
+
+    def set_project_folder_path(self, folder_path: str) -> None:
+        """Set the path to the project folder
+
+        Args:
+            folder_path (str): the project folder path
+        """
+        self.project_folder_path = folder_path
 
     def set_output_files_suffix(self, suffix: str) -> None:
         """Set the suffix for the output files
@@ -330,16 +339,35 @@ class HypackFileManipulator:
                 optimized_gps_data.append(
                     {'utm_east': scaled_point_utm[0], 'utm_north': scaled_point_utm[1], 'altitude': scaled_point_utm[2], 'timestamp': original_hypack_time})
 
-        # # Save the optimized data to new files
-        # output_hsx_file_path = os.path.join(os.path.dirname(
-        #     self.input_hsx_file_path), output_file_name + '.HSX')
-        # output_raw_file_path = os.path.join(os.path.dirname(
-        #     self.input_raw_file_path), output_file_name + '.RAW')
-        # self.writeOptimizedFile(
-        #     optimized_gps_data, self.input_hsx_file_path, output_hsx_file_path)
-        # self.writeOptimizedFile(
-        #     optimized_gps_data, self.input_raw_file_path, output_raw_file_path)
         return optimized_gps_data
+
+    def write_optimized_files(self, optimized_gps_data: list, output_files_base_path: str) -> bool:
+        """Write the optimized files
+
+        Args:
+            optimized_gps_data (list): the optimized GPS data
+            output_files_base_path (str): the output file names to base on
+
+        Returns:
+            bool: if the operation was successful
+        """
+        # Write the optimized data to new files in the desired directory
+        output_hsx_file_path = output_files_base_path + ".HSX"
+        output_raw_file_path = output_files_base_path + ".RAW"
+        wrote_hsx = self.write_optimized_file(
+            optimized_gps_data=optimized_gps_data, input_file_path=self.input_hsx_file_path, output_file_path=output_hsx_file_path)
+        wrote_raw = self.write_optimized_file(
+            optimized_gps_data=optimized_gps_data, input_file_path=self.input_raw_file_path, output_file_path=output_raw_file_path)
+        # Append the new files to the log files in the output directory, if any
+        output_hsx_log_file_path = os.path.join(os.path.dirname(
+            output_files_base_path), self.input_hsx_log_file_path.split('/')[-1])
+        output_raw_log_file_path = os.path.join(os.path.dirname(
+            output_files_base_path), self.input_raw_log_file_path.split('/')[-1])
+        self.append_selected_file_to_log(file_path=output_hsx_file_path,
+                                         log_file_path=output_hsx_log_file_path)
+        self.append_selected_file_to_log(file_path=output_raw_file_path,
+                                         log_file_path=output_raw_log_file_path)
+        return wrote_hsx and wrote_raw
 
     def write_optimized_file(self, optimized_gps_data: list, input_file_path: str, output_file_path: str) -> bool:
         """Write the optimized file
