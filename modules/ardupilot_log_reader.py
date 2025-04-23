@@ -5,7 +5,7 @@ import utm
 
 
 class ArdupilotLogReader:
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor for the ArdupilotLogReader class.
         """
         self.log_file_path = ''
@@ -14,6 +14,8 @@ class ArdupilotLogReader:
         self.leap_seconds = 18
         # GPS epoch is 6th January 1980
         self.gps_epoch = datetime(1980, 1, 6)
+        # Missions in the log
+        self.missions_in_log = []
 
     def set_log_file_path(self, file_path: str) -> None:
         """Sets the ardupilot log file path to be read.
@@ -22,7 +24,6 @@ class ArdupilotLogReader:
             file_path (str): the file path
         """
         self.log_file_path = file_path
-        self.missions_in_log = []
 
     def calculate_utc_timestamp(self, timestamp_ms: float, gps_week: int = 0) -> float:
         """Calculates the UTC timestamp from the GPS timestamp and week.
@@ -40,13 +41,13 @@ class ArdupilotLogReader:
             timedelta(seconds=self.leap_seconds)
         return gps_time_utc.timestamp()
 
-    def read_data_from_log(self):
+    def read_data_from_log(self) -> None:
         """Generates the data from the log file.
         """
         if self.log_file_path == '':
             print('No file path set')
             return
-        if len(self.gps_data) > 0:
+        if len(self.gps_data) > 0 and len(self.missions_in_log) > 0:
             return
         # First lets read the GPS data as necessary
         log_file = mavutil.mavlink_connection(
@@ -118,7 +119,7 @@ class ArdupilotLogReader:
                     'waypoints': waypoints_utm_coords
                 })
 
-    def get_utm_points_with_utc_timestamps(self):
+    def get_utm_points_with_utc_timestamps(self) -> list:
         """Gets the UTM points with UTC timestamps.
 
         Returns:
@@ -135,11 +136,6 @@ class ArdupilotLogReader:
                 'TimeUS': gps['TimeUS']
             })
         return utm_data
-
-    def get_missions_in_log(self):
-        """Gets the missions in the log.
-        """
-        return self.missions_in_log
 
     def get_data_percentages_from_mission_waypoints(self, log_gps_points: list) -> list:
         """Returns a list of pairs representing the percentages of each scan line according to mission waypoint synchronization.
