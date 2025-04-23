@@ -47,7 +47,6 @@ class ArdupilotLogReader:
             print('No file path set')
             return
         if len(self.gps_data) > 0:
-            print('Data already read')
             return
         # First lets read the GPS data as necessary
         log_file = mavutil.mavlink_connection(
