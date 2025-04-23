@@ -176,7 +176,6 @@ class HypackFileManipulator:
                         break
                     if timestamp_candidate > initial_timestamp or timestamp_candidate < base_timestamp:
                         output_lines.append(line)
-
         f.close()
         return output_lines
 # endregion
@@ -410,7 +409,6 @@ class HypackFileManipulator:
                     (diff_time_hypack / diff_time_ref)
                 optimized_gps_data.append(
                     {'utm_east': scaled_point_utm[0], 'utm_north': scaled_point_utm[1], 'altitude': scaled_point_utm[2], 'timestamp': original_hypack_time})
-
         return optimized_gps_data
 
     def write_optimized_files(self, optimized_gps_data: list, output_files_base_path: str) -> bool:
@@ -432,9 +430,9 @@ class HypackFileManipulator:
             optimized_gps_data=optimized_gps_data, input_file_path=self.input_raw_file_path, output_file_path=output_raw_file_path)
         # Append the new files to the log files in the output directory, if any
         output_hsx_log_file_path = os.path.join(os.path.dirname(
-            output_files_base_path), self.input_hsx_log_file_path.split('/')[-1])
+            output_files_base_path), "HSX_files.LOG")
         output_raw_log_file_path = os.path.join(os.path.dirname(
-            output_files_base_path), self.input_raw_log_file_path.split('/')[-1])
+            output_files_base_path), "RAW_files.LOG")
         self.add_file_to_log(file_path=output_hsx_file_path,
                              log_file_path=output_hsx_log_file_path)
         self.add_file_to_log(file_path=output_raw_file_path,
@@ -487,7 +485,6 @@ class HypackFileManipulator:
             for line in lines:
                 f.write(line)
         f.close()
-
         return True
 
 # endregion

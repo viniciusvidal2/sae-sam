@@ -347,18 +347,18 @@ class Mb2OptWindow(QMainWindow):
         self.log_output("Merged point cloud data cleared.")
 
     def download_optimized_data_callback(self) -> None:
-        """Download the merged point cloud.
+        """Download the GPS optimized files.
         """
         self.log_output(self.skip_print)
         if self.optimized_hypack_points_data is None:
             self.log_output("No optimized HSX data to be saved.")
             return
-        # Open file dialog to save the merged point cloud
-        optimized_file_name = self.hsx_path.split(
-            "/")[-1].replace(".HSX", "_optimized")
+        # Open file dialog to save the optimized files
         optimized_files_dir = QFileDialog.getExistingDirectory(
             self, "Select folder to save the optimized files", "", QFileDialog.ShowDirsOnly)
         if optimized_files_dir:
+            optimized_file_name = os.path.basename(
+                self.hsx_path).split(".")[0] + "_optimized"
             output_path = os.path.join(
                 optimized_files_dir, optimized_file_name)
             self.hypack_file_manipulator.write_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
