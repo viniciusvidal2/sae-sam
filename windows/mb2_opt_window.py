@@ -81,7 +81,9 @@ class Mb2OptWindow(QMainWindow):
         """
         # Hypack project data from HSX and RAW files in the project folder
         hsx_btn_layout = QHBoxLayout()
+        label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
         hsx_label = QLabel("Hypack HSX file:")
+        hsx_label.setStyleSheet(label_style)
         self.hsx_text_edit = QLineEdit()
         self.hsx_text_edit.setPlaceholderText(
             "Path to the HSX file. Make sure RAW and LOG files are in the same project folder.")
@@ -95,6 +97,7 @@ class Mb2OptWindow(QMainWindow):
         # Pixhawk data from bin file
         bin_btn_layout = QHBoxLayout()
         bin_label = QLabel("Pixhawk log file in BIN format")
+        bin_label.setStyleSheet(label_style)
         self.bin_text_edit = QLineEdit()
         self.bin_text_edit.setPlaceholderText(
             "Path to the BIN file, where the Pixhawk data is stored.")
@@ -163,7 +166,7 @@ class Mb2OptWindow(QMainWindow):
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.toolbar.setStyleSheet(""" 
             QToolBar {
-                background: white;
+                background: rgba(0,0,0,150);
                 spacing: 6px;
                 padding: 4px;
             }
