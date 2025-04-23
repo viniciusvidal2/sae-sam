@@ -125,13 +125,13 @@ class HypackFileManipulator:
         f.close()
         return date
 
-    def get_data_file_content(self, initial_point_index: int, final_point_index: int, file_path: str = None) -> list:
+    def get_data_file_section_content(self, initial_point_index: int, final_point_index: int, file_path: str) -> list:
         """Get the content of the file from the initial to the final point
 
         Args:
             initial_point_index (int): the index of the initial point
             final_point_index (int): the index of the final point
-            file_path (str, optional): the file path. Defaults to None.
+            file_path (str): the file path.
 
         Returns:
             list: the content of the file from the initial to the final point
@@ -182,7 +182,71 @@ class HypackFileManipulator:
 # endregion
 # region FileSelectionAndGeneration
 
-    def generate_selected_file(self, initial_point_pct: float, final_point_pct: float, file_path: str = None) -> str:
+    def get_file_section_content_and_name(self, initial_pct: float, final_pct: float, original_path: str, name_index: int) -> tuple:
+        """Returns the contents for the file with the name to save them later
+
+        Args:
+            initial_pct (float): Initial file percentage
+            final_pct (float): Final file percentage
+            original_path (str): Original file path
+            name_index (int): Index of the file to generate the name for
+
+        Returns:
+            tuple: The content and the name for the split file
+        """
+        # Create the name for the file based on the original name and the desired index
+        file_name = os.path.basename(original_path)
+        file_name_split = file_name.split('.')
+        selected_file_name = file_name_split[0] + "_" + \
+            f"{name_index}".zfill(3) + "." + file_name_split[1]
+
+        # Get the section indices
+        initial_point_index = int(
+            len(self.gps_coordinates) * initial_pct) - 1
+        final_point_index = int(
+            len(self.gps_coordinates) * final_pct) - 1
+        # Warp the indices to the limits
+        initial_point_index = max(0, initial_point_index)
+        final_point_index = min(
+            len(self.gps_coordinates) - 1, final_point_index)
+        # Init value cannot be bigger or equal than the final value
+        if initial_point_index >= final_point_index:
+            return None, None
+
+        # Get the content itself and return
+        selected_content = self.get_data_file_section_content(
+            initial_point_index=initial_point_index, final_point_index=final_point_index, file_path=original_path)
+        return selected_content, selected_file_name
+
+    def write_file_and_log(self, content: list, file_path: str) -> bool:
+        """Writes the file and appends it to the log
+
+        Args:
+            content (list): The lines of the content to be written
+            file_path (str): the output file path
+
+        Returns:
+            bool: True if the content was properly written
+        """
+        try:
+            # Write the file content
+            with open(file_path, 'w') as f:
+                for line in content:
+                    f.write(line)
+            f.close()
+            # Get the log file name from the file path
+            file_name = os.path.basename(file_path)
+            log_file_dir = os.path.dirname(file_path)
+            log_file_name = file_name.split(
+                ".")[-1] + "_files.LOG"
+            self.add_file_to_log(file_path=file_path,
+                                 log_file_path=os.path.join(log_file_dir, log_file_name))
+            return True
+        except Exception as e:
+            print(f'Error writing file {file_path}: {e}')
+            return False
+
+    def generate_write_selected_file(self, initial_point_pct: float, final_point_pct: float, file_path: str = None) -> str:
         """Generate a selected file from the initial to the final point
 
         Args:
@@ -212,7 +276,7 @@ class HypackFileManipulator:
         if initial_point_index >= final_point_index:
             return ''
 
-        selected_content = self.get_data_file_content(
+        selected_content = self.get_data_file_section_content(
             initial_point_index, final_point_index, file_path)
 
         with open(selected_file_path, 'w') as f:
@@ -221,7 +285,7 @@ class HypackFileManipulator:
         f.close()
         return selected_file_name
 
-    def append_selected_file_to_log(self, file_path: str, log_file_path: str) -> None:
+    def add_file_to_log(self, file_path: str, log_file_path: str) -> None:
         """Append the selected file to the log, if necessary
 
         Args:
@@ -229,6 +293,12 @@ class HypackFileManipulator:
             log_file_path (str): the original log path
         """
         file_name = os.path.basename(file_path)
+        # If the log file does not exist, just create it and write the name
+        if not os.path.exists(log_file_path):
+            with open(log_file_path, 'w') as f:
+                f.write(file_name + '\n')
+            f.close()
+            return
         # Check if the file is already in the log
         files_present_in_log = []
         with open(log_file_path, 'r') as f:
@@ -253,14 +323,14 @@ class HypackFileManipulator:
         """
         try:
             # Select the region and update the log for the HSX file
-            selected_hsx_name = self.generate_selected_file(
+            selected_hsx_name = self.generate_write_selected_file(
                 initial_point_pct, final_point_pct, self.input_hsx_file_path)
-            self.append_selected_file_to_log(
+            self.add_file_to_log(
                 selected_hsx_name, self.input_hsx_log_file_path)
             # Select the region and update the log for the RAW file
-            selected_raw_name = self.generate_selected_file(
+            selected_raw_name = self.generate_write_selected_file(
                 initial_point_pct, final_point_pct, self.input_raw_file_path)
-            self.append_selected_file_to_log(
+            self.add_file_to_log(
                 selected_raw_name, self.input_raw_log_file_path)
             return True
         except Exception as e:
@@ -365,10 +435,10 @@ class HypackFileManipulator:
             output_files_base_path), self.input_hsx_log_file_path.split('/')[-1])
         output_raw_log_file_path = os.path.join(os.path.dirname(
             output_files_base_path), self.input_raw_log_file_path.split('/')[-1])
-        self.append_selected_file_to_log(file_path=output_hsx_file_path,
-                                         log_file_path=output_hsx_log_file_path)
-        self.append_selected_file_to_log(file_path=output_raw_file_path,
-                                         log_file_path=output_raw_log_file_path)
+        self.add_file_to_log(file_path=output_hsx_file_path,
+                             log_file_path=output_hsx_log_file_path)
+        self.add_file_to_log(file_path=output_raw_file_path,
+                             log_file_path=output_raw_log_file_path)
         return wrote_hsx and wrote_raw
 
     def write_optimized_file(self, optimized_gps_data: list, input_file_path: str, output_file_path: str) -> bool:
