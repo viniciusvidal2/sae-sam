@@ -1,11 +1,10 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QFileDialog, QTextEdit, QLabel
+    QPushButton, QLineEdit, QFileDialog, QTextEdit, QLabel, QSizePolicy
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
 import os
-import open3d as o3d
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -21,6 +20,41 @@ class Mb2OptWindow(QMainWindow):
         """Initialize the main window for the Mb2 raw data optimization application.
         """
         super().__init__()
+        # Help the printing in the text panel
+        self.skip_print = "------------------------------------------------"
+        # Object to manipulate and process HSX files
+        self.hypack_file_manipulator = HypackFileManipulator()
+        self.hypack_file_manipulator.set_timezone_offset(-3)
+        # Object to manipulate and process BIN files
+        self.pixhawk_log_manipulator = ArdupilotLogReader()
+        # Specific paths to the several files we must control
+        self.hsx_path = None
+        self.hsx_log_path = None
+        self.raw_path = None
+        self.raw_log_path = None
+        self.bin_path = None
+        self.project_root_path = None
+        # Optimized data we get after calling the GPS process from pixhawk log
+        self.optimized_hypack_points_data = None
+        # Split content for HSX and RAW files once we have the mission from the pixhawk logs
+        self.data_split_content_with_mission = None
+        # Canvas toolbar stylesheet
+        self.toolbar_style = """
+            QToolBar {
+                    background: rgba(0,0,0,150);
+                    spacing: 6px;
+                    padding: 4px;
+            }
+            QToolButton {
+                background: transparent;
+                border: none;
+                padding: 4px;
+            }
+            QToolButton:hover {
+                background: #e0e0e0;
+            }
+        """
+        
         self.setWindowTitle("MB2 Raw data optimization")
         self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
@@ -46,25 +80,6 @@ class Mb2OptWindow(QMainWindow):
         main_layout.addWidget(self.left_panel)
         main_layout.addWidget(self.right_panel)
 
-        # Help the printing in the text panel
-        self.skip_print = "------------------------------------------------"
-        # Object to manipulate and process HSX files
-        self.hypack_file_manipulator = HypackFileManipulator()
-        self.hypack_file_manipulator.set_timezone_offset(-3)
-        # Object to manipulate and process BIN files
-        self.pixhawk_log_manipulator = ArdupilotLogReader()
-        # Specific paths to the several files we must control
-        self.hsx_path = None
-        self.hsx_log_path = None
-        self.raw_path = None
-        self.raw_log_path = None
-        self.bin_path = None
-        self.project_root_path = None
-        # Optimized data we get after calling the GPS process from pixhawk log
-        self.optimized_hypack_points_data = None
-        # Split content for HSX and RAW files once we have the mission from the pixhawk logs
-        self.data_split_content_with_mission = None
-
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
@@ -79,38 +94,45 @@ class Mb2OptWindow(QMainWindow):
         Args:
             left_layout (QVBoxLayout): The layout to add the btns to.
         """
+        # Layouts to split the input and view sections
+        input_view_layout = QHBoxLayout()
+        input_layout = QVBoxLayout()
         # Hypack project data from HSX and RAW files in the project folder
         hsx_btn_layout = QHBoxLayout()
         label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
-        hsx_label = QLabel("Hypack HSX file:")
+        hsx_label = QLabel("Hypack file (HSX):")
         hsx_label.setStyleSheet(label_style)
         self.hsx_text_edit = QLineEdit()
         self.hsx_text_edit.setPlaceholderText(
             "Path to the HSX file. Make sure RAW and LOG files are in the same project folder.")
         hsx_browse_btn = QPushButton("Browse")
         hsx_browse_btn.clicked.connect(self.hsx_browse_btn_callback)
-        hsx_view_data_btn = QPushButton("View Data")
         hsx_btn_layout.addWidget(hsx_label)
         hsx_btn_layout.addWidget(self.hsx_text_edit)
         hsx_btn_layout.addWidget(hsx_browse_btn)
-        hsx_btn_layout.addWidget(hsx_view_data_btn)
         # Pixhawk data from bin file
         bin_btn_layout = QHBoxLayout()
-        bin_label = QLabel("Pixhawk log file in BIN format")
+        bin_label = QLabel("Pixhawk log file (.bin):")
         bin_label.setStyleSheet(label_style)
         self.bin_text_edit = QLineEdit()
         self.bin_text_edit.setPlaceholderText(
             "Path to the BIN file, where the Pixhawk data is stored.")
         bin_browse_btn = QPushButton("Browse")
         bin_browse_btn.clicked.connect(self.bin_browse_btn_callback)
-        bin_view_data_btn = QPushButton("View Data")
         bin_btn_layout.addWidget(bin_label)
         bin_btn_layout.addWidget(self.bin_text_edit)
         bin_btn_layout.addWidget(bin_browse_btn)
-        bin_btn_layout.addWidget(bin_view_data_btn)
-        # Add the btns to the main layout
-        left_layout.addLayout(hsx_btn_layout)
-        left_layout.addLayout(bin_btn_layout)
+        # Add the input layouts to the horizontal layout
+        input_layout.addLayout(hsx_btn_layout)
+        input_layout.addLayout(bin_btn_layout)
+        # Add the input plus the view button to the top layout
+        view_data_btn = QPushButton("View Data")
+        view_data_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        view_data_btn.clicked.connect(self.draw_data_callback)
+        input_view_layout.addLayout(input_layout)
+        input_view_layout.addWidget(view_data_btn)
+        # Add it all to the main layout
+        left_layout.addLayout(input_view_layout)
 
     def setup_processing_section(self, left_layout: QVBoxLayout) -> None:
         """Set up the processing section with radio btns and a text panel.
@@ -164,21 +186,7 @@ class Mb2OptWindow(QMainWindow):
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
-        self.toolbar.setStyleSheet(""" 
-            QToolBar {
-                background: rgba(0,0,0,150);
-                spacing: 6px;
-                padding: 4px;
-            }
-            QToolButton {
-                background: transparent;
-                border: none;
-                padding: 4px;
-            }
-            QToolButton:hover {
-                background: #e0e0e0;
-            }
-        """)
+        self.toolbar.setStyleSheet(self.toolbar_style)
         # Optimized data download button
         self.download_opt_data_btn = QPushButton(
             "Download optimized project files")
@@ -273,6 +281,10 @@ class Mb2OptWindow(QMainWindow):
     def optimize_gps_btn_callback(self) -> None:
         """Optimize the Hypack gps points with the ardupilot (pixhawk) ones
         """
+        self.log_output(self.skip_print)
+        if not self.hsx_path or not self.bin_path:
+            self.log_output("No HSX or BIN file selected to de drawn.")
+            return
         # Dict with the paths to the files
         input_paths = {
             "hsx_path": self.hsx_path,
@@ -283,7 +295,6 @@ class Mb2OptWindow(QMainWindow):
             "project_path": self.project_root_path
         }
         # Start the parallel process
-        self.log_output(self.skip_print)
         self.thread = QThread()
         self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
                                    hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
@@ -307,6 +318,10 @@ class Mb2OptWindow(QMainWindow):
     def split_line_mission_btn_callback(self) -> None:
         """Split the original HSX and RAW content according to the log waypoints
         """
+        self.log_output(self.skip_print)
+        if not self.hsx_path or not self.bin_path:
+            self.log_output("No HSX or BIN file selected to de drawn.")
+            return
         # Dict with the paths to the files
         input_paths = {
             "hsx_path": self.hsx_path,
@@ -317,7 +332,6 @@ class Mb2OptWindow(QMainWindow):
             "project_path": self.project_root_path
         }
         # Start the parallel process
-        self.log_output(self.skip_print)
         self.thread = QThread()
         self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
                                    hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
@@ -341,6 +355,67 @@ class Mb2OptWindow(QMainWindow):
 
     def split_line_manual_btn_callback(self) -> None:
         pass
+
+    def draw_data_callback(self) -> None:
+        """Draw the HSX data in the visualizer.
+        """
+        self.log_output(self.skip_print)
+        if not self.hsx_path or not self.bin_path:
+            self.log_output("No HSX or BIN file selected to de drawn.")
+            return
+        # Dict with the paths to the files
+        input_paths = {
+            "hsx_path": self.hsx_path,
+            "hsx_log_path": self.hsx_log_path,
+            "raw_path": self.raw_path,
+            "raw_log_path": self.raw_log_path,
+            "bin_path": self.bin_path,
+            "project_path": self.project_root_path
+        }
+        # Start the parallel process
+        self.thread = QThread()
+        self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
+                                   hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.create_map_data_figure)
+        self.worker.log.connect(self.log_output)
+        self.worker.map_canvas_signal.connect(
+            self.draw_map_to_canvas)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def draw_map_to_canvas(self, fig: Figure) -> None:
+        """Draw the content to the canvas in the GUI
+
+        Args:
+            fig (Figure): Figure with the map data from the mission in the log and the HSX file
+        """
+        # Create a new canvas
+        new_canvas = FigureCanvas(fig)
+        # Find the old canvas in the layout and replace it. Update the toolbar as well
+        layout = self.right_panel.layout()
+        for i in range(layout.count()):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, FigureCanvas):
+                layout.removeWidget(widget)
+                widget.setParent(None)
+                layout.insertWidget(i, new_canvas)
+                break
+        for i in range(layout.count()):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, NavigationToolbar):
+                layout.removeWidget(widget)
+                widget.setParent(None)
+                new_toolbar = NavigationToolbar(new_canvas, self)
+                new_toolbar.setStyleSheet(self.toolbar_style)
+                layout.insertWidget(i, new_toolbar)
+                self.toolbar = new_toolbar
+                break
+        # Draw the new canvas
+        self.canvas = new_canvas
+        self.canvas.draw()
 
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.

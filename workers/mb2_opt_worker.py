@@ -1,6 +1,7 @@
 from PySide6.QtCore import QObject, Signal, Slot
 from modules.ardupilot_log_reader import ArdupilotLogReader
 from modules.hypack_file_manipulator import HypackFileManipulator
+from matplotlib.figure import Figure
 
 
 class Mb2OptWorker(QObject):
@@ -9,6 +10,7 @@ class Mb2OptWorker(QObject):
     log = Signal(str)
     optimized_hypack_data_signal = Signal(list)
     data_split_content_signal = Signal(list)
+    map_canvas_signal = Signal(Figure)
 
     def __init__(self, pixhawk_reader: ArdupilotLogReader, hypack_reader: HypackFileManipulator, input_paths: dict) -> None:
         """Initialize the worker with the proper class objects and input data.
@@ -61,7 +63,8 @@ class Mb2OptWorker(QObject):
     def run_gps_opt(self) -> None:
         """Run the file optimization process for GPS data.
         """
-        self.log.emit("Starting GPS data optimization, reading the files (that can take a couple of minutes if first time) (0%)...")
+        self.log.emit(
+            "Starting GPS data optimization, reading the files (that can take a couple of minutes if first time) (0%)...")
         # Read the data from the files
         self.hypack_reader.read_coordinates()
         self.pixhawk_reader.read_data_from_log()
@@ -90,7 +93,8 @@ class Mb2OptWorker(QObject):
     def run_hsx_mission_split(self) -> None:
         """Splits the original HSX file into multiple HSX files based on the mission in the pixhawk log.
         """
-        self.log.emit("Starting HSX mission split, reading the files (that can take a couple of minutes if first time) (0%)...")
+        self.log.emit(
+            "Starting HSX mission split, reading the files (that can take a couple of minutes if first time) (0%)...")
         # Read the data from the files
         self.hypack_reader.read_coordinates()
         self.pixhawk_reader.read_data_from_log()
@@ -108,6 +112,10 @@ class Mb2OptWorker(QObject):
         # Get the percentages of the initial and final points for each line
         ardupilot_pct_pairs_list = self.pixhawk_reader.get_data_percentages_from_mission_waypoints(
             log_gps_points=points_pixhawk)
+        if not ardupilot_pct_pairs_list:
+            self.log.emit("No mission sychronized waypoints found in the log file (100%).")
+            self.finished.emit()
+            return
         self.log.emit("Obtained the percentage pairs for each line (80%)...")
         # Get each section content plus the proper name for the generated files
         self.data_split_content = []
@@ -129,4 +137,41 @@ class Mb2OptWorker(QObject):
         self.data_split_content_signal.emit(self.data_split_content)
         self.log.emit(
             f"Done spliting original content into {len(ardupilot_pct_pairs_list)} files (100%).")
+        self.finished.emit()
+
+    @Slot()
+    def create_map_data_figure(self) -> None:
+        """Create the map data figure with GPS points from ardupilot log and HSX file.
+        """
+        self.log.emit(
+            "Generating synchronized UTM data for the map, reading the files (that can take a couple of minutes if first time) (0%)...")
+        # Read the data from the files
+        self.hypack_reader.read_coordinates()
+        self.pixhawk_reader.read_data_from_log()
+        self.log.emit("Data read from files (40%)...")
+        # Get the points to be synchronized
+        points_hypack = self.hypack_reader.get_utm_points_with_utc_timestamps()
+        points_pixhawk = self.pixhawk_reader.get_utm_points_with_utc_timestamps()
+        # Crop pixhawk points data to be in the same time interval as the hypack data
+        initial_time = points_hypack[0]['timestamp']
+        final_time = points_hypack[-1]['timestamp']
+        points_pixhawk = self.crop_data_from_time_range(
+            initial_time=initial_time, final_time=final_time, offset=2, gps_data=points_pixhawk)
+        self.log.emit("Points synchronized (70%)...")
+        fig = Figure(figsize=(5, 4))
+        ax = fig.add_subplot(111)
+        if len(points_hypack) > 0:
+            ax.plot([gps['utm_east'] for gps in points_hypack], 
+                    [gps['utm_north']for gps in points_hypack], 'o-', color='blue', label='HSX')
+        if len(points_pixhawk) > 0:
+            ax.plot([gps['utm_east'] for gps in points_pixhawk], 
+                    [gps['utm_north']for gps in points_pixhawk], '*-', color='black', label='Pixhawk')
+        ax.set_xlabel('UTM Easting')
+        ax.set_ylabel('UTM Northing')
+        ax.legend()
+        ax.set_aspect('equal', adjustable='datalim')
+        ax.set_title(
+            f'GPS Data')
+        self.map_canvas_signal.emit(fig)
+        self.log.emit("Map data generated. Canvas updated with the new map (100%).")
         self.finished.emit()
