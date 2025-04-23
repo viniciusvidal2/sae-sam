@@ -8,6 +8,7 @@ class Mb2OptWorker(QObject):
     finished = Signal()
     log = Signal(str)
     optimized_hypack_data_signal = Signal(list)
+    data_split_content_signal = Signal(list)
 
     def __init__(self, pixhawk_reader: ArdupilotLogReader, hypack_reader: HypackFileManipulator, input_paths: dict) -> None:
         """Initialize the worker with the proper class objects and input data.
@@ -33,8 +34,11 @@ class Mb2OptWorker(QObject):
         self.hypack_reader.set_raw_log_file_path(self.raw_log_path)
         self.hypack_reader.set_project_folder_path(self.project_path)
         self.pixhawk_reader.set_log_file_path(self.bin_path)
+        # The optimized points from GPS optimization procedure
         self.optimized_points_hypack = None
-        
+        # The list of dicts with split content, when spliting the original file with the pixhawk log
+        self.data_split_content = None
+
     def crop_data_from_time_range(self, initial_time: float, final_time: float, offset: float, gps_data: dict) -> list:
         """Crop the GPS data based on the given time range and offset.
 
@@ -57,7 +61,7 @@ class Mb2OptWorker(QObject):
     def run_gps_opt(self) -> None:
         """Run the file optimization process for GPS data.
         """
-        self.log.emit("Starting GPS data optimization (0%)...")
+        self.log.emit("Starting GPS data optimization, reading the files (that can take a couple of minutes if first time) (0%)...")
         # Read the data from the files
         self.hypack_reader.read_coordinates()
         self.pixhawk_reader.read_data_from_log()
@@ -86,7 +90,7 @@ class Mb2OptWorker(QObject):
     def run_hsx_mission_split(self) -> None:
         """Splits the original HSX file into multiple HSX files based on the mission in the pixhawk log.
         """
-        self.log.emit("Starting HSX mission split (0%)...")
+        self.log.emit("Starting HSX mission split, reading the files (that can take a couple of minutes if first time) (0%)...")
         # Read the data from the files
         self.hypack_reader.read_coordinates()
         self.pixhawk_reader.read_data_from_log()
@@ -102,14 +106,27 @@ class Mb2OptWorker(QObject):
             initial_time=initial_time, final_time=final_time, offset=2, gps_data=points_pixhawk)
         self.log.emit("Cropped GPS data to the same time interval (60%)...")
         # Get the percentages of the initial and final points for each line
-        ardupilot_pct_pairs_list = self.pixhawk_reader.get_data_percentages_from_mission_waypoints(points_pixhawk)
+        ardupilot_pct_pairs_list = self.pixhawk_reader.get_data_percentages_from_mission_waypoints(
+            log_gps_points=points_pixhawk)
         self.log.emit("Obtained the percentage pairs for each line (80%)...")
-        split_step_log_pct = 20 / len(ardupilot_pct_pairs_list)
+        # Get each section content plus the proper name for the generated files
+        self.data_split_content = []
         for i, pair in enumerate(ardupilot_pct_pairs_list):
+            # Get the section of the HSX file to be selected
             initial_point_pct = pair[0]
             final_point_pct = pair[1]
-            # Get the section of the HSX file to be selected
-            hypack_file_manipulator.setOutputFilesSuffix(f'{i+1}'.zfill(3))
-            result = hypack_file_manipulator.createSelectedFiles(
-                initial_point_pct, final_point_pct)
-            print(f'Result of the selection operation: {result}')
+            hsx_content, hsx_name = self.hypack_reader.get_file_section_content_and_name(
+                initial_pct=initial_point_pct, final_pct=final_point_pct, original_path=self.hsx_path, name_index=i+1)
+            raw_content, raw_name = self.hypack_reader.get_file_section_content_and_name(
+                initial_pct=initial_point_pct, final_pct=final_point_pct, original_path=self.raw_path, name_index=i+1)
+            # Save the content to the list
+            self.data_split_content.append(
+                {"hsx_content": hsx_content, "raw_content": raw_content, "hsx_name": hsx_name, "raw_name": raw_name})
+            # Log the percentage
+            log_pct = 80 + 18 / len(ardupilot_pct_pairs_list) * (i+1)
+            self.log.emit(
+                f"Splitting HSX and RAW files {i+1}/{len(ardupilot_pct_pairs_list)} ({log_pct:.2f}%)...")
+        self.data_split_content_signal.emit(self.data_split_content)
+        self.log.emit(
+            f"Done spliting original content into {len(ardupilot_pct_pairs_list)} files (100%).")
+        self.finished.emit()

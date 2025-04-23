@@ -62,6 +62,8 @@ class Mb2OptWindow(QMainWindow):
         self.project_root_path = None
         # Optimized data we get after calling the GPS process from pixhawk log
         self.optimized_hypack_points_data = None
+        # Split content for HSX and RAW files once we have the mission from the pixhawk logs
+        self.data_split_content_with_mission = None
 
     def setup_background(self) -> None:
         """Set up the background image for the main window.
@@ -174,15 +176,24 @@ class Mb2OptWindow(QMainWindow):
                 background: #e0e0e0;
             }
         """)
-        # Download button
-        self.download_opt_data_btn = QPushButton("Download optimized project files")
+        # Optimized data download button
+        self.download_opt_data_btn = QPushButton(
+            "Download optimized project files")
         self.download_opt_data_btn.setEnabled(True)
-        self.download_opt_data_btn.clicked.connect(self.download_optimized_data_callback)
+        self.download_opt_data_btn.clicked.connect(
+            self.download_optimized_data_callback)
+        # Mission split data data download button
+        self.download_mission_split_data_btn = QPushButton(
+            "Download HSX and RAW files split from mission")
+        self.download_mission_split_data_btn.setEnabled(True)
+        self.download_mission_split_data_btn.clicked.connect(
+            self.download_split_data_callback)
         # Add it all to the right layout
         right_layout.addWidget(self.reset_data_btn)
         right_layout.addWidget(self.toolbar)
         right_layout.addWidget(self.canvas)
         right_layout.addWidget(self.download_opt_data_btn)
+        right_layout.addWidget(self.download_mission_split_data_btn)
 
     def resizeEvent(self, event: None) -> None:
         """Resize the contents when the window is resized.
@@ -282,7 +293,7 @@ class Mb2OptWindow(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
-        
+
     def _set_optimized_hsx_points_data(self, optimized_hypack_points_data: list) -> None:
         """Set the optimized HSX points data.
         Args:
@@ -291,7 +302,39 @@ class Mb2OptWindow(QMainWindow):
         self.optimized_hypack_points_data = optimized_hypack_points_data
 
     def split_line_mission_btn_callback(self) -> None:
-        pass
+        """Split the original HSX and RAW content according to the log waypoints
+        """
+        # Dict with the paths to the files
+        input_paths = {
+            "hsx_path": self.hsx_path,
+            "hsx_log_path": self.hsx_log_path,
+            "raw_path": self.raw_path,
+            "raw_log_path": self.raw_log_path,
+            "bin_path": self.bin_path,
+            "project_path": self.project_root_path
+        }
+        # Start the parallel process
+        self.log_output(self.skip_print)
+        self.thread = QThread()
+        self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
+                                   hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run_hsx_mission_split)
+        self.worker.log.connect(self.log_output)
+        self.worker.data_split_content_signal.connect(
+            self._set_data_split_content)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def _set_data_split_content(self, data_list: list) -> None:
+        """Sets the mission split content once we use the mission from the ardupilot log
+
+        Args:
+            data_list (list): the split data list
+        """
+        self.data_split_content_with_mission = data_list
 
     def split_line_manual_btn_callback(self) -> None:
         pass
@@ -311,16 +354,47 @@ class Mb2OptWindow(QMainWindow):
             self.log_output("No optimized HSX data to be saved.")
             return
         # Open file dialog to save the merged point cloud
-        optimized_file_name = self.hsx_path.split("/")[-1].replace(".HSX", "_optimized")
+        optimized_file_name = self.hsx_path.split(
+            "/")[-1].replace(".HSX", "_optimized")
         optimized_files_dir = QFileDialog.getExistingDirectory(
             self, "Select folder to save the optimized files", "", QFileDialog.ShowDirsOnly)
         if optimized_files_dir:
-            output_path = os.path.join(optimized_files_dir, optimized_file_name)
+            output_path = os.path.join(
+                optimized_files_dir, optimized_file_name)
             self.hypack_file_manipulator.write_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
                                                                output_files_base_path=output_path)
             self.log_output(f"Optimized files saved to: {optimized_files_dir}")
         else:
             self.log_output("Optimized files download cancelled.")
+
+    def download_split_data_callback(self):
+        """Download the split HSX and RAW files.
+        """
+        self.log_output(self.skip_print)
+        if self.data_split_content_with_mission is None:
+            self.log_output("No split data to be saved.")
+            return
+        # Open file dialog to get the dir to save the split files
+        split_files_dir = QFileDialog.getExistingDirectory(
+            self, "Select folder to save the split files", "", QFileDialog.ShowDirsOnly)
+        if split_files_dir:
+            # Save every file content based on the split data content we got
+            for data_section in self.data_split_content_with_mission:
+                hsx_save_path = os.path.join(
+                    split_files_dir, data_section["hsx_name"])
+                raw_save_path = os.path.join(
+                    split_files_dir, data_section["raw_name"])
+                self.hypack_file_manipulator.write_file_and_log(
+                    content=data_section["hsx_content"], file_path=hsx_save_path)
+                self.hypack_file_manipulator.write_file_and_log(
+                    content=data_section["raw_content"], file_path=raw_save_path)
+                self.log_output(
+                    f"Split HSX file saved to: {hsx_save_path}")
+                self.log_output(
+                    f"Split RAW file saved to: {raw_save_path}")
+        else:
+            self.log_output("Split files download cancelled.")
+        self.log_output("Split HSX and RAW files saved.")
 
     def log_output(self, msg: str) -> None:
         """Log output to the text panel.
