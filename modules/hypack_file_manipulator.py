@@ -16,7 +16,6 @@ class HypackFileManipulator:
         self.input_hsx_log_file_path = ""
         self.input_raw_log_file_path = ""
         self.output_files_suffix = "_selected."
-        self.project_folder_path = ""
         # list of dictionaries containing utm_east, utm_north and timestamp
         self.gps_coordinates = []
 
@@ -53,14 +52,6 @@ class HypackFileManipulator:
             file_path (str): the RAW log path
         """
         self.input_raw_log_file_path = file_path
-
-    def set_project_folder_path(self, folder_path: str) -> None:
-        """Set the path to the project folder
-
-        Args:
-            folder_path (str): the project folder path
-        """
-        self.project_folder_path = folder_path
 
     def set_output_files_suffix(self, suffix: str) -> None:
         """Set the suffix for the output files
@@ -245,45 +236,6 @@ class HypackFileManipulator:
             print(f'Error writing file {file_path}: {e}')
             return False
 
-    def generate_write_selected_file(self, initial_point_pct: float, final_point_pct: float, file_path: str = None) -> str:
-        """Generate a selected file from the initial to the final point
-
-        Args:
-            initial_point_pct (float): the percentage of the initial point
-            final_point_pct (float): the percentage of the final point
-            file_path (str, optional): the file path. Defaults to None.
-
-        Returns:
-            str: the name of the selected file
-        """
-        file_name = os.path.basename(file_path)
-        file_name_split = file_name.split('.')
-        selected_file_name = file_name_split[0] + \
-            self.output_files_suffix + file_name_split[1]
-        selected_file_path = os.path.join(os.path.dirname(
-            file_path), selected_file_name)
-
-        initial_point_index = int(
-            len(self.gps_coordinates) * initial_point_pct) - 1
-        final_point_index = int(
-            len(self.gps_coordinates) * final_point_pct) - 1
-        # Warp the indices to the limits
-        initial_point_index = max(0, initial_point_index)
-        final_point_index = min(
-            len(self.gps_coordinates) - 1, final_point_index)
-        # Init value cannot be bigger or equal than the final value
-        if initial_point_index >= final_point_index:
-            return ''
-
-        selected_content = self.get_data_file_section_content(
-            initial_point_index, final_point_index, file_path)
-
-        with open(selected_file_path, 'w') as f:
-            for line in selected_content:
-                f.write(line)
-        f.close()
-        return selected_file_name
-
     def add_file_to_log(self, file_path: str, log_file_path: str) -> None:
         """Append the selected file to the log, if necessary
 
@@ -310,31 +262,6 @@ class HypackFileManipulator:
             f.write(file_name + '\n')
         f.close()
 
-    def create_selected_files(self, initial_point_pct: float, final_point_pct: float) -> bool:
-        """Perform the selection and save the HSX and RAW files
-
-        Args:
-            initial_point_pct (float): the percentage of the initial point
-            final_point_pct (float): the percentage of the final point
-
-        Returns:
-            bool: if the operation was successful
-        """
-        try:
-            # Select the region and update the log for the HSX file
-            selected_hsx_name = self.generate_write_selected_file(
-                initial_point_pct, final_point_pct, self.input_hsx_file_path)
-            self.add_file_to_log(
-                selected_hsx_name, self.input_hsx_log_file_path)
-            # Select the region and update the log for the RAW file
-            selected_raw_name = self.generate_write_selected_file(
-                initial_point_pct, final_point_pct, self.input_raw_file_path)
-            self.add_file_to_log(
-                selected_raw_name, self.input_raw_log_file_path)
-            return True
-        except Exception as e:
-            print(f'Error: {e}')
-            return False
 # endregion
 # region FileGPSOptimization
 
@@ -487,26 +414,4 @@ class HypackFileManipulator:
         f.close()
         return True
 
-# endregion
-# region TestPlot
-    def plot_gps_data(self, initial_point_pct: float, final_point_pct: float) -> None:
-        """Plot the GPS data
-
-        Args:
-            initial_point_pct (float): the percentage of the initial point
-            final_point_pct (float): the percentage of the final point
-        """
-        _, ax = plt.subplots()
-        ini_idx = int(len(self.gps_coordinates) * initial_point_pct) - 1
-        fin_idx = int(len(self.gps_coordinates) * final_point_pct) - 1
-        ax.plot([gps['utm_east'] for gps in self.gps_coordinates], [gps['utm_north']
-                for gps in self.gps_coordinates], 'o-', color='red')
-        ax.plot([gps['utm_east'] for gps in self.gps_coordinates[ini_idx:fin_idx]], [
-                gps['utm_north'] for gps in self.gps_coordinates[ini_idx:fin_idx]], 'o-', color='blue')
-        ax.set_xlabel('UTM Easting')
-        ax.set_ylabel('UTM Northing')
-        ax.set_aspect('equal', adjustable='datalim')
-        ax.set_title(
-            f'GPS Data')
-        plt.show()
 # endregion

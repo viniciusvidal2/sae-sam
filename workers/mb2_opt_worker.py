@@ -29,12 +29,10 @@ class Mb2OptWorker(QObject):
         self.raw_path = input_paths["raw_path"]
         self.raw_log_path = input_paths["raw_log_path"]
         self.bin_path = input_paths["bin_path"]
-        self.project_path = input_paths["project_path"]
         self.hypack_reader.set_hsx_file_path(self.hsx_path)
         self.hypack_reader.set_hsx_log_file_path(self.hsx_log_path)
         self.hypack_reader.set_raw_file_path(self.raw_path)
         self.hypack_reader.set_raw_log_file_path(self.raw_log_path)
-        self.hypack_reader.set_project_folder_path(self.project_path)
         self.pixhawk_reader.set_log_file_path(self.bin_path)
         # The optimized points from GPS optimization procedure
         self.optimized_points_hypack = None

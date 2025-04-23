@@ -33,7 +33,6 @@ class Mb2OptWindow(QMainWindow):
         self.raw_path = None
         self.raw_log_path = None
         self.bin_path = None
-        self.project_root_path = None
         # Optimized data we get after calling the GPS process from pixhawk log
         self.optimized_hypack_points_data = None
         # Split content for HSX and RAW files once we have the mission from the pixhawk logs
@@ -256,7 +255,6 @@ class Mb2OptWindow(QMainWindow):
                     "No valid HSX or RAW log files found in the project folder.")
                 return
             # Set the files to be processed
-            self.project_root_path = project_folder
             self.hsx_path = hsx_file_path
             self.hsx_log_path = hsx_log
             self.raw_path = raw_file_path
@@ -291,8 +289,7 @@ class Mb2OptWindow(QMainWindow):
             "hsx_log_path": self.hsx_log_path,
             "raw_path": self.raw_path,
             "raw_log_path": self.raw_log_path,
-            "bin_path": self.bin_path,
-            "project_path": self.project_root_path
+            "bin_path": self.bin_path
         }
         # Start the parallel process
         self.thread = QThread()
@@ -328,8 +325,7 @@ class Mb2OptWindow(QMainWindow):
             "hsx_log_path": self.hsx_log_path,
             "raw_path": self.raw_path,
             "raw_log_path": self.raw_log_path,
-            "bin_path": self.bin_path,
-            "project_path": self.project_root_path
+            "bin_path": self.bin_path
         }
         # Start the parallel process
         self.thread = QThread()
@@ -369,8 +365,7 @@ class Mb2OptWindow(QMainWindow):
             "hsx_log_path": self.hsx_log_path,
             "raw_path": self.raw_path,
             "raw_log_path": self.raw_log_path,
-            "bin_path": self.bin_path,
-            "project_path": self.project_root_path
+            "bin_path": self.bin_path
         }
         # Start the parallel process
         self.thread = QThread()
