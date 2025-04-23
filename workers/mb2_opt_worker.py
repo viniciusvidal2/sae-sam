@@ -81,3 +81,35 @@ class Mb2OptWorker(QObject):
         # Obtain merged cloud to display
         self.log.emit("We are finished optimizing the HSX file GPS points.")
         self.finished.emit()
+
+    @Slot()
+    def run_hsx_mission_split(self) -> None:
+        """Splits the original HSX file into multiple HSX files based on the mission in the pixhawk log.
+        """
+        self.log.emit("Starting HSX mission split (0%)...")
+        # Read the data from the files
+        self.hypack_reader.read_coordinates()
+        self.pixhawk_reader.read_data_from_log()
+        self.log.emit("Data read from files (10%)...")
+        # Get the points to be synchronized
+        points_hypack = self.hypack_reader.get_utm_points_with_utc_timestamps()
+        points_pixhawk = self.pixhawk_reader.get_utm_points_with_utc_timestamps()
+        self.log.emit("Loaded GPS and points to optimize (30%)...")
+        # Crop pixhawk points data to be in the same time interval as the hypack data
+        initial_time = points_hypack[0]['timestamp']
+        final_time = points_hypack[-1]['timestamp']
+        points_pixhawk = self.crop_data_from_time_range(
+            initial_time=initial_time, final_time=final_time, offset=2, gps_data=points_pixhawk)
+        self.log.emit("Cropped GPS data to the same time interval (60%)...")
+        # Get the percentages of the initial and final points for each line
+        ardupilot_pct_pairs_list = self.pixhawk_reader.get_data_percentages_from_mission_waypoints(points_pixhawk)
+        self.log.emit("Obtained the percentage pairs for each line (80%)...")
+        split_step_log_pct = 20 / len(ardupilot_pct_pairs_list)
+        for i, pair in enumerate(ardupilot_pct_pairs_list):
+            initial_point_pct = pair[0]
+            final_point_pct = pair[1]
+            # Get the section of the HSX file to be selected
+            hypack_file_manipulator.setOutputFilesSuffix(f'{i+1}'.zfill(3))
+            result = hypack_file_manipulator.createSelectedFiles(
+                initial_point_pct, final_point_pct)
+            print(f'Result of the selection operation: {result}')

@@ -86,8 +86,10 @@ class HypackFileManipulator:
         if self.input_hsx_file_path == '':
             print('No file path set')
             return
-        # Fill the gps_coordinates list with the UTM coordinates and the timestamp, reset the list
-        self.gps_coordinates = []
+        # If a mission is loaded, do not read again
+        if len(self.gps_coordinates) > 0:
+            return
+        # Fill the gps_coordinates list with the UTM coordinates and the timestamp
         with open(self.input_hsx_file_path, 'r') as f:
             lines = f.readlines()
             for line in lines:
