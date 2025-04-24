@@ -1,9 +1,10 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QLabel, QPushButton, QSplashScreen
-from PySide6.QtGui import QPixmap, QPalette, QBrush, QFont
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QPushButton, QSplashScreen,
+    QHBoxLayout, QVBoxLayout, QLabel, QWidget, QSizePolicy
+)
+from PySide6.QtGui import QPixmap, QPalette, QBrush, QFont, QGuiApplication
 from PySide6.QtCore import Qt, QTimer
-from pyvistaqt import QtInteractor
-import pyvista as pv
 from windows.apex_window import ApexWindow
 from windows.saesc_window import SaescWindow
 from windows.mb2_opt_window import Mb2OptWindow
@@ -16,13 +17,41 @@ class MainWindow(QMainWindow):
         The buttons are connected to their respective functions which open new windows.
         """
         super().__init__()
-        self.setWindowTitle("SAE SAM")
-        self.setGeometry(400, 400, 800, 600)
-
-        self.setup_background()
-        self.setup_buttons()
         # The windows we can open from the main interface
         self.child_windows = []
+        # Variables to control labels
+        self.label_size = (300, 300)
+        self.apex_label_path = "resources/saesam.png"
+        self.hypack_label_path = "resources/saesam.png"
+        self.saesc_label_path = "resources/saesam.png"
+
+        # Title, icons, and position/sizes
+        self.setWindowTitle("SAE SAM")
+        self.setWindowIcon(QPixmap("resources/saesam.png"))
+        self.setFixedWidth(500)
+        self.setFixedHeight(self.label_size[1] + 50)
+        screen = QGuiApplication.primaryScreen()
+        screen_geometry = screen.geometry()
+        window_geometry = self.frameGeometry()
+        x = (screen_geometry.width() - window_geometry.width()) // 2
+        y = (screen_geometry.height() - window_geometry.height()) // 2
+        self.move(x, y)
+        # Background
+        self.setup_background()
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        # Left panel with the buttons
+        self.left_panel = QWidget()
+        left_layout = QVBoxLayout(self.left_panel)
+        self.setup_buttons(left_layout)
+        # Right panel with the label
+        self.right_panel = QWidget()
+        right_layout = QVBoxLayout(self.right_panel)
+        self.setup_label_panel(right_layout)
+        # Add the panels to the main layout
+        main_layout.addWidget(self.left_panel)
+        main_layout.addWidget(self.right_panel)
 
     def setup_background(self) -> None:
         """Set up the background image for the main window.
@@ -43,21 +72,91 @@ class MainWindow(QMainWindow):
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
 
-    def setup_buttons(self) -> None:
+    def setup_buttons(self, layout: QVBoxLayout) -> None:
         """Set up the buttons for the main window.
         """
         # Create one button for each isolated program module
         self.button_appex = QPushButton("Apex image processing", self)
-        self.button_appex.setGeometry(100, 100, 200, 40)
         self.button_appex.clicked.connect(self.open_apex_window)
-
-        self.button2 = QPushButton("MB2 data optimization", self)
-        self.button2.setGeometry(100, 160, 200, 40)
-        self.button2.clicked.connect(self.open_hypack_window)
-
+        self.button_appex.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.button_appex.enterEvent = lambda event: self.label_programs.setPixmap(
+            QPixmap(self.apex_label_path).scaled(
+                self.label_size[0], self.label_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.button_appex.setStyleSheet("""
+            QPushButton {
+                background-color: #a0a0a0;
+                color: black;
+                font-size: 18px;
+                border-radius: 8px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #b0b0b0;
+            }
+            QPushButton:pressed {
+                background-color: #8a8a8a;
+            }
+        """)
+        self.button_hypack = QPushButton("MB2 data optimization", self)
+        self.button_hypack.clicked.connect(self.open_hypack_window)
+        self.button_hypack.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.button_hypack.enterEvent = lambda event: self.label_programs.setPixmap(
+            QPixmap(self.hypack_label_path).scaled(
+                self.label_size[0], self.label_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.button_hypack.setStyleSheet("""
+            QPushButton {
+                background-color: #8fbf88;
+                color: black;
+                font-size: 18px;
+                border-radius: 8px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #9fd998;
+            }
+            QPushButton:pressed {
+                background-color: #7aad73;
+            }
+        """)
         self.button_saesc = QPushButton("SAESC - Scene Creator", self)
-        self.button_saesc.setGeometry(100, 220, 200, 40)
         self.button_saesc.clicked.connect(self.open_saesc_window)
+        self.button_saesc.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.button_saesc.enterEvent = lambda event: self.label_programs.setPixmap(
+            QPixmap(self.saesc_label_path).scaled(
+                self.label_size[0], self.label_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.button_saesc.setStyleSheet("""
+            QPushButton {
+                background-color: #7da8c3;
+                color: black;
+                font-size: 18px;
+                border-radius: 8px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #8cb9d4;
+            }
+            QPushButton:pressed {
+                background-color: #6992ae;
+            }
+        """)
+        # Add them the layout
+        layout.addWidget(self.button_appex)
+        layout.addWidget(self.button_hypack)
+        layout.addWidget(self.button_saesc)
+
+    def setup_label_panel(self, layout: QVBoxLayout) -> None:
+        """Set up the label panel for the main window.
+        """
+        # Label that will contain an image with each program illustrative image
+        self.label_programs = QLabel(self)
+        self.label_programs.setStyleSheet(
+            "border: 1px solid white; background-color: rgba(0,0,0,50);")
+        self.label_programs.setAlignment(Qt.AlignCenter)
+        # Add the label to the layout
+        layout.addWidget(self.label_programs)
 
     def open_apex_window(self) -> None:
         """Open the Apex window.
@@ -104,38 +203,42 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
+def main() -> None:
+    """Main function to run the application.
+    """
+    app = QApplication()
 
-    # # Splash screen
-    # original_pix = QPixmap("resources/saesam.png")
-    # scaled_pix = original_pix.scaled(
-    #     original_pix.width() // 4,
-    #     original_pix.height() // 4,
-    #     Qt.KeepAspectRatio,
-    #     Qt.SmoothTransformation)
-    # splash = QSplashScreen(scaled_pix)
-    # splash.setFont(QFont("Arial", 20))
-    # splash.show()
+    # Splash screen
+    original_pix = QPixmap("resources/saesam.png")
+    scaled_pix = original_pix.scaled(
+        original_pix.width() // 3,
+        original_pix.height() // 3,
+        Qt.KeepAspectRatio,
+        Qt.SmoothTransformation)
+    splash = QSplashScreen(scaled_pix)
+    splash.setFont(QFont("Arial", 20))
+    splash.show()
 
-    # # Animate "Loading..." text
-    # dots = ["", ".", "..", "..."]
-    # current_index = [0]  # Using list to make it mutable in closure
+    # Animate "Loading..." text
+    dots = ["", ".", "..", "..."]
+    current_index = [0]  # Using list to make it mutable in closure
 
-    # def update_loading_text():
-    #     splash.showMessage(f"Loading{dots[current_index[0]]}",
-    #                        Qt.AlignCenter,
-    #                        Qt.white)
-    #     current_index[0] = (current_index[0] + 1) % len(dots)
-
-    # timer = QTimer()
-    # timer.timeout.connect(update_loading_text)
-    # timer.start(1000)
+    def update_loading_text():
+        splash.showMessage(f"Loading{dots[current_index[0]]}",
+                           Qt.AlignCenter,
+                           Qt.white)
+        current_index[0] = (current_index[0] + 1) % len(dots)
+    timer = QTimer()
+    timer.timeout.connect(update_loading_text)
+    timer.start(1000)
 
     # After 6 seconds, close splash and open main window
     window = MainWindow()
-    # QTimer.singleShot(6000, timer.stop)
-    # QTimer.singleShot(6000, splash.close)
-    # QTimer.singleShot(6000, window.show)
-    window.show()
+    QTimer.singleShot(6000, timer.stop)
+    QTimer.singleShot(6000, splash.close)
+    QTimer.singleShot(6000, window.show)
     sys.exit(app.exec())
+
+
+if __name__ == '__main__':
+    main()
