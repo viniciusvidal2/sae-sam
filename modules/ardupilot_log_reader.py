@@ -117,6 +117,12 @@ class ArdupilotLogReader:
                     'end_timestamp': mission[-1].TimeUS,
                     'waypoints': waypoints_utm_coords
                 })
+                
+    def reset_data(self) -> None:
+        """Resets the data from the log file.
+        """
+        self.gps_data = []
+        self.missions_in_log = []
 
     def get_utm_points_with_utc_timestamps(self) -> list:
         """Gets the UTM points with UTC timestamps.

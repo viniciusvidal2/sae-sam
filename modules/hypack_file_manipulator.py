@@ -12,7 +12,6 @@ class HypackFileManipulator:
         self.input_raw_file_path = ""
         self.input_hsx_log_file_path = ""
         self.input_raw_log_file_path = ""
-        self.output_files_suffix = "_selected."
         # list of dictionaries containing utm_east, utm_north and timestamp
         self.gps_coordinates = []
 
@@ -50,14 +49,6 @@ class HypackFileManipulator:
         """
         self.input_raw_log_file_path = file_path
 
-    def set_output_files_suffix(self, suffix: str) -> None:
-        """Set the suffix for the output files
-
-        Args:
-            suffix (str): the suffix to be added to the output files
-        """
-        self.output_files_suffix = '_' + suffix + '.'
-
     def set_timezone_offset(self, offset: int) -> None:
         """Set the timezone offset in hours
 
@@ -91,6 +82,11 @@ class HypackFileManipulator:
                     self.gps_coordinates.append(gps_point)
             f.close()
 
+    def reset_data(self) -> None:
+        """Reset the data from the HSX file
+        """
+        self.gps_coordinates = []
+    
     def get_date_from_file(self, file_path: str) -> str:
         """Gets the date in the file header
 
