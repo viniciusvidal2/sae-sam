@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout
+from PySide6.QtWidgets import QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread, QSize
 from modules.apex_pipeline import ApexPipeline
@@ -30,6 +30,15 @@ class ApexWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #888;
+                width: 6px;
+                margin: 1px;
+            }
+        """)
 
         # Left panel layout - data input btns, process btns and text panel
         self.left_panel = QWidget()
@@ -42,9 +51,11 @@ class ApexWindow(QMainWindow):
         right_layout = QVBoxLayout(self.right_panel)
         self.setup_right_panel(right_layout)
 
-        # Fill the main layout with both panels
-        main_layout.addWidget(self.left_panel)
-        main_layout.addWidget(self.right_panel)
+        # Fill the splitter with both panels and add to main layout
+        splitter.addWidget(self.left_panel)
+        splitter.addWidget(self.right_panel)
+        splitter.setSizes([self.width() // 2, self.width() // 2])
+        main_layout.addWidget(splitter)
 
     # endregion
     ##############################################################################################
@@ -175,6 +186,7 @@ class ApexWindow(QMainWindow):
     def load_image_btn_callback(self) -> None:
         """Callback for the load image btn
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         self.image_path, _ = QFileDialog.getOpenFileName(
             self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg)"
@@ -185,18 +197,21 @@ class ApexWindow(QMainWindow):
             self.load_image_text_box.setText(filename)
             self.image_original = QPixmap(self.image_path)
             self.display_image(self.image_original)
+            self.image_panel_state = "original"
         else:
             self.log_output("No valid image path was inserted.")
+        self.enable_buttons()
 
     def process_btn_callback(self) -> None:
         """Callback for the process btn
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         self.log_output("Starting process...")
         if not self.image_original:
             self.log_output("No image loaded.")
+            self.enable_buttons()
             return
-
         try:
             grid_height = float(self.grid_height_input.text())
             grid_width = float(self.grid_width_input.text())
@@ -222,6 +237,7 @@ class ApexWindow(QMainWindow):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self.enable_buttons)
         self.thread.start()
 
     def _set_segmented_image(self, image: QPixmap) -> None:
@@ -292,9 +308,11 @@ class ApexWindow(QMainWindow):
     def download_image_btn_callback(self) -> None:
         """Callback for the download image btn
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         if not self.image_segmented:
             self.log_output("No image to download.")
+            self.enable_buttons()
             return
         save_path, _ = QFileDialog.getSaveFileName(
             self, "Save Image As", "output.png", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)"
@@ -302,10 +320,12 @@ class ApexWindow(QMainWindow):
         if save_path:
             self.image_segmented.save(save_path)
             self.log_output(f"Segmented image saved to {save_path}")
+        self.enable_buttons()
 
     def download_report_btn_callback(self) -> None:
         """Callback for the download report btn
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         save_path, _ = QFileDialog.getSaveFileName(
             self, "Save Report As", "report.txt", "Text Files (*.txt)"
@@ -314,6 +334,25 @@ class ApexWindow(QMainWindow):
             with open(save_path, "w") as f:
                 f.write(self.output_panel.toPlainText())
             self.log_output(f"Report saved to {save_path}")
+        self.enable_buttons()
+
+    def enable_buttons(self) -> None:
+        """Enables the buttons in the window
+        """
+        self.load_btn.setEnabled(True)
+        self.process_btn.setEnabled(True)
+        self.toggle_btn.setEnabled(True)
+        self.download_image_btn.setEnabled(True)
+        self.download_report_btn.setEnabled(True)
+
+    def disable_buttons(self) -> None:
+        """Disables the buttons in the window
+        """
+        self.load_btn.setEnabled(False)
+        self.process_btn.setEnabled(False)
+        self.toggle_btn.setEnabled(False)
+        self.download_image_btn.setEnabled(False)
+        self.download_report_btn.setEnabled(False)
     # endregion
 
 
