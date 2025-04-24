@@ -127,7 +127,7 @@ class Mb2OptWindow(QMainWindow):
         # Add the input plus the view button to the top layout
         view_data_btn = QPushButton("View Data")
         view_data_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        view_data_btn.clicked.connect(self.draw_data_callback)
+        view_data_btn.clicked.connect(self.view_data_btn_callback)
         input_view_layout.addLayout(input_layout)
         input_view_layout.addWidget(view_data_btn)
         # Add it all to the main layout
@@ -150,18 +150,18 @@ class Mb2OptWindow(QMainWindow):
         self.split_line_mission_btn.setEnabled(True)
         self.split_line_mission_btn.clicked.connect(
             self.split_line_mission_btn_callback)
-        self.split_line_manual_btn = QPushButton("Split Line Manually")
-        self.split_line_manual_btn.setEnabled(True)
-        self.split_line_manual_btn.clicked.connect(
-            self.split_line_manual_btn_callback)
-        self.split_line_pct_lide_edit = QLineEdit()
-        self.split_line_pct_lide_edit.setPlaceholderText(
-            "Percentage of the line to split (0 - 100)")
+        # self.split_line_manual_btn = QPushButton("Split Line Manually")
+        # self.split_line_manual_btn.setEnabled(True)
+        # self.split_line_manual_btn.clicked.connect(
+        #     self.split_line_manual_btn_callback)
+        # self.split_line_pct_lide_edit = QLineEdit()
+        # self.split_line_pct_lide_edit.setPlaceholderText(
+        #     "Percentage of the line to split (0 - 100)")
         # Add the btns to the layout
         self.process_btn_layout.addWidget(self.optimize_gps_btn)
         self.process_btn_layout.addWidget(self.split_line_mission_btn)
-        self.process_btn_layout.addWidget(self.split_line_manual_btn)
-        self.process_btn_layout.addWidget(self.split_line_pct_lide_edit)
+        # self.process_btn_layout.addWidget(self.split_line_manual_btn)
+        # self.process_btn_layout.addWidget(self.split_line_pct_lide_edit)
         # Text panel for logs and status
         self.text_panel = QTextEdit()
         self.text_panel.setPlaceholderText(
@@ -349,10 +349,10 @@ class Mb2OptWindow(QMainWindow):
         """
         self.data_split_content_with_mission = data_list
 
-    def split_line_manual_btn_callback(self) -> None:
-        pass
+    # def split_line_manual_btn_callback(self) -> None:
+    #     pass
 
-    def draw_data_callback(self) -> None:
+    def view_data_btn_callback(self) -> None:
         """Draw the HSX data in the visualizer.
         """
         self.log_output(self.skip_print)
