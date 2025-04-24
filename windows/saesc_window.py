@@ -188,6 +188,7 @@ class SaescWindow(QMainWindow):
     def process_button_callback(self) -> None:
         """Process the selected point clouds in a parallel thread that uses the pipeline.
         """
+        self.disable_buttons()
         # Obtaining the input data from the entires and organizing to the worker thread
         input_paths = []
         input_types = []
@@ -204,6 +205,7 @@ class SaescWindow(QMainWindow):
                 continue
         if len(input_paths) == 0:
             self.log_output("No point clouds selected.")
+            self.enable_buttons()
             return
         input_data = {"paths": input_paths,
                       "types": input_types,
@@ -221,11 +223,13 @@ class SaescWindow(QMainWindow):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.enable_buttons)
         self.thread.start()
 
     def reset_button_callback(self) -> None:
         """Reset the data and clear the visualizer.
         """
+        self.disable_buttons()
         self.log_output("Resetting data...")
         self.merged_ptc_pyvista = None
         self.merged_ptc_ply = None
@@ -233,12 +237,15 @@ class SaescWindow(QMainWindow):
         self.visualizer.add_axes()
         self.visualizer.update()
         self.log_output("Merged point cloud data cleared.")
+        self.enable_buttons()
 
     def download_button_callback(self) -> None:
         """Download the merged point cloud.
         """
+        self.disable_buttons()
         if self.merged_ptc_ply is None:
             self.log_output("No merged point cloud to download.")
+            self.enable_buttons()
             return
         # Open file dialog to save the merged point cloud
         file_path, _ = QFileDialog.getSaveFileName(
@@ -248,6 +255,7 @@ class SaescWindow(QMainWindow):
             self.log_output(f"Merged point cloud saved to: {file_path}")
         else:
             self.log_output("Download cancelled.")
+        self.enable_buttons()
 
     def log_output(self, msg: str) -> None:
         """Log output to the text panel.
@@ -255,6 +263,22 @@ class SaescWindow(QMainWindow):
             msg (str): The message to log.
         """
         self.text_panel.append(msg)
+        
+    def disable_buttons(self) -> None:
+        """Disable the buttons to prevent multiple clicks during processing.
+        """
+        self.add_btn.setEnabled(False)
+        self.process_btn.setEnabled(False)
+        self.reset_data_button.setEnabled(False)
+        self.download_button.setEnabled(False)
+        
+    def enable_buttons(self) -> None:
+        """Enable the buttons after processing is finished.
+        """
+        self.add_btn.setEnabled(True)
+        self.process_btn.setEnabled(True)
+        self.reset_data_button.setEnabled(True)
+        self.download_button.setEnabled(True)
 
     def _set_merged_point_cloud(self, ptcs: dict) -> None:
         """Set the merged point clouds for visualization and download.
