@@ -104,11 +104,11 @@ class Mb2OptWindow(QMainWindow):
         self.hsx_text_edit = QLineEdit()
         self.hsx_text_edit.setPlaceholderText(
             "Path to the HSX file. Make sure RAW and LOG files are in the same project folder.")
-        hsx_browse_btn = QPushButton("Browse")
-        hsx_browse_btn.clicked.connect(self.hsx_browse_btn_callback)
+        self.hsx_browse_btn = QPushButton("Browse")
+        self.hsx_browse_btn.clicked.connect(self.hsx_browse_btn_callback)
         hsx_btn_layout.addWidget(hsx_label)
         hsx_btn_layout.addWidget(self.hsx_text_edit)
-        hsx_btn_layout.addWidget(hsx_browse_btn)
+        hsx_btn_layout.addWidget(self.hsx_browse_btn)
         # Pixhawk data from bin file
         bin_btn_layout = QHBoxLayout()
         bin_label = QLabel("Pixhawk log file (.bin):")
@@ -116,20 +116,20 @@ class Mb2OptWindow(QMainWindow):
         self.bin_text_edit = QLineEdit()
         self.bin_text_edit.setPlaceholderText(
             "Path to the BIN file, where the Pixhawk data is stored.")
-        bin_browse_btn = QPushButton("Browse")
-        bin_browse_btn.clicked.connect(self.bin_browse_btn_callback)
+        self.bin_browse_btn = QPushButton("Browse")
+        self.bin_browse_btn.clicked.connect(self.bin_browse_btn_callback)
         bin_btn_layout.addWidget(bin_label)
         bin_btn_layout.addWidget(self.bin_text_edit)
-        bin_btn_layout.addWidget(bin_browse_btn)
+        bin_btn_layout.addWidget(self.bin_browse_btn)
         # Add the input layouts to the horizontal layout
         input_layout.addLayout(hsx_btn_layout)
         input_layout.addLayout(bin_btn_layout)
         # Add the input plus the view button to the top layout
-        view_data_btn = QPushButton("View Data")
-        view_data_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        view_data_btn.clicked.connect(self.view_data_btn_callback)
+        self.view_data_btn = QPushButton("View Data")
+        self.view_data_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.view_data_btn.clicked.connect(self.view_data_btn_callback)
         input_view_layout.addLayout(input_layout)
-        input_view_layout.addWidget(view_data_btn)
+        input_view_layout.addWidget(self.view_data_btn)
         # Add it all to the main layout
         left_layout.addLayout(input_view_layout)
 
@@ -221,6 +221,7 @@ class Mb2OptWindow(QMainWindow):
     def hsx_browse_btn_callback(self) -> None:
         """Open a file dialog to select the HSX file.
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         hsx_file_path, _ = QFileDialog.getOpenFileName(
             self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.", "", "HSX files (*.HSX)")
@@ -262,10 +263,12 @@ class Mb2OptWindow(QMainWindow):
             self.log_output("HSX and RAW files set for processing.")
         else:
             self.log_output("No valid HSX file selected.")
+        self.enable_buttons()
 
     def bin_browse_btn_callback(self) -> None:
         """Open a file dialog to select the BIN file.
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         bin_file_path, _ = QFileDialog.getOpenFileName(
             self, "Select BIN file", "", "BIN files (*.bin)")
@@ -275,10 +278,12 @@ class Mb2OptWindow(QMainWindow):
             self.bin_text_edit.setText(bin_file_path.split("/")[-1])
         else:
             self.log_output("No valid BIN file selected.")
+        self.enable_buttons()
 
     def optimize_gps_btn_callback(self) -> None:
         """Optimize the Hypack gps points with the ardupilot (pixhawk) ones
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         if not self.hsx_path or not self.bin_path:
             self.log_output("No HSX or BIN file selected to de drawn.")
@@ -304,6 +309,7 @@ class Mb2OptWindow(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
+        self.enable_buttons()
 
     def _set_optimized_hsx_points_data(self, optimized_hypack_points_data: list) -> None:
         """Set the optimized HSX points data.
@@ -315,6 +321,7 @@ class Mb2OptWindow(QMainWindow):
     def split_line_mission_btn_callback(self) -> None:
         """Split the original HSX and RAW content according to the log waypoints
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         if not self.hsx_path or not self.bin_path:
             self.log_output("No HSX or BIN file selected to de drawn.")
@@ -339,6 +346,7 @@ class Mb2OptWindow(QMainWindow):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self.enable_buttons)
         self.thread.start()
 
     def _set_data_split_content(self, data_list: list) -> None:
@@ -355,6 +363,7 @@ class Mb2OptWindow(QMainWindow):
     def view_data_btn_callback(self) -> None:
         """Draw the HSX data in the visualizer.
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         if not self.hsx_path or not self.bin_path:
             self.log_output("No HSX or BIN file selected to de drawn.")
@@ -379,6 +388,7 @@ class Mb2OptWindow(QMainWindow):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self.enable_buttons)
         self.thread.start()
 
     def draw_map_to_canvas(self, fig: Figure) -> None:
@@ -415,16 +425,29 @@ class Mb2OptWindow(QMainWindow):
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         self.log_output("Resetting data...")
-        self.log_output("Merged point cloud data cleared.")
+        # Clearing the canvas
+        self.figure.clear()
+        self.canvas.draw()
+        # Resetting the text panel
+        self.text_panel.clear()
+        # Reseting control variables
+        self.optimized_hypack_points_data = None
+        self.data_split_content_with_mission = None
+        self.hypack_file_manipulator.reset_data()
+        self.pixhawk_log_manipulator.reset_data()
+        self.enable_buttons()
 
     def download_optimized_data_callback(self) -> None:
         """Download the GPS optimized files.
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         if self.optimized_hypack_points_data is None:
             self.log_output("No optimized HSX data to be saved.")
+            self.enable_buttons()
             return
         # Open file dialog to save the optimized files
         optimized_files_dir = QFileDialog.getExistingDirectory(
@@ -439,13 +462,16 @@ class Mb2OptWindow(QMainWindow):
             self.log_output(f"Optimized files saved to: {optimized_files_dir}")
         else:
             self.log_output("Optimized files download cancelled.")
+        self.enable_buttons()
 
     def download_split_data_callback(self):
         """Download the split HSX and RAW files.
         """
+        self.disable_buttons()
         self.log_output(self.skip_print)
         if self.data_split_content_with_mission is None:
             self.log_output("No split data to be saved.")
+            self.enable_buttons()
             return
         # Open file dialog to get the dir to save the split files
         split_files_dir = QFileDialog.getExistingDirectory(
@@ -468,6 +494,7 @@ class Mb2OptWindow(QMainWindow):
         else:
             self.log_output("Split files download cancelled.")
         self.log_output("Split HSX and RAW files saved.")
+        self.enable_buttons()
 
     def log_output(self, msg: str) -> None:
         """Log output to the text panel.
@@ -475,6 +502,36 @@ class Mb2OptWindow(QMainWindow):
             msg (str): The message to log.
         """
         self.text_panel.append(msg)
+        
+    def disable_buttons(self) -> None:
+        """Disable the buttons in the processing section.
+        """
+        self.optimize_gps_btn.setEnabled(False)
+        self.split_line_mission_btn.setEnabled(False)
+        # self.split_line_manual_btn.setEnabled(False)
+        self.reset_data_btn.setEnabled(False)
+        self.download_opt_data_btn.setEnabled(False)
+        self.download_mission_split_data_btn.setEnabled(False)
+        self.hsx_text_edit.setEnabled(False)
+        self.bin_text_edit.setEnabled(False)
+        self.hsx_browse_btn.setEnabled(False)
+        self.bin_browse_btn.setEnabled(False)
+        self.view_data_btn.setEnabled(False)
+        
+    def enable_buttons(self) -> None:
+        """Enable the buttons in the processing section.
+        """
+        self.optimize_gps_btn.setEnabled(True)
+        self.split_line_mission_btn.setEnabled(True)
+        # self.split_line_manual_btn.setEnabled(True)
+        self.reset_data_btn.setEnabled(True)
+        self.download_opt_data_btn.setEnabled(True)
+        self.download_mission_split_data_btn.setEnabled(True)
+        self.hsx_text_edit.setEnabled(True)
+        self.bin_text_edit.setEnabled(True)
+        self.hsx_browse_btn.setEnabled(True)
+        self.bin_browse_btn.setEnabled(True)
+        self.view_data_btn.setEnabled(True)
 
 # endregion
 
