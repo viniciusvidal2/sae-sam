@@ -1,11 +1,11 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QFileDialog, QTextEdit, QLineEdit
+from PySide6.QtWidgets import QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread, QSize
 from modules.apex_pipeline import ApexPipeline
 from workers.apex_worker import ApexWorker
 
 
-class ApexWindow(QWidget):
+class ApexWindow(QMainWindow):
     ##############################################################################################
     # region Constructor
     def __init__(self) -> None:
@@ -15,32 +15,126 @@ class ApexWindow(QWidget):
         self.setWindowTitle("Apex Window")
         self.setGeometry(300, 300, 1500, 900)
 
+        # The Apex pipeline to call when running the process
+        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)
         # Default values for the window control
         self.skip_print = "------------------------------------------------"
-        self.base_x = 20
-        self.base_y = 10
-        self.item_height = 30
-        self.item_width = 160
-        self.margin = 10
-
-        # Setup the UI
-        self.setup_input_labels_boxes()
-        self.setup_background()
-        self.setup_buttons()
-        self.setup_text_panel()
-        self.setup_image_panel()
-
         # Images, original and processed one
         self.image_path = None
         self.image_original = None
         self.image_segmented = None
 
-        # The Apex pipeline to call when running the process
-        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)
+        # Setup the UI background
+        self.setup_background()
+        # Main layout split into left and right panels
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+
+        # Left panel layout - data input btns, process btns and text panel
+        self.left_panel = QWidget()
+        left_layout = QVBoxLayout(self.left_panel)
+        self.setup_input_data_section(left_layout)
+        self.setup_processing_section(left_layout)
+
+        # Right panel - Plot visualizer placeholder plus btns
+        self.right_panel = QWidget()
+        right_layout = QVBoxLayout(self.right_panel)
+        self.setup_right_panel(right_layout)
+
+        # Fill the main layout with both panels
+        main_layout.addWidget(self.left_panel)
+        main_layout.addWidget(self.right_panel)
 
     # endregion
     ##############################################################################################
     # region Setup UI
+    def setup_input_data_section(self, layout: QVBoxLayout) -> None:
+        """Setups the input data section in the left panel
+        """
+        # Layout for input texts and labels
+        input_layout = QHBoxLayout()
+        # Labels for the values
+        self.grid_height_label = QLabel("Grid height [m]:", self)
+        self.grid_width_label = QLabel("Grid width [m]:", self)
+        self.column_width_label = QLabel("Column width [m]:", self)
+        label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
+        for label in [self.grid_height_label, self.grid_width_label, self.column_width_label]:
+            label.setStyleSheet(label_style)
+        # The line edits for the user to insert dimensions
+        self.grid_height_input = QLineEdit(self)
+        self.grid_width_input = QLineEdit(self)
+        self.column_width_input = QLineEdit(self)
+        self.grid_height_input.setText("40.0")
+        self.grid_width_input.setText("15.618")
+        self.column_width_input.setText("5.232")
+        # Place everything side by side
+        input_layout.addWidget(self.grid_height_label)
+        input_layout.addWidget(self.grid_height_input)
+        input_layout.addWidget(self.grid_width_label)
+        input_layout.addWidget(self.grid_width_input)
+        input_layout.addWidget(self.column_width_label)
+        input_layout.addWidget(self.column_width_input)
+        # Add the input layout to the parameter layout
+        layout.addLayout(input_layout)
+
+    def setup_processing_section(self, layout: QVBoxLayout) -> None:
+        """Setups the processing section in the left panel
+        """
+        # Layout for processing buttons
+        process_layout = QHBoxLayout()
+        # Setup the row of buttons
+        self.load_image_label = QLabel("Loaded Image:", self)
+        self.load_image_label.setStyleSheet(
+            "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;")
+        self.load_image_text_box = QLineEdit(self)
+        self.load_image_text_box.setReadOnly(True)
+        self.load_image_text_box.setPlaceholderText("No image loaded")
+        self.load_btn = QPushButton("Browse", self)
+        self.load_btn.clicked.connect(self.load_image_btn_callback)
+        self.process_btn = QPushButton("Process Image", self)
+        self.process_btn.clicked.connect(self.process_btn_callback)
+        # Add the widgets to the layout
+        process_layout.addWidget(self.load_image_label)
+        process_layout.addWidget(self.load_image_text_box)
+        process_layout.addWidget(self.load_btn)
+        process_layout.addWidget(self.process_btn)
+        # Create and add the text box bellow the buttons
+        self.output_panel = QTextEdit(self)
+        self.output_panel.setReadOnly(True)
+        self.output_panel.setPlaceholderText("Log output")
+        # Add the process layout to the parameter layout
+        layout.addLayout(process_layout)
+        layout.addWidget(self.output_panel)
+
+    def setup_right_panel(self, layout: QVBoxLayout) -> None:
+        """Setups the right panel in the main window
+        """
+        # Toggle between the original and segmented image
+        self.toggle_btn = QPushButton("Toggle Image", self)
+        self.toggle_btn.clicked.connect(self.toggle_btn_callback)
+        # Setting image display
+        self.image_display = QLabel(self)
+        self.image_display.setStyleSheet(
+            "border: 1px solid white; background-color: rgba(0,0,0,50);")
+        self.image_display.setAlignment(Qt.AlignCenter)
+        self.image_display.resize(self.width() // 2, self.height() // 2)
+        self.image_panel_state = "None"
+        # Download buttons and layout
+        download_layout = QHBoxLayout()
+        self.download_image_btn = QPushButton("Download Image", self)
+        self.download_image_btn.clicked.connect(
+            self.download_image_btn_callback)
+        self.download_report_btn = QPushButton("Download Report", self)
+        self.download_report_btn.clicked.connect(
+            self.download_report_btn_callback)
+        download_layout.addWidget(self.download_image_btn)
+        download_layout.addWidget(self.download_report_btn)
+        # Add the widgets to the layout
+        layout.addWidget(self.toggle_btn)
+        layout.addWidget(self.image_display)
+        layout.addLayout(download_layout)
+
     def setup_background(self) -> None:
         """Generates the background with proper image and scales
         """
@@ -49,94 +143,6 @@ class ApexWindow(QWidget):
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
-
-    def setup_input_labels_boxes(self) -> None:
-        """Setups the labels in the window
-        """
-        # Dimensions to use as basis
-        step = self.item_width + self.margin
-        # Labels for the values
-        self.grid_height_label = QLabel("Grid Height (meters):", self)
-        self.grid_width_label = QLabel("Grid Width (meters):", self)
-        self.column_width_label = QLabel("Column Width (meters):", self)
-        label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
-        for label in [self.grid_height_label, self.grid_width_label, self.column_width_label]:
-            label.setStyleSheet(label_style)
-            label.resize(self.item_width, self.item_height)
-        # The line edits for the user to insert dimensions
-        self.grid_height_input = QLineEdit(self)
-        self.grid_width_input = QLineEdit(self)
-        self.column_width_input = QLineEdit(self)
-        self.grid_height_input.setText("40.0")
-        self.grid_width_input.setText("15.618")
-        self.column_width_input.setText("5.232")
-        box_style = "background-color: white; padding: 4px;"
-        for box in [self.grid_height_input, self.grid_width_input, self.column_width_input]:
-            box.setStyleSheet(box_style)
-            box.resize(self.item_width, self.item_height)
-        # Place everything side by side
-        self.grid_height_label.move(self.base_x, self.base_y)
-        self.grid_height_input.move(
-            self.grid_height_label.x() + step, self.base_y)
-        self.grid_width_label.move(
-            self.grid_height_input.x() + step, self.base_y)
-        self.grid_width_input.move(
-            self.grid_width_label.x() + step, self.base_y)
-        self.column_width_label.move(
-            self.grid_width_input.x() + step, self.base_y)
-        self.column_width_input.move(
-            self.column_width_label.x() + step, self.base_y)
-
-    def setup_buttons(self) -> None:
-        """Setups the buttons in the window
-        """
-        # Dimensions to use as basis
-        base_y = self.grid_height_label.y() + self.grid_height_label.height() + self.margin
-        step = self.item_width + self.margin
-        # Setup the row of buttons
-        self.load_button = QPushButton("Load Image", self)
-        self.load_button.move(self.base_x, base_y)
-        self.load_button.clicked.connect(self.load_image)
-        self.process_button = QPushButton("Process", self)
-        self.process_button.move(self.load_button.x() + step, base_y)
-        self.process_button.clicked.connect(self.run_process)
-        self.toggle_btn = QPushButton("Toggle Image", self)
-        self.toggle_btn.move(self.process_button.x() + step, base_y)
-        self.toggle_btn.clicked.connect(self.toggle_image)
-        self.download_image_btn = QPushButton("Download Image", self)
-        self.download_image_btn.move(self.toggle_btn.x() + step, base_y)
-        self.download_image_btn.clicked.connect(self.download_image)
-        self.download_report_btn = QPushButton("Download Report", self)
-        self.download_report_btn.move(
-            self.download_image_btn.x() + step, base_y)
-        self.download_report_btn.clicked.connect(self.download_report)
-        for button in [self.load_button, self.process_button, self.toggle_btn,
-                       self.download_image_btn, self.download_report_btn]:
-            button.resize(self.item_width, self.item_height)
-
-    def setup_text_panel(self) -> None:
-        """Setups the log text panel in the window
-        """
-        self.output_panel = QTextEdit(self)
-        self.output_panel.setReadOnly(True)
-        self.output_panel.move(self.base_x, self.load_button.y(
-        ) + self.load_button.height() + self.margin)
-        self.output_panel.resize(
-            self.width() // 2 - self.base_x - self.margin, self.height() // 2 - self.base_y)
-
-    def setup_image_panel(self) -> None:
-        """Setups the image panel in the window
-        """
-        self.image_display = QLabel(self)
-        self.image_display.setStyleSheet(
-            "border: 1px solid white; background-color: rgba(0,0,0,50);")
-        self.image_display.setAlignment(Qt.AlignCenter)
-        self.image_display.resize(
-            self.output_panel.width(), self.output_panel.height())
-        self.image_display.move(
-            self.output_panel.x() + self.output_panel.width() + self.margin,
-            self.output_panel.y())
-        self.image_panel_state = "None"
 
     def resizeEvent(self, event) -> None:
         """Resizes the window and all the elements in it when resize callback is called
@@ -148,22 +154,17 @@ class ApexWindow(QWidget):
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
-        # Rescale the text panel
-        if self.output_panel:
-            self.output_panel.resize(
-                self.width() // 2 - self.base_x - self.margin, self.height() // 2)
+        # # Rescale the text panel
+        # if self.output_panel:
+        #     self.output_panel.resize(
+        #         self.width() // 2 - self.base_x - self.margin, self.height() // 2)
         # Rescale image display
         if self.image_display:
-            new_size = QSize(self.width() // 2 - self.base_x,
-                             self.height() // 2 - self.base_y)
+            new_size = QSize(self.width() // 2, self.height() // 2)
             scaled = self.image_display.pixmap().scaled(
                 new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
             self.image_display.setPixmap(scaled)
-            self.image_display.move(
-                self.output_panel.x() + self.output_panel.width() + self.margin,
-                self.load_button.y() + self.load_button.height() + self.margin,
-            )
             self.image_display.resize(new_size)
         # Call the base class method
         super().resizeEvent(event)
@@ -171,8 +172,8 @@ class ApexWindow(QWidget):
     # endregion
     ##############################################################################################
     # region Callbacks
-    def load_image(self) -> None:
-        """Callback for the load image button
+    def load_image_btn_callback(self) -> None:
+        """Callback for the load image btn
         """
         self.log_output(self.skip_print)
         self.image_path, _ = QFileDialog.getOpenFileName(
@@ -181,13 +182,14 @@ class ApexWindow(QWidget):
         if self.image_path:
             filename = self.image_path.split("/")[-1]
             self.log_output(f"Loaded image: {filename}")
+            self.load_image_text_box.setText(filename)
             self.image_original = QPixmap(self.image_path)
             self.display_image(self.image_original)
         else:
             self.log_output("No valid image path was inserted.")
 
-    def run_process(self) -> None:
-        """Callback for the process button
+    def process_btn_callback(self) -> None:
+        """Callback for the process btn
         """
         self.log_output(self.skip_print)
         self.log_output("Starting process...")
@@ -202,7 +204,6 @@ class ApexWindow(QWidget):
         except ValueError:
             self.log_output("Invalid input for dimensions.")
             return
-
         barrier_dimensions = {
             "grid_width": grid_width,
             "grid_height": grid_height,
@@ -255,14 +256,14 @@ class ApexWindow(QWidget):
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
-        
+
         Args:
             message (str): The message to be logged
         """
         self.output_panel.append(message)
 
-    def toggle_image(self) -> None:
-        """Callback for the toggle image button
+    def toggle_btn_callback(self) -> None:
+        """Callback for the toggle image btn
         """
         self.log_output(self.skip_print)
         if self.image_panel_state == "segmented" and self.image_original:
@@ -279,7 +280,7 @@ class ApexWindow(QWidget):
 
     def display_image(self, image: QPixmap) -> None:
         """Displays the image in the image panel
-        
+
         Args:
             image (QPixmap): The image to be displayed
         """
@@ -288,8 +289,8 @@ class ApexWindow(QWidget):
         )
         self.image_display.setPixmap(scaled)
 
-    def download_image(self) -> None:
-        """Callback for the download image button
+    def download_image_btn_callback(self) -> None:
+        """Callback for the download image btn
         """
         self.log_output(self.skip_print)
         if not self.image_segmented:
@@ -302,8 +303,8 @@ class ApexWindow(QWidget):
             self.image_segmented.save(save_path)
             self.log_output(f"Segmented image saved to {save_path}")
 
-    def download_report(self) -> None:
-        """Callback for the download report button
+    def download_report_btn_callback(self) -> None:
+        """Callback for the download report btn
         """
         self.log_output(self.skip_print)
         save_path, _ = QFileDialog.getSaveFileName(
