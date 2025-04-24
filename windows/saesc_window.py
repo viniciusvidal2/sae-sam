@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QRadioButton, QFileDialog, QScrollArea,
-    QButtonGroup, QTextEdit, QLabel
+    QButtonGroup, QTextEdit, QLabel, QSplitter
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
@@ -91,6 +91,16 @@ class SaescWindow(QMainWindow):
         """Initialize the main window for the SAESC application.
         """
         super().__init__()
+        # We will have a list of entries to manage point clouds that will be processed
+        self.entries = []
+        # Help the printing in the text panel
+        self.skip_print = "------------------------------------------------"
+        # The pipeline object to call the processing functions
+        self.pipeline = SaescPipeline()
+        # The generated merged point cloud to be downloaded
+        self.merged_ptc_pyvista = None
+        self.merged_ptc_ply = None
+
         self.setWindowTitle("SAESC - SAE Scene Creator")
         self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
@@ -100,6 +110,15 @@ class SaescWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #888;
+                width: 6px;
+                margin: 1px;
+            }
+        """)
 
         # Left panel layout - scroll area, buttons and text panel
         self.left_panel = QWidget()
@@ -146,18 +165,10 @@ class SaescWindow(QMainWindow):
         right_layout.addWidget(self.download_button)
 
         # Fill the main layout with both panels
-        main_layout.addWidget(self.left_panel)
-        main_layout.addWidget(self.right_panel)
-
-        # We will have a list of entries to manage point clouds that will be processed
-        self.entries = []
-        # Help the printing in the text panel
-        self.skip_print = "------------------------------------------------"
-        # The pipeline object to call the processing functions
-        self.pipeline = SaescPipeline()
-        # The generated merged point cloud to be downloaded
-        self.merged_ptc_pyvista = None
-        self.merged_ptc_ply = None
+        splitter.addWidget(self.left_panel)
+        splitter.addWidget(self.right_panel)
+        splitter.setSizes([2 * self.width() // 3, self.width() // 3])
+        main_layout.addWidget(splitter)
 
     def setup_background(self) -> None:
         """Set up the background image for the main window.
@@ -263,7 +274,7 @@ class SaescWindow(QMainWindow):
             msg (str): The message to log.
         """
         self.text_panel.append(msg)
-        
+
     def disable_buttons(self) -> None:
         """Disable the buttons to prevent multiple clicks during processing.
         """
@@ -271,7 +282,7 @@ class SaescWindow(QMainWindow):
         self.process_btn.setEnabled(False)
         self.reset_data_button.setEnabled(False)
         self.download_button.setEnabled(False)
-        
+
     def enable_buttons(self) -> None:
         """Enable the buttons after processing is finished.
         """

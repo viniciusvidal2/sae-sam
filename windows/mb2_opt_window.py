@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QFileDialog, QTextEdit, QLabel, QSizePolicy
+    QPushButton, QLineEdit, QFileDialog, QTextEdit, QLabel, QSizePolicy, QSplitter
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
@@ -63,6 +63,15 @@ class Mb2OptWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #888;
+                width: 6px;
+                margin: 1px;
+            }
+        """)
 
         # Left panel layout - data input btns, process btns and text panel
         self.left_panel = QWidget()
@@ -76,8 +85,10 @@ class Mb2OptWindow(QMainWindow):
         self.setup_right_panel(right_layout)
 
         # Fill the main layout with both panels
-        main_layout.addWidget(self.left_panel)
-        main_layout.addWidget(self.right_panel)
+        splitter.addWidget(self.left_panel)
+        splitter.addWidget(self.right_panel)
+        splitter.setSizes([2 * self.width() // 3, self.width() // 3])
+        main_layout.addWidget(splitter)
 
     def setup_background(self) -> None:
         """Set up the background image for the main window.

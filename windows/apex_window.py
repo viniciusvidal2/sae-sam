@@ -1,4 +1,7 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, 
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
+)
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread, QSize
 from modules.apex_pipeline import ApexPipeline
