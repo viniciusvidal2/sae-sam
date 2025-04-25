@@ -1,6 +1,6 @@
 from pymavlink import mavutil
 from datetime import datetime, timedelta
-import utm
+from utm import from_latlon
 
 
 class ArdupilotLogReader:
@@ -94,9 +94,9 @@ class ArdupilotLogReader:
             # Only consider missions with more than one command, as a single command is merely a report we passed there
             if len(mission) > 1:
                 # Calculate the UTM coordinates for the first and last waypoints
-                first_waypoint = utm.from_latlon(
+                first_waypoint = from_latlon(
                     mission[0].Lat, mission[0].Lng)
-                last_waypoint = utm.from_latlon(
+                last_waypoint = from_latlon(
                     mission[-1].Lat, mission[-1].Lng)
                 # If they are more then 10 meters apart, add the first point to the end of the list
                 # with a timestamp 1 millisecond after the last one
@@ -106,7 +106,7 @@ class ArdupilotLogReader:
                 # Convert each point to UTM coordinates
                 waypoints_utm_coords = []
                 for waypoint in mission:
-                    utm_east, utm_north, _, _ = utm.from_latlon(
+                    utm_east, utm_north, _, _ = from_latlon(
                         waypoint.Lat, waypoint.Lng)
                     waypoints_utm_coords.append({
                         'utm_east': utm_east,
@@ -132,7 +132,7 @@ class ArdupilotLogReader:
         """
         utm_data = []
         for gps in self.gps_data:
-            utm_coords = utm.from_latlon(gps['latitude'], gps['longitude'])
+            utm_coords = from_latlon(gps['latitude'], gps['longitude'])
             utm_data.append({
                 'utm_east': utm_coords[0],
                 'utm_north': utm_coords[1],

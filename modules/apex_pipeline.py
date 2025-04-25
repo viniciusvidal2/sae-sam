@@ -1,7 +1,8 @@
-import numpy as np
-import os
+from numpy import ndarray, uint8, ones, array
+from os import path, getenv
 from PIL import Image
-import cv2
+from cv2 import dilate, findContours, contourArea, boundingRect, rectangle, putText
+from cv2 import RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, FONT_HERSHEY_SIMPLEX
 from typing import Generator, Any
 from modules.image_rectification import ImageRectification
 from modules.image_segmentation import ImageSegmentation
@@ -28,29 +29,29 @@ class ApexPipeline:
         """
         self.barrier_dimensions = barrier_dimensions
 
-    def get_boxes_from_image(self, image: np.ndarray, class_id: int) -> list:
+    def get_boxes_from_image(self, image: ndarray, class_id: int) -> list:
         """Get bouding boxes and confidences from the image.
 
         Args:
-            image (np.ndarray): input bounding box with the codes given by semantic segmentation class
+            image (ndarray): input bounding box with the codes given by semantic segmentation class
             class_id (int): the class id to get the boxes from
 
         Returns:
             list: boxes for this class id
         """
-        binary = (image == class_id).astype(np.uint8) * 255
+        binary = (image == class_id).astype(uint8) * 255
         # Dilate the binary image to fill in gaps
-        kernel = np.ones((5, 5), np.uint8)
-        binary = cv2.dilate(binary, kernel, iterations=1)
-        contours, _ = cv2.findContours(
-            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        kernel = ones((5, 5), uint8)
+        binary = dilate(binary, kernel, iterations=1)
+        contours, _ = findContours(
+            binary, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE)
         boxes = []
         for contour in contours:
             # if area is too small, skip it
-            if cv2.contourArea(contour) < 100:
+            if contourArea(contour) < 100:
                 continue
             # Get the bounding box for the contour
-            x, y, w, h = cv2.boundingRect(contour)
+            x, y, w, h = boundingRect(contour)
             boxes.append([x, y, x + w, y + h])
 
         return boxes
@@ -67,7 +68,7 @@ class ApexPipeline:
 
         # Read image into numpy array
         yield 0, "Starting the pipeline..."
-        image = np.array(Image.open(image_path))
+        image = array(Image.open(image_path))
 
         # Lets segment the image to find the collumns
         image_segmentation = ImageSegmentation(model_path="models/image_segmentation/weights/best.pt")
@@ -131,9 +132,9 @@ class ApexPipeline:
             # Draw the bounding box and text on the image
             class_id = class_ids[detection["class"]]
             color = tuple(int(c) for c in colormap[class_id])
-            cv2.rectangle(self.segmented_image, pt1, pt2, color, 2)
-            cv2.putText(self.segmented_image, str(d), pt3,
-                        cv2.FONT_HERSHEY_SIMPLEX, 3, color, 2)
+            rectangle(self.segmented_image, pt1, pt2, color, 2)
+            putText(self.segmented_image, str(d), pt3,
+                        FONT_HERSHEY_SIMPLEX, 3, color, 2)
         yield 100, "Masked image with detections was generated successfully."
 
     def get_detections_metrics(self) -> dict:
@@ -153,7 +154,7 @@ class ApexPipeline:
 
 if __name__ == "__main__":
     # Sample usage
-    image_path = os.path.join(os.getenv(
+    image_path = path.join(getenv(
         "HOME"), "sae-sam/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
     barrier_dimensions = {"grid_width": 15.618, "grid_height": 40,
                           "collumn_width": 5.232}  # Example dimensions in meters

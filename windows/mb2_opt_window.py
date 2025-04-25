@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
-import os
+from os import path, listdir
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -238,28 +238,28 @@ class Mb2OptWindow(QMainWindow):
             self, "Select HSX file. Make sure RAW and LOG files are in the same project folder.", "", "HSX files (*.HSX)")
         if hsx_file_path:
             # Find the project root folder and proper raw file
-            project_folder = os.path.dirname(hsx_file_path)
+            project_folder = path.dirname(hsx_file_path)
             self.log_output(f"Selected HSX file: {hsx_file_path}")
             self.log_output(f"Selected project folder: {project_folder}")
             self.hsx_text_edit.setText(hsx_file_path.split("/")[-1])
-            raw_file_path = os.path.join(
+            raw_file_path = path.join(
                 project_folder, hsx_file_path.split("/")[-1].replace(".HSX", ".RAW"))
-            if os.path.exists(raw_file_path):
+            if path.exists(raw_file_path):
                 self.log_output(f"Selected RAW file: {raw_file_path}")
             else:
                 self.log_output(
                     "No valid RAW file found in the project folder.")
                 return
             # Check for HSX and RAW log files
-            files_in_folder = os.listdir(project_folder)
+            files_in_folder = listdir(project_folder)
             hsx_log = ""
             raw_log = ""
             for f in files_in_folder:
                 if f.endswith(".LOG") and f.startswith("HSX"):
-                    hsx_log = os.path.join(project_folder, f)
+                    hsx_log = path.join(project_folder, f)
                 if f.endswith(".LOG") and f.startswith("RAW"):
-                    raw_log = os.path.join(project_folder, f)
-            if os.path.exists(raw_log) and os.path.exists(hsx_log):
+                    raw_log = path.join(project_folder, f)
+            if path.exists(raw_log) and path.exists(hsx_log):
                 self.log_output(f"HSX log file: {hsx_log}")
                 self.log_output(f"RAW log file: {raw_log}")
             else:
@@ -464,9 +464,9 @@ class Mb2OptWindow(QMainWindow):
         optimized_files_dir = QFileDialog.getExistingDirectory(
             self, "Select folder to save the optimized files", "", QFileDialog.ShowDirsOnly)
         if optimized_files_dir:
-            optimized_file_name = os.path.basename(
+            optimized_file_name = path.basename(
                 self.hsx_path).split(".")[0] + "_optimized"
-            output_path = os.path.join(
+            output_path = path.join(
                 optimized_files_dir, optimized_file_name)
             self.hypack_file_manipulator.write_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
                                                                output_files_base_path=output_path)
@@ -490,9 +490,9 @@ class Mb2OptWindow(QMainWindow):
         if split_files_dir:
             # Save every file content based on the split data content we got
             for data_section in self.data_split_content_with_mission:
-                hsx_save_path = os.path.join(
+                hsx_save_path = path.join(
                     split_files_dir, data_section["hsx_name"])
-                raw_save_path = os.path.join(
+                raw_save_path = path.join(
                     split_files_dir, data_section["raw_name"])
                 self.hypack_file_manipulator.write_file_and_log(
                     content=data_section["hsx_content"], file_path=hsx_save_path)

@@ -1,4 +1,4 @@
-import sys
+from sys import exit
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QSplashScreen,
     QHBoxLayout, QVBoxLayout, QLabel, QWidget, QSizePolicy
@@ -237,7 +237,7 @@ def main() -> None:
     QTimer.singleShot(6000, timer.stop)
     QTimer.singleShot(6000, splash.close)
     QTimer.singleShot(6000, window.show)
-    sys.exit(app.exec())
+    exit(app.exec())
 
 
 if __name__ == '__main__':

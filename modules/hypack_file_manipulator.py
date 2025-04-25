@@ -1,7 +1,7 @@
-import numpy as np
-import os
+from numpy import array
+from os import path
 from datetime import datetime, timedelta
-import utm
+from utm import to_latlon
 
 
 class HypackFileManipulator:
@@ -86,7 +86,7 @@ class HypackFileManipulator:
         """Reset the data from the HSX file
         """
         self.gps_coordinates = []
-    
+
     def get_date_from_file(self, file_path: str) -> str:
         """Gets the date in the file header
 
@@ -97,7 +97,7 @@ class HypackFileManipulator:
             str: the date in the file header
         """
         date = ''
-        if not os.path.exists(file_path):
+        if not path.exists(file_path):
             return date
         with open(file_path, 'r') as f:
             lines = f.readlines()
@@ -178,7 +178,7 @@ class HypackFileManipulator:
             tuple: The content and the name for the split file
         """
         # Create the name for the file based on the original name and the desired index
-        file_name = os.path.basename(original_path)
+        file_name = path.basename(original_path)
         file_name_split = file_name.split('.')
         selected_file_name = file_name_split[0] + "_" + \
             f"{name_index}".zfill(3) + "." + file_name_split[1]
@@ -218,12 +218,12 @@ class HypackFileManipulator:
                     f.write(line)
             f.close()
             # Get the log file name from the file path
-            file_name = os.path.basename(file_path)
-            log_file_dir = os.path.dirname(file_path)
+            file_name = path.basename(file_path)
+            log_file_dir = path.dirname(file_path)
             log_file_name = file_name.split(
                 ".")[-1] + "_files.LOG"
             self.add_file_to_log(file_path=file_path,
-                                 log_file_path=os.path.join(log_file_dir, log_file_name))
+                                 log_file_path=path.join(log_file_dir, log_file_name))
             return True
         except Exception as e:
             print(f'Error writing file {file_path}: {e}')
@@ -236,9 +236,9 @@ class HypackFileManipulator:
             file_path (str): the new file path
             log_file_path (str): the original log path
         """
-        file_name = os.path.basename(file_path)
+        file_name = path.basename(file_path)
         # If the log file does not exist, just create it and write the name
-        if not os.path.exists(log_file_path):
+        if not path.exists(log_file_path):
             with open(log_file_path, 'w') as f:
                 f.write(file_name + '\n')
             f.close()
@@ -315,10 +315,10 @@ class HypackFileManipulator:
                     break
             if previous_ref_point is not None and next_ref_point is not None:
                 previous_time = previous_ref_point['timestamp']
-                previous_utm = np.array(
+                previous_utm = array(
                     [previous_ref_point['utm_east'], previous_ref_point['utm_north'], previous_ref_point['altitude']])
                 next_time = next_ref_point['timestamp']
-                next_utm = np.array(
+                next_utm = array(
                     [next_ref_point['utm_east'], next_ref_point['utm_north'], next_ref_point['altitude']])
 
                 diff_time_hypack = abs(hypack_time - previous_time)
@@ -349,9 +349,9 @@ class HypackFileManipulator:
         wrote_raw = self.write_optimized_file(
             optimized_gps_data=optimized_gps_data, input_file_path=self.input_raw_file_path, output_file_path=output_raw_file_path)
         # Append the new files to the log files in the output directory, if any
-        output_hsx_log_file_path = os.path.join(os.path.dirname(
+        output_hsx_log_file_path = path.join(path.dirname(
             output_files_base_path), "HSX_files.LOG")
-        output_raw_log_file_path = os.path.join(os.path.dirname(
+        output_raw_log_file_path = path.join(path.dirname(
             output_files_base_path), "RAW_files.LOG")
         self.add_file_to_log(file_path=output_hsx_file_path,
                              log_file_path=output_hsx_log_file_path)
@@ -394,7 +394,7 @@ class HypackFileManipulator:
                             if line_split[0] == "POS":
                                 new_line = f'POS {line_split[1]} {line_split[2]} {utm_east} {utm_north}\n'
                             elif line_split[0] == "RAW":
-                                lat, lon = utm.to_latlon(
+                                lat, lon = to_latlon(
                                     utm_east, utm_north, zone_number, northern=False)
                                 new_line = f'RAW {line_split[1]} {line_split[2]} {line_split[3]} {lat*1e4} {lon*1e4} {alt} {line_split[7]}\n'
                             break

@@ -1,8 +1,9 @@
 from ultralytics import YOLO
-import os
+from os import path, getenv
 from typing import Tuple
 from PIL import Image
-import numpy as np
+from numpy import ndarray, arange, array, ones, zeros, zeros_like, float32, uint8
+from numpy import max as np_max
 from matplotlib import colormaps
 
 
@@ -26,11 +27,11 @@ class ImageSegmentation:
         # Colormap for the classes
         self.classes_colormap = None
 
-    def segment_classes(self, image: np.ndarray) -> bool:
+    def segment_classes(self, image: ndarray) -> bool:
         """Predicts the segmentation masks, classes and boxes for the given image.
 
         Args:
-            image_path (np.ndarray): original image
+            image_path (ndarray): original image
 
         Returns:
             bool: True if masks and boxes were detected, False otherwise
@@ -47,8 +48,8 @@ class ImageSegmentation:
                 (640, 640), Image.Resampling.LANCZOS)
 
         # Initialize the global mask
-        self.image_detections_mask = np.zeros(
-            (image_height, image_width), dtype=np.uint8)
+        self.image_detections_mask = zeros(
+            (image_height, image_width), dtype=uint8)
 
         # Predict detections in the image
         results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.3,
@@ -84,7 +85,7 @@ class ImageSegmentation:
                         continue
 
                 # Resize the mask to the original image size
-                mask = np.array(Image.fromarray(mask).resize(
+                mask = array(Image.fromarray(mask).resize(
                     (image_width, image_height), Image.Resampling.NEAREST))
                 # Resize the box to the original image size
                 box[0] = int(box[0] * image_width / 640)
@@ -116,19 +117,19 @@ class ImageSegmentation:
             colormap (str): colormap to create with
 
         Returns:
-            list: RGB colors (np.ndarrays) for each class 
+            list: RGB colors (ndarrays) for each class 
         """
-        mock_class_intensity = np.arange(len(class_ids))/len(class_ids)
+        mock_class_intensity = arange(len(class_ids))/len(class_ids)
         cmap = colormaps.get_cmap(colormap)
         colors = cmap(mock_class_intensity)[:, :3] * 255
-        return colors.astype(np.uint8)
+        return colors.astype(uint8)
 
-    def draw_detection_in_original_image(self, mask: np.ndarray, class_name: str, color_weight: float) -> None:
+    def draw_detection_in_original_image(self, mask: ndarray, class_name: str, color_weight: float) -> None:
         """Draw the masks on top of the original image
 
         Args:
-            img (np.ndarray): original image
-            masks (np.ndarray): the list of masks
+            img (ndarray): original image
+            masks (ndarray): the list of masks
             ids (list): list of class ids for each mask
             color_weight (float): the weight we should use to average each class color
         """
@@ -136,22 +137,22 @@ class ImageSegmentation:
         if class_name == "barragem" or class_name == "coluna":
             return
         # Output image with masks
-        masked_image = self.masked_original_image.astype(np.float32).copy()
+        masked_image = self.masked_original_image.astype(float32).copy()
         mask_region = mask.astype(bool)
         # Defines the colored mask with the colormap for the class id
-        colored_mask = np.zeros_like(masked_image)
+        colored_mask = zeros_like(masked_image)
         class_id = self.image_class_mask_codes[class_name]
         colored_mask[mask_region] = self.classes_colormap[class_id]
         # Weighted sum to draw the class mask
         masked_image[mask_region] = masked_image[mask_region] * (1 - color_weight) \
             + colored_mask[mask_region] * color_weight
         # Save the masked image
-        self.masked_original_image = masked_image.astype(np.uint8)
+        self.masked_original_image = masked_image.astype(uint8)
 
-    def draw_detection_in_global_mask(self, mask: np.ndarray, class_name: str) -> None:
+    def draw_detection_in_global_mask(self, mask: ndarray, class_name: str) -> None:
         """Draws a single detection in the global mask.
         Args:
-            mask (np.ndarray): mask of the detection
+            mask (ndarray): mask of the detection
             class_name (str): name of the class
         """
         mask_region = mask.astype(bool)
@@ -190,19 +191,19 @@ class ImageSegmentation:
         """
         return self.image_class_mask_codes
 
-    def get_detections_mask(self) -> np.ndarray:
+    def get_detections_mask(self) -> ndarray:
         """Returns the global detections mask.
 
         Returns:
-            np.ndarray: global detections mask
+            ndarray: global detections mask
         """
         return self.image_detections_mask
 
-    def get_masked_image(self) -> np.ndarray:
+    def get_masked_image(self) -> ndarray:
         """Returns the masked image.
 
         Returns:
-            np.ndarray: masked image
+            ndarray: masked image
         """
         if self.masked_original_image is None:
             print("No masked image available.")
@@ -229,9 +230,9 @@ class ImageSegmentation:
 if __name__ == "__main__":
     # Sample usage
     model_path = "runs/segment/train_colunas/weights/best.pt"
-    image_path = os.path.join(os.getenv(
+    image_path = path.join(getenv(
         "HOME"), "sae-sam/full_train_set/train/images/snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")
-    image = np.array(Image.open(image_path))
+    image = array(Image.open(image_path))
 
     segmentation_model = ImageSegmentation(model_path)
     if segmentation_model.segment_classes(image):
@@ -244,10 +245,10 @@ if __name__ == "__main__":
         class_codes = segmentation_model.get_detections_codes()
         print(f"Class codes: {class_codes}")
         # Get the global detections mask
-        classes_mask = segmentation_model.get_detections_mask().astype(np.float32)
+        classes_mask = segmentation_model.get_detections_mask().astype(float32)
         # Convert the mask to PIL, apply scale to 255 and show
         mask_image_pil = Image.fromarray(
-            (classes_mask * 255/np.max(classes_mask)).astype(np.uint8))
+            (classes_mask * 255/np_max(classes_mask)).astype(uint8))
         mask_image_pil.show()
         # Get the masked image and show
         masked_image = segmentation_model.get_masked_image()

@@ -1,6 +1,7 @@
-import numpy as np
+from numpy import ndarray, array, uint8, hstack
+from numpy import min as np_min
 from PIL import Image
-import os
+from os import path, getenv
 
 
 class ImageRectification:
@@ -23,17 +24,17 @@ class ImageRectification:
         self.rectified_image = None
         self.collumn_boxes = []
 
-    def snip_rectify_image(self, image: np.ndarray) -> np.ndarray:
+    def snip_rectify_image(self, image: ndarray) -> ndarray:
         """Snips the region of interest and rectifies the content based on the detected boxes.
 
         Args:
-            image (np.ndarray): input image
+            image (ndarray): input image
 
         Raises:
             ValueError: We must set the collumn boxes before rectifying the image
 
         Returns:
-            np.ndarray: rectified image
+            ndarray: rectified image
         """
         if not self.collumn_boxes:
             raise ValueError(
@@ -44,23 +45,23 @@ class ImageRectification:
 
         # Define the highest and lowest points of the grid, and update the boxes to match them
         grid_lowest_point = image.shape[0]
-        grid_highest_point = int(np.min(np.array([box[1] for box in boxes])))
+        grid_highest_point = int(np_min(array([box[1] for box in boxes])))
         for box in boxes:
             box[1] = int(grid_highest_point)
             box[3] = int(grid_lowest_point)
 
         # For each box, rectify according to the desired dimension and add to the output image
         if len(image.shape) == 2:
-            self.rectified_image = np.ndarray(
-                shape=(grid_lowest_point - grid_highest_point, 1), dtype=np.uint8)
+            self.rectified_image = ndarray(
+                shape=(grid_lowest_point - grid_highest_point, 1), dtype=uint8)
         else:
-            self.rectified_image = np.ndarray(
-                shape=(grid_lowest_point - grid_highest_point, 1, image.shape[2]), dtype=np.uint8)
+            self.rectified_image = ndarray(
+                shape=(grid_lowest_point - grid_highest_point, 1, image.shape[2]), dtype=uint8)
         for box, box_type in zip(boxes, types):
             image_section = image[box[1]:box[3], box[0]:box[2]]
             rectified_section = self.rectify_image_section(
                 image_section, box_type)
-            self.rectified_image = np.hstack(
+            self.rectified_image = hstack(
                 (self.rectified_image, rectified_section))
 
         # Remove the first column of the image, which is empty, and return
@@ -102,15 +103,15 @@ class ImageRectification:
             *sorted(zip(boxes, types), key=lambda x: x[0][0]))
         return list(sorted_boxes), list(sorted_types)
 
-    def rectify_image_section(self, image_section: np.ndarray, box_type: str) -> np.ndarray:
+    def rectify_image_section(self, image_section: ndarray, box_type: str) -> ndarray:
         """Apply rectification to the image section based on the box type.
 
         Args:
-            image_section (np.ndarray): input image section
+            image_section (ndarray): input image section
             box_type (str): type of the box ('grid' or 'collumn')
 
         Returns:
-            np.ndarray: rectified image section
+            ndarray: rectified image section
         """
         img = Image.fromarray(image_section)
         # Desired new width from the box type, keeping the same height
@@ -118,24 +119,24 @@ class ImageRectification:
         new_height = img.size[1]
         resized_img = img.resize(
             (new_width, new_height), Image.Resampling.LANCZOS)
-        return np.array(resized_img)
+        return array(resized_img)
 
-    def get_rectified_image(self) -> np.ndarray:
+    def get_rectified_image(self) -> ndarray:
         """Returns the rectified image.
 
         Returns:
-            np.ndarray: Rectified image
+            ndarray: Rectified image
         """
         return self.rectified_image
 
-    def get_original_image_section(self, image: np.ndarray) -> np.ndarray:
+    def get_original_image_section(self, image: ndarray) -> ndarray:
         """Returns the original image section based on the detected boxes.
 
         Args:
-            image (np.ndarray): Original image
+            image (ndarray): Original image
 
         Returns:
-            np.ndarray: Original image section
+            ndarray: Original image section
         """
         if not self.collumn_boxes:
             raise ValueError(
@@ -232,8 +233,8 @@ if __name__ == "__main__":
     rectifier = ImageRectification(
         grid_width_m, collumn_width_m, meters_pixel_ratio)
     # Load an image
-    image = np.array(Image.open(os.path.join(os.getenv("HOME"), "yolo", "full_train_set",
-                     "train", "images", "snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")))
+    image = array(Image.open(path.join(getenv("HOME"), "yolo", "full_train_set",
+                                          "train", "images", "snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")))
     # Set detected boxes (example values)
     collumn_boxes = [[50, 200, 150, 300], [250, 200, 350, 300]]
     rectifier.set_detected_boxes(collumn_boxes)
