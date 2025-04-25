@@ -6,15 +6,15 @@ from typing import Tuple
 
 
 class MetricsEstimation:
-    def __init__(self, model_name: str, m_per_pixel: dict, class_ids: dict) -> None:
+    def __init__(self, model_local_path: str, m_per_pixel: dict, class_ids: dict) -> None:
         """This class is used to estimate the volume of objects in an image using a depth estimation model.
 
         Args:
-            model_name (str): name of the depth estimation model
+            model_local_path (str): path of the depth estimation model
             m_per_pixel (dict): meters per pixel ratio for x and y directions
             class_ids (dict): Dict of class IDs the model can detect in the form of 'name': code(int)
         """
-        self.pipe = pipeline(task="depth-estimation", model=model_name)
+        self.pipe = pipeline(task="depth-estimation", model=model_local_path, tokenizer=model_local_path)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids
 

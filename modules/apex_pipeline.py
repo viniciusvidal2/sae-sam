@@ -70,8 +70,7 @@ class ApexPipeline:
         image = np.array(Image.open(image_path))
 
         # Lets segment the image to find the collumns
-        seg_model_path = "runs/segment/train_colunas/weights/best.pt"
-        image_segmentation = ImageSegmentation(model_path=seg_model_path)
+        image_segmentation = ImageSegmentation(model_path="models/image_segmentation/weights/best.pt")
         collumn_boxes = []
         barrier_boxes = []
         if image_segmentation.segment_classes(image=image):
@@ -102,7 +101,7 @@ class ApexPipeline:
 
         # Lets estimate the metrics
         metrics_estimation = MetricsEstimation(
-            model_name="xingyang1/Distill-Any-Depth-Large-hf", m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
+            model_local_path="./models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc", m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
         for k, desired_class in enumerate(self.desired_classes):
             pct = 60 + (k + 1) * 10
             # Get the global mask and macrofitas boxes

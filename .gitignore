@@ -183,3 +183,7 @@ cython_debug/
 /modules/__pycache__
 demo_image.jpg
 /hsx_raw_bin
+/models
+/sample_data
+/build
+/dist
