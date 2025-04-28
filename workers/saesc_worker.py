@@ -8,14 +8,13 @@ class SaescWorker(QObject):
     log = Signal(str)
     set_merged_point_cloud = Signal(dict)
 
-    def __init__(self, saesc_pipeline: SaescPipeline, input_data: dict) -> None:
+    def __init__(self, input_data: dict) -> None:
         """Initialize the worker with the pipeline and input data.
         Args:
-            saesc_pipeline (SaescPipeline): The pipeline object to process the image.
             input_data (dict): A dictionary containing the paths, types, and sea level reference.
         """
         super().__init__()
-        self.saesc_pipeline = saesc_pipeline
+        self.saesc_pipeline = SaescPipeline()
         self.cloud_paths = input_data["paths"]
         self.cloud_types = input_data["types"]
         self.sea_level_refs = input_data["sea_level_refs"]

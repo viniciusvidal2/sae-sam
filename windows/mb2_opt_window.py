@@ -8,8 +8,6 @@ from os import path, listdir
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from modules.hypack_file_manipulator import HypackFileManipulator
-from modules.ardupilot_log_reader import ArdupilotLogReader
 from workers.mb2_opt_worker import Mb2OptWorker
 
 
@@ -22,11 +20,6 @@ class Mb2OptWindow(QMainWindow):
         super().__init__()
         # Help the printing in the text panel
         self.skip_print = "------------------------------------------------"
-        # Object to manipulate and process HSX files
-        self.hypack_file_manipulator = HypackFileManipulator()
-        self.hypack_file_manipulator.set_timezone_offset(-3)
-        # Object to manipulate and process BIN files
-        self.pixhawk_log_manipulator = ArdupilotLogReader()
         # Specific paths to the several files we must control
         self.hsx_path = None
         self.hsx_log_path = None
@@ -309,8 +302,7 @@ class Mb2OptWindow(QMainWindow):
         }
         # Start the parallel process
         self.thread = QThread()
-        self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
-                                   hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
+        self.worker = Mb2OptWorker(input_paths=input_paths)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run_gps_opt)
         self.worker.log.connect(self.log_output)
@@ -347,8 +339,7 @@ class Mb2OptWindow(QMainWindow):
         }
         # Start the parallel process
         self.thread = QThread()
-        self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
-                                   hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
+        self.worker = Mb2OptWorker(input_paths=input_paths)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run_hsx_mission_split)
         self.worker.log.connect(self.log_output)
@@ -389,8 +380,7 @@ class Mb2OptWindow(QMainWindow):
         }
         # Start the parallel process
         self.thread = QThread()
-        self.worker = Mb2OptWorker(pixhawk_reader=self.pixhawk_log_manipulator,
-                                   hypack_reader=self.hypack_file_manipulator, input_paths=input_paths)
+        self.worker = Mb2OptWorker(input_paths=input_paths)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.create_map_data_figure)
         self.worker.log.connect(self.log_output)
@@ -447,8 +437,6 @@ class Mb2OptWindow(QMainWindow):
         # Reseting control variables
         self.optimized_hypack_points_data = None
         self.data_split_content_with_mission = None
-        self.hypack_file_manipulator.reset_data()
-        self.pixhawk_log_manipulator.reset_data()
         self.enable_buttons()
 
     def download_optimized_data_callback(self) -> None:
@@ -466,10 +454,19 @@ class Mb2OptWindow(QMainWindow):
         if optimized_files_dir:
             optimized_file_name = path.basename(
                 self.hsx_path).split(".")[0] + "_optimized"
-            output_path = path.join(
+            output_files_base_path = path.join(
                 optimized_files_dir, optimized_file_name)
-            self.hypack_file_manipulator.write_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
-                                                               output_files_base_path=output_path)
+            # Dict with the paths to the files
+            input_paths = {
+                "hsx_path": self.hsx_path,
+                "hsx_log_path": self.hsx_log_path,
+                "raw_path": self.raw_path,
+                "raw_log_path": self.raw_log_path,
+                "bin_path": self.bin_path
+            }
+            self.worker = Mb2OptWorker(input_paths=input_paths)
+            self.worker.write_hypack_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
+                                                     output_files_base_path=output_files_base_path)
             self.log_output(f"Optimized files saved to: {optimized_files_dir}")
         else:
             self.log_output("Optimized files download cancelled.")
@@ -488,15 +485,24 @@ class Mb2OptWindow(QMainWindow):
         split_files_dir = QFileDialog.getExistingDirectory(
             self, "Select folder to save the split files", "", QFileDialog.ShowDirsOnly)
         if split_files_dir:
+            # Dict with the paths to the files
+            input_paths = {
+                "hsx_path": self.hsx_path,
+                "hsx_log_path": self.hsx_log_path,
+                "raw_path": self.raw_path,
+                "raw_log_path": self.raw_log_path,
+                "bin_path": self.bin_path
+            }
+            self.worker = Mb2OptWorker(input_paths=input_paths)
             # Save every file content based on the split data content we got
             for data_section in self.data_split_content_with_mission:
                 hsx_save_path = path.join(
                     split_files_dir, data_section["hsx_name"])
                 raw_save_path = path.join(
                     split_files_dir, data_section["raw_name"])
-                self.hypack_file_manipulator.write_file_and_log(
+                self.worker.write_file_and_log(
                     content=data_section["hsx_content"], file_path=hsx_save_path)
-                self.hypack_file_manipulator.write_file_and_log(
+                self.worker.write_file_and_log(
                     content=data_section["raw_content"], file_path=raw_save_path)
                 self.log_output(
                     f"Split HSX file saved to: {hsx_save_path}")

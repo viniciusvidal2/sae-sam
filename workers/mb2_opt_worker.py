@@ -12,17 +12,16 @@ class Mb2OptWorker(QObject):
     data_split_content_signal = Signal(list)
     map_canvas_signal = Signal(Figure)
 
-    def __init__(self, pixhawk_reader: ArdupilotLogReader, hypack_reader: HypackFileManipulator, input_paths: dict) -> None:
+    def __init__(self, input_paths: dict) -> None:
         """Initialize the worker with the proper class objects and input data.
 
         Args:
-            pixhawk_reader (ArdupilotLogReader): Object to deal with the ardupilot log from bin file
-            hypack_reader (HypackFileManipulator): object to deal with the hypack files 
             input_paths (dict): the paths to all the files to be processed
         """
         super().__init__()
-        self.pixhawk_reader = pixhawk_reader
-        self.hypack_reader = hypack_reader
+        self.pixhawk_reader = ArdupilotLogReader()
+        self.hypack_reader = HypackFileManipulator()
+        self.hypack_reader.set_timezone_offset(-3)  # UTC-3 for Brazil
         # The paths from the dict
         self.hsx_path = input_paths["hsx_path"]
         self.hsx_log_path = input_paths["hsx_log_path"]
@@ -56,6 +55,31 @@ class Mb2OptWorker(QObject):
             if gps['timestamp'] >= initial_time - offset and gps['timestamp'] <= final_time + offset:
                 cropped_data.append(gps)
         return cropped_data
+    
+    def reset_data(self) -> None:
+        """Reset the data in the worker.
+        """
+        self.hypack_reader.reset_data()
+        self.pixhawk_reader.reset_data()
+
+    def write_hypack_optimized_files(self, optimized_gps_data: list, output_files_base_path: str) -> None:
+        """Write the optimized GPS data to files.
+
+        Args:
+            optimized_gps_data (list): The optimized GPS data to be written to files.
+            output_files_base_path (str): The base path for the output files.
+        """
+        self.hypack_reader.write_optimized_files(optimized_gps_data=optimized_gps_data,
+                                                 output_files_base_path=output_files_base_path)
+        
+    def write_file_and_log(self, content: list, file_path: str) -> None:
+        """Write the content to a file.
+
+        Args:
+            content (list): The content to be written to the file.
+            file_path (str): The path of the file to be written.
+        """
+        self.hypack_reader.write_file_and_log(content=content, file_path=file_path)
 
     @Slot()
     def run_gps_opt(self) -> None:
