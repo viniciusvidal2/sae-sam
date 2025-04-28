@@ -4,7 +4,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread, QSize
-from modules.apex_pipeline import ApexPipeline
 from workers.apex_worker import ApexWorker
 
 
@@ -18,8 +17,6 @@ class ApexWindow(QMainWindow):
         self.setWindowTitle("Apex Window")
         self.setGeometry(300, 300, 1500, 900)
 
-        # The Apex pipeline to call when running the process
-        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)
         # Default values for the window control
         self.skip_print = "------------------------------------------------"
         # Images, original and processed one
@@ -230,8 +227,7 @@ class ApexWindow(QMainWindow):
 
         # Deal with parallelism in the worker thread to run the pipeline
         self.thread = QThread()
-        self.worker = ApexWorker(
-            self.apex_pipeline, self.image_path, barrier_dimensions)
+        self.worker = ApexWorker(self.image_path, barrier_dimensions)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.log.connect(self.log_output)

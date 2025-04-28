@@ -11,16 +11,15 @@ class ApexWorker(QObject):
     set_segmented_image = Signal(QImage)
     set_metrics = Signal(list)
 
-    def __init__(self, apex_pipeline: ApexPipeline, image_path: str, barrier_dimensions: dict) -> None:
+    def __init__(self, image_path: str, barrier_dimensions: dict) -> None:
         """Initialize the worker with the pipeline and image path.
 
         Args:
-            apex_pipeline (ApexPipeline): The pipeline object to process the image.
             image_path (str): The path to the image to be processed.
             barrier_dimensions (dict): The dimensions of the barriers in the image.
         """
         super().__init__()
-        self.apex_pipeline = apex_pipeline
+        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)  # Initialize the pipeline with a pixel ratio
         self.image_path = image_path
         self.barrier_dimensions = barrier_dimensions
 
