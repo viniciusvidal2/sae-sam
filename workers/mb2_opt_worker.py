@@ -1,10 +1,12 @@
 from PySide6.QtCore import QObject, Signal, Slot
 from modules.ardupilot_log_reader import ArdupilotLogReader
 from modules.hypack_file_manipulator import HypackFileManipulator
-from matplotlib.figure import Figure
 
 
 class Mb2OptWorker(QObject):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from matplotlib.figure import Figure
     # Declaring Signals at the class level
     finished = Signal()
     log = Signal(str)
@@ -165,6 +167,9 @@ class Mb2OptWorker(QObject):
     def create_map_data_figure(self) -> None:
         """Create the map data figure with GPS points from ardupilot log and HSX file.
         """
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        from matplotlib.figure import Figure
         self.log.emit(
             "Generating synchronized UTM data for the map, reading the files (that can take a couple of minutes if first time) (0%)...")
         # Read the data from the files

@@ -1,4 +1,3 @@
-from transformers import pipeline
 from PIL import Image
 from numpy import array, ndarray, float32
 from numpy import mean as np_mean, dot as np_dot, cov as np_cov, argmin as np_argmin
@@ -7,7 +6,6 @@ from numpy.linalg import eigh, norm
 from open3d.geometry import TriangleMesh, PointCloud, KDTreeFlann
 from open3d.visualization import draw_geometries
 from open3d.utility import Vector3dVector
-
 from typing import Tuple
 
 
@@ -20,6 +18,7 @@ class MetricsEstimation:
             m_per_pixel (dict): meters per pixel ratio for x and y directions
             class_ids (dict): Dict of class IDs the model can detect in the form of 'name': code(int)
         """
+        from transformers import pipeline
         self.pipe = pipeline(task="depth-estimation", model=model_local_path, tokenizer=model_local_path)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids

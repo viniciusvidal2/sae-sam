@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 from os import path
 from copy import deepcopy
 from pyvista import PolyData
-from matplotlib import colormaps
 from typing import Generator
 
 
@@ -70,6 +69,9 @@ class SaescPipeline:
         Returns:
             PointCloud: processed sonar point cloud
         """
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        from matplotlib import colormaps
         # Voxelgrid
         cloud = cloud.voxel_down_sample(voxel_size=0.2)
         # Remove SOR noise

@@ -3,8 +3,6 @@ from ultralytics.engine.results import Results
 import os
 from time import time
 from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import colormaps
 import numpy as np
 from typing import Tuple
 
@@ -19,6 +17,9 @@ def create_colormap(classes: dict, colormap: str) -> list:
     Returns:
         list: RGB colors (np.ndarrays) for each class 
     """
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from matplotlib import colormaps
     mock_class_intensity = np.arange(len(classes))/len(classes)
     cmap = colormaps.get_cmap(colormap)
     colors = cmap(mock_class_intensity)[:, :3] * 255
@@ -122,6 +123,9 @@ def main():
         masked_img = draw_masks(img=np.array(
             img), masks=masks, ids=detected_class_ids, colors=classes_colormap, color_weight=0.5)
         # Plot the image
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        import matplotlib.pyplot as plt
         plt.imshow(masked_img)
         plt.show(block=False)
         plt.pause(2)

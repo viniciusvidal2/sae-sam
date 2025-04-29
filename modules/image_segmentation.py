@@ -1,10 +1,8 @@
-from ultralytics import YOLO
 from os import path, getenv
 from typing import Tuple
 from PIL import Image
-from numpy import ndarray, arange, array, ones, zeros, zeros_like, float32, uint8
+from numpy import ndarray, arange, array, zeros, zeros_like, float32, uint8
 from numpy import max as np_max
-from matplotlib import colormaps
 
 
 class ImageSegmentation:
@@ -14,6 +12,7 @@ class ImageSegmentation:
         Args:
             model_path (str): path to the trained YOLOv11 model
         """
+        from ultralytics import YOLO
         self.model = YOLO(model_path)
         # Output detections info
         self.detections_by_class_dict = dict()
@@ -119,6 +118,9 @@ class ImageSegmentation:
         Returns:
             list: RGB colors (ndarrays) for each class 
         """
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        from matplotlib import colormaps
         mock_class_intensity = arange(len(class_ids))/len(class_ids)
         cmap = colormaps.get_cmap(colormap)
         colors = cmap(mock_class_intensity)[:, :3] * 255

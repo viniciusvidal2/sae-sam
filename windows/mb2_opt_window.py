@@ -5,9 +5,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
 from os import path, listdir
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 from workers.mb2_opt_worker import Mb2OptWorker
 
 
@@ -181,6 +178,11 @@ class Mb2OptWindow(QMainWindow):
         Args:
             right_layout (QVBoxLayout): The layout to add the elements to.
         """
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+        from matplotlib.figure import Figure
         # Reset button
         self.reset_data_btn = QPushButton("Reset Data")
         self.reset_data_btn.setEnabled(True)
@@ -392,12 +394,16 @@ class Mb2OptWindow(QMainWindow):
         self.thread.finished.connect(self.enable_buttons)
         self.thread.start()
 
-    def draw_map_to_canvas(self, fig: Figure) -> None:
+    def draw_map_to_canvas(self, fig) -> None:
         """Draw the content to the canvas in the GUI
 
         Args:
             fig (Figure): Figure with the map data from the mission in the log and the HSX file
         """
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
         # Create a new canvas
         new_canvas = FigureCanvas(fig)
         # Find the old canvas in the layout and replace it. Update the toolbar as well
