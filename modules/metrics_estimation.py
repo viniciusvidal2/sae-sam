@@ -3,9 +3,7 @@ from numpy import array, ndarray, float32
 from numpy import mean as np_mean, dot as np_dot, cov as np_cov, argmin as np_argmin
 from numpy import arccos as np_arccos, pi as np_pi, min as np_min, max as np_max
 from numpy.linalg import eigh, norm
-from open3d.geometry import TriangleMesh, PointCloud, KDTreeFlann
-from open3d.visualization import draw_geometries
-from open3d.utility import Vector3dVector
+import open3d as o3d
 from typing import Tuple
 
 
@@ -67,9 +65,9 @@ class MetricsEstimation:
         class_aligned_ptc = self.smooth_class_from_grid_plane(
             grid_ptc=grid_aligned_ptc, class_ptc=class_ptc, plane_model=grid_plane_model)
         if debug:
-            axis = TriangleMesh.create_coordinate_frame(
+            axis = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=50, origin=[0, 0, 0])
-            draw_geometries(
+            o3d.visualization.draw_geometries(
                 [grid_aligned_ptc, class_aligned_ptc, axis])
 
         # Calculate the volume of the class point cloud based on the discrete integral for each point (pixel)
@@ -81,12 +79,12 @@ class MetricsEstimation:
 
         return class_area, class_volume
 
-    def estimate_original_grid_plane(self, grid_ptc: PointCloud) -> Tuple:
+    def estimate_original_grid_plane(self, grid_ptc: o3d.geometry.PointCloud) -> Tuple:
         """Estimate the original grid plane using the grid point cloud
         This method uses the covariance matrix to find the plane equation (ax + by + cz + d = 0)
 
         Args:
-            grid_ptc (PointCloud): The grid point cloud
+            grid_ptc (o3d.geometry.PointCloud): The grid point cloud
 
         Returns:
             Tuple: The plane model coefficients (a, b, c, d) and the point cloud of the plane points
@@ -97,16 +95,16 @@ class MetricsEstimation:
         # Get the plane model using the points
         a, b, c, d = self.fit_plane(points=likely_grid_plane_points)
         # Create a point cloud for the plane points
-        plane_ptc = PointCloud()
-        plane_ptc.points = Vector3dVector(
+        plane_ptc = o3d.geometry.PointCloud()
+        plane_ptc.points = o3d.utility.Vector3dVector(
             likely_grid_plane_points)
         return [a, b, c, d], plane_ptc.paint_uniform_color([0, 1, 0])
 
-    def get_grid_plane_candidate_points(self, grid_ptc: PointCloud, n_cells_side: int):
+    def get_grid_plane_candidate_points(self, grid_ptc: o3d.geometry.PointCloud, n_cells_side: int):
         """Get the grid plane candidate points based on the grid point cloud
 
         Args:
-            grid_ptc (PointCloud): The grid point cloud
+            grid_ptc (o3d.geometry.PointCloud): The grid point cloud
             n_cells_side (int): The number of cells in one side of the grid
 
         Returns:
@@ -205,19 +203,19 @@ class MetricsEstimation:
                         rgb_image[row, col].astype(float32)/255)
 
         # Create point clouds for the grid and the class
-        class_ptc = PointCloud()
-        grid_ptc = PointCloud()
-        class_ptc.points = Vector3dVector(array(class_points))
-        grid_ptc.points = Vector3dVector(array(grid_points))
-        class_ptc.colors = Vector3dVector(array(class_colors))
-        grid_ptc.colors = Vector3dVector(array(grid_colors))
+        class_ptc = o3d.geometry.PointCloud()
+        grid_ptc = o3d.geometry.PointCloud()
+        class_ptc.points = o3d.utility.Vector3dVector(array(class_points))
+        grid_ptc.points = o3d.utility.Vector3dVector(array(grid_points))
+        class_ptc.colors = o3d.utility.Vector3dVector(array(class_colors))
+        grid_ptc.colors = o3d.utility.Vector3dVector(array(grid_colors))
         return grid_ptc, class_ptc
 
-    def calculate_detection_volume(self, ptc: PointCloud, plane_model: list) -> float:
+    def calculate_detection_volume(self, ptc: o3d.geometry.PointCloud, plane_model: list) -> float:
         """Calculates the volume of a class point cloud that is not hidden behind the grid plane
 
         Args:
-            ptc (PointCloud): point cloud to calculate the volume for
+            ptc (o3d.geometry.PointCloud): point cloud to calculate the volume for
             plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
@@ -236,11 +234,11 @@ class MetricsEstimation:
                     self.m_per_pixel["z_res"] * projection_distance
         return volume
 
-    def calculate_detection_area(self, ptc: PointCloud, plane_model: list) -> float:
+    def calculate_detection_area(self, ptc: o3d.geometry.PointCloud, plane_model: list) -> float:
         """Calculates the area of a class point cloud that is not hidden behind the grid plane
 
         Args:
-            ptc (PointCloud): point cloud to calculate the area for
+            ptc (o3d.geometry.PointCloud): point cloud to calculate the area for
             plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
@@ -254,14 +252,14 @@ class MetricsEstimation:
             area += self.m_per_pixel["x_res"] * self.m_per_pixel["y_res"]
         return area
 
-    def create_plane_ptc(self, plane_model: list) -> PointCloud:
+    def create_plane_ptc(self, plane_model: list) -> o3d.geometry.PointCloud:
         """Creates a plane point cloud based on the input model
 
         Args:
             plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
-            PointCloud: The output plane point cloud
+            o3d.geometry.PointCloud: The output plane point cloud
         """
         a, b, c, d = plane_model
         points = []
@@ -269,20 +267,20 @@ class MetricsEstimation:
             for y in range(-200, 200, 1):
                 z = (-a * x - b * y - d) / c
                 points.append([x, y, z])
-        ptc = PointCloud()
-        ptc.points = Vector3dVector(array(points))
+        ptc = o3d.geometry.PointCloud()
+        ptc.points = o3d.utility.Vector3dVector(array(points))
         return ptc.paint_uniform_color([0, 0, 1])
 
-    def create_grid_aligned_ptc(self, grid_ptc: PointCloud, plane_model: list) -> PointCloud:
+    def create_grid_aligned_ptc(self, grid_ptc: o3d.geometry.PointCloud, plane_model: list) -> o3d.geometry.PointCloud:
         """Creates a grid aligned point cloud based on the input model
 
         Args:
-            grid_ptc (PointCloud): The grid point cloud
-            class_ptc (PointCloud): The class point cloud
+            grid_ptc (o3d.geometry.PointCloud): The grid point cloud
+            class_ptc (o3d.geometry.PointCloud): The class point cloud
             plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
-            PointCloud: The output grid aligned point cloud
+            o3d.geometry.PointCloud: The output grid aligned point cloud
         """
         projected_points = []
         projected_colors = []
@@ -291,27 +289,27 @@ class MetricsEstimation:
                 point=p, plane_model=plane_model)
             projected_points.append(pp)
             projected_colors.append(c)
-        out_ptc = PointCloud()
-        out_ptc.points = Vector3dVector(array(projected_points))
-        out_ptc.colors = Vector3dVector(array(projected_colors))
+        out_ptc = o3d.geometry.PointCloud()
+        out_ptc.points = o3d.utility.Vector3dVector(array(projected_points))
+        out_ptc.colors = o3d.utility.Vector3dVector(array(projected_colors))
         return out_ptc
 
-    def smooth_class_from_grid_plane(self, grid_ptc: PointCloud, class_ptc: PointCloud, plane_model: list) -> PointCloud:
+    def smooth_class_from_grid_plane(self, grid_ptc: o3d.geometry.PointCloud, class_ptc: o3d.geometry.PointCloud, plane_model: list) -> o3d.geometry.PointCloud:
         """Smooths the class point cloud based on the grid plane
 
         Args:
-            grid_ptc (PointCloud): The grid point cloud
-            class_ptc (PointCloud): The class point cloud
+            grid_ptc (o3d.geometry.PointCloud): The grid point cloud
+            class_ptc (o3d.geometry.PointCloud): The class point cloud
             plane_model (list): the plane model params ax + by + cz + d = 0
 
         Returns:
-            PointCloud: The output smoothed class point cloud
+            o3d.geometry.PointCloud: The output smoothed class point cloud
         """
         smoothed_points = []
         # Use both ptcs to find neighbors and smooth the grid result
         full_ptc = class_ptc + grid_ptc
         full_ptc_points = array(full_ptc.points)
-        kdtree = KDTreeFlann(full_ptc)
+        kdtree = o3d.geometry.KDTreeFlann(full_ptc)
         for p in array(class_ptc.points):
             # # If point is hidden behind the grid plane, use the projected point as smoothed one
             # if self.point_hidden_behind_grid_plane(point=p, plane_model=plane_model):
@@ -327,9 +325,9 @@ class MetricsEstimation:
                 smoothed_point += full_ptc_points[idx[i]]
             smoothed_points.append(smoothed_point/(len(idx)+1))
         # Create a point cloud for the smoothed points
-        smoothed_class_ptc = PointCloud()
-        smoothed_class_ptc.points = Vector3dVector(array(smoothed_points))
-        smoothed_class_ptc.colors = Vector3dVector(array(class_ptc.colors))
+        smoothed_class_ptc = o3d.geometry.PointCloud()
+        smoothed_class_ptc.points = o3d.utility.Vector3dVector(array(smoothed_points))
+        smoothed_class_ptc.colors = o3d.utility.Vector3dVector(array(class_ptc.colors))
         return smoothed_class_ptc
 
     def point_hidden_behind_grid_plane(self, point: ndarray, plane_model: list) -> bool:

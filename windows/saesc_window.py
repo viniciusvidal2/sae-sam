@@ -7,7 +7,7 @@ from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
 from pyvistaqt import QtInteractor
 from os import path
-from open3d.io import write_point_cloud
+import open3d as o3d
 from workers.saesc_worker import SaescWorker
 
 
@@ -259,7 +259,7 @@ class SaescWindow(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(
             self, "Save Merged Point Cloud", "merged_point_cloud.ply", "Point Cloud Files (*.ply)")
         if file_path:
-            write_point_cloud(file_path, self.merged_ptc_ply)
+            o3d.io.write_point_cloud(file_path, self.merged_ptc_ply)
             self.log_output(f"Merged point cloud saved to: {file_path}")
         else:
             self.log_output("Download cancelled.")

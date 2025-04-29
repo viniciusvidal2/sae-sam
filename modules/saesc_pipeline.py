@@ -1,6 +1,4 @@
-from open3d.geometry import PointCloud, KDTreeSearchParamHybrid, KDTreeFlann
-from open3d.utility import Vector3dVector
-from open3d.io import read_point_cloud, write_point_cloud
+import open3d as o3d
 from numpy import array, asarray, uint8
 from numpy import min as np_min, max as np_max, abs as np_abs
 from numpy import median as np_median, std as np_std, sum as np_sum
@@ -15,7 +13,7 @@ class SaescPipeline:
     def __init__(self) -> None:
         """Initializes the SaescPipeline class.
         """
-        self.merged_cloud = PointCloud()
+        self.merged_cloud = o3d.geometry.PointCloud()
         self.output_path = ""
         self.sonar_depth = 0.5  # [m]
 
@@ -31,7 +29,7 @@ class SaescPipeline:
         self.input_clouds_types = input_clouds_types
         self.sea_level_refs = sea_level_refs  # Reference sea level [m]
 
-    def xyz_to_point_cloud(self, filename: str, invert_z: bool = True) -> PointCloud:
+    def xyz_to_point_cloud(self, filename: str, invert_z: bool = True) -> o3d.geometry.PointCloud:
         """Converts a .xyz file to an open3d point cloud.
 
         Args:
@@ -39,7 +37,7 @@ class SaescPipeline:
             invert_z (bool, optional): If we must invert the z coordinate from the sonar acquisition frame. Defaults to True.
 
         Returns:
-            PointCloud: point cloud object
+            o3d.geometry.PointCloud: point cloud object
         """
         with open(filename, 'r') as f:
             lines = f.readlines()
@@ -54,20 +52,20 @@ class SaescPipeline:
                     coords[1]), invert_z_mult*float(coords[2])])
 
         # Convert points to numpy array and then to open3d point cloud
-        point_cloud = PointCloud()
-        point_cloud.points = Vector3dVector(asarray(points))
+        point_cloud = o3d.geometry.PointCloud()
+        point_cloud.points = o3d.utility.Vector3dVector(asarray(points))
 
         return point_cloud
 
-    def process_sonar_cloud(self, cloud: PointCloud, sea_level_ref: float) -> PointCloud:
+    def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float) -> o3d.geometry.PointCloud:
         """Processes the sonar point cloud by removing the noise and the ground plane.
 
         Args:
-            cloud (PointCloud): input sonar point cloud
+            cloud (o3d.geometry.PointCloud): input sonar point cloud
             sea_level_ref (float): reference sea level to add to Z readings
 
         Returns:
-            PointCloud: processed sonar point cloud
+            o3d.geometry.PointCloud: processed sonar point cloud
         """
         import matplotlib
         matplotlib.use('Qt5Agg')
@@ -82,11 +80,11 @@ class SaescPipeline:
         # Correct sea level
         points = array(cloud.points)
         points[:, 2] += sea_level_ref - self.sonar_depth
-        cloud.points = Vector3dVector(points)
+        cloud.points = o3d.utility.Vector3dVector(points)
         # Calculate the normals, flipping towards positive z
         cloud.estimate_normals(
-            search_param=KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-        cloud.normals = Vector3dVector(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+        cloud.normals = o3d.utility.Vector3dVector(
             array(cloud.normals) * array([1, 1, -1]))
         # Apply colormap intensity to the point cloud according to the depth in z
         z_values = np_abs(array(cloud.points)[:, 2])
@@ -94,19 +92,19 @@ class SaescPipeline:
             (np_max(z_values) - np_min(z_values))
         colormap_name = "seismic"  # or viridis
         cmap = colormaps.get_cmap(colormap_name)
-        cloud.colors = Vector3dVector(cmap(intensity)[:, :3])
+        cloud.colors = o3d.utility.Vector3dVector(cmap(intensity)[:, :3])
 
         return deepcopy(cloud)
 
-    def process_drone_cloud(self, cloud: PointCloud, sea_level_ref: float) -> PointCloud:
+    def process_drone_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float) -> o3d.geometry.PointCloud:
         """Processes the drone point cloud by removing the noise and the ground plane.
 
         Args:
-            cloud (PointCloud): input drone point cloud
+            cloud (o3d.geometry.PointCloud): input drone point cloud
             sea_level_ref (float): reference sea level to add to Z readings
 
         Returns:
-            PointCloud: processed drone point cloud
+            o3d.geometry.PointCloud: processed drone point cloud
         """
         # Remove SOR noise
         cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
@@ -116,28 +114,28 @@ class SaescPipeline:
         min_z = np_min(points[:, 2])
         # Add the sea level reference to ajust the Z values
         points[:, 2] += sea_level_ref - min_z
-        cloud.points = Vector3dVector(points)
+        cloud.points = o3d.utility.Vector3dVector(points)
         # Calculate the normals, flipping towards positive z
         cloud.estimate_normals(
-            search_param=KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-        cloud.normals = Vector3dVector(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+        cloud.normals = o3d.utility.Vector3dVector(
             array(cloud.normals) * array([1, 1, -1]))
 
         return deepcopy(cloud)
 
-    def remove_spikes(self, pcd: PointCloud, radius: float, deviation: float) -> PointCloud:
+    def remove_spikes(self, pcd: o3d.geometry.PointCloud, radius: float, deviation: float) -> o3d.geometry.PointCloud:
         """Remove spikes from the point cloud.
 
         Args:
-            pcd (PointCloud): input point cloud
+            pcd (o3d.geometry.PointCloud): input point cloud
             radius (float): radius to search for neighbors
             deviation (float): deviation to filter points
 
         Returns:
-            PointCloud: processed point cloud
+            o3d.geometry.PointCloud: processed point cloud
         """
         # Count neighbors within radius for each point
-        kdtree = KDTreeFlann(pcd)
+        kdtree = o3d.geometry.KDTreeFlann(pcd)
         neighbor_counts = []
         for i in range(len(pcd.points)):
             [_, idx, _] = kdtree.search_radius_vector_3d(pcd.points[i], radius)
@@ -150,7 +148,7 @@ class SaescPipeline:
         min_neighbors = median - deviation * std_dev
         mask = (neighbor_counts >= min_neighbors)
         filtered_points = asarray(pcd.points)[mask]
-        return PointCloud() if np_sum(mask) == 0 else PointCloud(Vector3dVector(filtered_points))
+        return o3d.geometry.PointCloud() if np_sum(mask) == 0 else o3d.geometry.PointCloud(o3d.utility.Vector3dVector(filtered_points))
 
     def calculate_global_sea_level_reference(self) -> float:
         """Calculates the global sea level reference.
@@ -189,7 +187,7 @@ class SaescPipeline:
             yield {"status": f"Processing point cloud {i + 1} out of {len(self.input_clouds_paths)}", "result": True, "pct": pct}
 
             # Load the point cloud
-            cloud = read_point_cloud(
+            cloud = o3d.io.read_point_cloud(
                 c_path) if c_type == "drone" else self.xyz_to_point_cloud(c_path)
             if cloud is None:
                 yield {"status": f"Error: could not load point cloud from {c_path}", "result": False, "pct": 0}
@@ -217,16 +215,16 @@ class SaescPipeline:
             bool: true if the point cloud was saved successfully
         """
         # Save the merged point cloud
-        if not write_point_cloud(self.output_path, self.merged_cloud):
+        if not o3d.io.write_point_cloud(self.output_path, self.merged_cloud):
             return False
 
         return True
 
-    def get_merged_cloud(self) -> PointCloud:
+    def get_merged_cloud(self) -> o3d.geometry.PointCloud:
         """Returns the merged point cloud.
 
         Returns:
-            PointCloud: merged point cloud
+            o3d.geometry.PointCloud: merged point cloud
         """
         return self.merged_cloud
 
