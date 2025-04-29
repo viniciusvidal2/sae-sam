@@ -14,16 +14,16 @@ a = Analysis(
     ],
     hiddenimports=[
         'PIL.Image', 'PIL.ImageQt',
-        'cv2', 'numpy', 'open3d', 'matplotlib', 'matplotlib.pyplot',
+        'cv2', 'numpy', 'open3d', 'matplotlib', 'matplotlib.pyplot', 'matplotlib.backends.backend_agg',
         'matplotlib.backends.backend_qt5agg',
         'pyvista', 'pyvistaqt', 'PySide6',
         'transformers', 'torch', 'ultralytics', 'onnx', 'onnxruntime',
-        'utm', 'pymavlink'
+        'utm', 'pymavlink',
+        'vtkmodules', 'vtkmodules.all', 'vtkmodules.util', 'vtkmodules.util.data_model', 'vtkmodules.util.execution_model'
     ],
     excludes=[
         'PyQt5', 'PyQt5.sip', 'PyQt6', 'PySide2',
         'tkinter',
-        'matplotlib.backends.backend_agg',
         'matplotlib.backends.backend_cairo',
         'matplotlib.backends.backend_gtk3agg',
         'matplotlib.backends.backend_macosx',

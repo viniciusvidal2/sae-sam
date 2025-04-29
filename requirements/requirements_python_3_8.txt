@@ -1,0 +1,16 @@
+PySide6==6.6.3.1
+opencv-python==4.11.0.86
+pymavlink==2.4.42
+utm==0.7.0
+datetime==5.5
+torch==2.4.1
+torchvision==0.19.1
+ultralytics==8.3.91
+matplotlib==3.7.5
+transformers==4.46.3
+open3d==0.13.0
+pyvista==0.44.2
+numpy==1.24.4
+pyvistaqt==0.11.2
+onnxruntime==1.19.2
+pyinstaller==6.11.1
