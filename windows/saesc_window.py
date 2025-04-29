@@ -9,6 +9,7 @@ from pyvistaqt import QtInteractor
 from os import path
 import open3d as o3d
 from workers.saesc_worker import SaescWorker
+from modules.path_tool import get_file_placement_path
 
 
 ##############################################################################################
@@ -170,7 +171,7 @@ class SaescWindow(QMainWindow):
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
-        self.background = QPixmap("resources/background.png")
+        self.background = QPixmap(get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))

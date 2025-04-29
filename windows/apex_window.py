@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread, QSize
 from workers.apex_worker import ApexWorker
+from modules.path_tool import get_file_placement_path
 
 
 class ApexWindow(QMainWindow):
@@ -149,7 +150,7 @@ class ApexWindow(QMainWindow):
     def setup_background(self) -> None:
         """Generates the background with proper image and scales
         """
-        self.background = QPixmap("resources/background.png")
+        self.background = QPixmap(get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))

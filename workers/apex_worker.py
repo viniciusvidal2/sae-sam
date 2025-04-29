@@ -2,6 +2,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QImage
 from PIL.ImageQt import ImageQt
 from modules.apex_pipeline import ApexPipeline
+from modules.path_tool import get_file_placement_path
 
 
 class ApexWorker(QObject):

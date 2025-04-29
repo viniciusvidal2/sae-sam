@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt, QTimer
 from windows.apex_window import ApexWindow
 from windows.saesc_window import SaescWindow
 from windows.mb2_opt_window import Mb2OptWindow
+from modules.path_tool import get_file_placement_path
 
 
 class MainWindow(QMainWindow):
@@ -21,13 +22,13 @@ class MainWindow(QMainWindow):
         self.child_windows = []
         # Variables to control labels
         self.label_size = (300, 300)
-        self.apex_label_path = "resources/saesam.png"
-        self.hypack_label_path = "resources/saesam.png"
-        self.saesc_label_path = "resources/saesam.png"
+        self.apex_label_path = get_file_placement_path("resources/saesam.png")
+        self.hypack_label_path = get_file_placement_path("resources/saesam.png")
+        self.saesc_label_path = get_file_placement_path("resources/saesam.png")
 
         # Title, icons, and position/sizes
         self.setWindowTitle("SAE SAM")
-        self.setWindowIcon(QPixmap("resources/saesam.png"))
+        self.setWindowIcon(QPixmap(get_file_placement_path("resources/saesam.png")))
         self.setFixedWidth(500)
         self.setFixedHeight(self.label_size[1] + 50)
         screen = QGuiApplication.primaryScreen()
@@ -56,7 +57,7 @@ class MainWindow(QMainWindow):
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
-        self.background = QPixmap("resources/background.png")
+        self.background = QPixmap(get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
@@ -209,7 +210,7 @@ def main() -> None:
     app = QApplication()
 
     # Splash screen
-    original_pix = QPixmap("resources/saesam.png")
+    original_pix = QPixmap(get_file_placement_path("resources/saesam.png"))
     scaled_pix = original_pix.scaled(
         original_pix.width() // 3,
         original_pix.height() // 3,

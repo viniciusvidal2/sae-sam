@@ -10,7 +10,8 @@ a = Analysis(
         ('windows/*', 'windows'),
         ('workers/*', 'workers'),
         ('resources/*', 'resources'),
-        ('models/**/*', 'models')
+        ('models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc/*', 'models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc'),
+        ('models/image_segmentation/*', 'models/image_segmentation')
     ],
     hiddenimports=[
         'PIL.Image', 'PIL.ImageQt',

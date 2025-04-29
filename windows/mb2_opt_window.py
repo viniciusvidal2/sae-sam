@@ -6,6 +6,7 @@ from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
 from os import path, listdir
 from workers.mb2_opt_worker import Mb2OptWorker
+from modules.path_tool import get_file_placement_path
 
 
 class Mb2OptWindow(QMainWindow):
@@ -83,7 +84,7 @@ class Mb2OptWindow(QMainWindow):
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
-        self.background = QPixmap("resources/background.png")
+        self.background = QPixmap(get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
