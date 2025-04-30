@@ -7,6 +7,7 @@ from typing import Generator, Any
 from modules.image_rectification import ImageRectification
 from modules.image_segmentation import ImageSegmentation
 from modules.metrics_estimation import MetricsEstimation
+from modules.path_tool import get_file_placement_path
 
 
 class ApexPipeline:
@@ -67,7 +68,7 @@ class ApexPipeline:
                 "Barrier dimensions must be set before running the pipeline.")
 
         # Read image into numpy array
-        yield 0, "Starting the pipeline..."
+        yield 0, "Starting the pipeline by segmenting the image..."
         image = array(Image.open(image_path))
 
         # Lets segment the image to find the collumns
@@ -101,7 +102,7 @@ class ApexPipeline:
         yield 60, "Image rectified successfully. Starting metrics estimation..."
 
         # Lets estimate the metrics
-        metrics_estimation = MetricsEstimation(model_local_path=get_file_placement_path("./models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc"), 
+        metrics_estimation = MetricsEstimation(model_local_path=get_file_placement_path("models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc"), 
                                                m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
         for k, desired_class in enumerate(self.desired_classes):
             pct = 60 + (k + 1) * 10

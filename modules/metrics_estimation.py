@@ -5,6 +5,9 @@ from numpy import arccos as np_arccos, pi as np_pi, min as np_min, max as np_max
 from numpy.linalg import eigh, norm
 import open3d as o3d
 from typing import Tuple
+from os import path
+from json import load as json_load
+from modules.path_tool import get_file_placement_path
 
 
 class MetricsEstimation:
@@ -16,8 +19,19 @@ class MetricsEstimation:
             m_per_pixel (dict): meters per pixel ratio for x and y directions
             class_ids (dict): Dict of class IDs the model can detect in the form of 'name': code(int)
         """
-        from transformers import pipeline
-        self.pipe = pipeline(task="depth-estimation", model=model_local_path, tokenizer=model_local_path)
+        from transformers import DepthAnythingForDepthEstimation, AutoImageProcessor, DepthAnythingConfig, pipeline
+        config_relative_path = path.join(model_local_path, "config.json")
+        with open(get_file_placement_path(config_relative_path), "r") as f:
+            config_data = json_load(f)
+        # Forcefully ensure patch size and image size are correct
+        config_data["patch_size"] = 14
+        config_data["backbone_config"]["image_size"] = 518
+        config_data["backbone_config"]["patch_size"] = 14
+        config = DepthAnythingConfig.from_dict(config_data)
+        model = DepthAnythingForDepthEstimation.from_pretrained(model_local_path, config=config, ignore_mismatched_sizes=True)
+        processor = AutoImageProcessor.from_pretrained(model_local_path)
+        # Loading the pipeline from the proper model configs and image processor, and other class variables
+        self.pipe = pipeline(task="depth-estimation", model=model, image_processor=processor)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids
 
