@@ -22,9 +22,9 @@ class MainWindow(QMainWindow):
         self.child_windows = []
         # Variables to control labels
         self.label_size = (300, 300)
-        self.apex_label_path = get_file_placement_path("resources/saesam.png")
-        self.hypack_label_path = get_file_placement_path("resources/saesam.png")
-        self.saesc_label_path = get_file_placement_path("resources/saesam.png")
+        self.apex_label_path = get_file_placement_path("resources/apex.png")
+        self.hypack_label_path = get_file_placement_path("resources/mb2_opt.png")
+        self.saesc_label_path = get_file_placement_path("resources/saesc.jpeg")
 
         # Title, icons, and position/sizes
         self.setWindowTitle("SAE SAM")

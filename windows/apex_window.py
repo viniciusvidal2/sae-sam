@@ -16,6 +16,7 @@ class ApexWindow(QMainWindow):
         """
         super().__init__()
         self.setWindowTitle("Apex Window")
+        self.setWindowIcon(QPixmap(get_file_placement_path("resources/apex.png")))
         self.setGeometry(300, 300, 1500, 900)
 
         # Default values for the window control

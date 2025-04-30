@@ -100,6 +100,7 @@ class SaescWindow(QMainWindow):
         self.merged_ptc_ply = None
 
         self.setWindowTitle("SAESC - SAE Scene Creator")
+        self.setWindowIcon(QPixmap(get_file_placement_path("resources/saesc.jpeg")))
         self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
         self.setup_background()

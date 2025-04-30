@@ -46,6 +46,7 @@ class Mb2OptWindow(QMainWindow):
         """
         
         self.setWindowTitle("MB2 Raw data optimization")
+        self.setWindowIcon(QPixmap(get_file_placement_path("resources/mb2_opt.png")))
         self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
         self.setup_background()
