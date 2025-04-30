@@ -181,3 +181,4 @@ demo_image.jpg
 /sample_data
 /build
 /dist
+*.exe

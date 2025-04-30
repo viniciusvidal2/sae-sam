@@ -60,6 +60,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon='resources/saesam_icon.ico'
 )
 
 coll = COLLECT(
