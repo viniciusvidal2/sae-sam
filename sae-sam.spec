@@ -11,7 +11,8 @@ a = Analysis(
         ('workers/*', 'workers'),
         ('resources/*', 'resources'),
         ('models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc/*', 'models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc'),
-        ('models/image_segmentation/*', 'models/image_segmentation')
+        ('models/image_segmentation/args.yaml', 'models/image_segmentation'),
+        ('models/image_segmentation/weights/best.pt', 'models/image_segmentation/weights')
     ],
     hiddenimports=[
         'PIL.Image', 'PIL.ImageQt',
@@ -20,7 +21,8 @@ a = Analysis(
         'pyvista', 'pyvistaqt', 'PySide6',
         'transformers', 'torch', 'ultralytics', 'onnx', 'onnxruntime',
         'utm', 'pymavlink',
-        'vtkmodules', 'vtkmodules.all', 'vtkmodules.util', 'vtkmodules.util.data_model', 'vtkmodules.util.execution_model'
+        'vtkmodules', 'vtkmodules.all', 'vtkmodules.util', 'vtkmodules.util.data_model', 'vtkmodules.util.execution_model',
+        'torch._inductor', 'torch._dynamo'
     ],
     excludes=[
         'PyQt5', 'PyQt5.sip', 'PyQt6', 'PySide2',
@@ -33,8 +35,6 @@ a = Analysis(
         'matplotlib.backends.backend_svg',
         'matplotlib.backends.backend_tkagg',
         'matplotlib.backends.backend_webagg',
-        'torch._dynamo',
-        'torch._inductor',
         'onnxscript'
     ],
     hookspath=['.'],
