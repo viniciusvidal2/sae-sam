@@ -22,6 +22,10 @@ class ArdupilotLogReader:
         Args:
             file_path (str): the file path
         """
+        # Reset the data if the file path is different
+        if file_path != self.log_file_path:
+            self.reset_data()
+        # Set the new file path
         self.log_file_path = file_path
 
     def calculate_utc_timestamp(self, timestamp_ms: float, gps_week: int = 0) -> float:
