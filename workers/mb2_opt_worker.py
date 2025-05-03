@@ -8,37 +8,53 @@ class Mb2OptWorker(QObject):
     matplotlib.use('Qt5Agg')
     from matplotlib.figure import Figure
     # Declaring Signals at the class level
-    finished = Signal()
+    slot_process_finished = Signal()
     log = Signal(str)
     optimized_hypack_data_signal = Signal(list)
     data_split_content_signal = Signal(list)
     map_canvas_signal = Signal(Figure)
+    run_gps_opt_signal = Signal()
+    run_hsx_split_signal = Signal()
+    run_view_data_signal = Signal()
 
-    def __init__(self, input_paths: dict) -> None:
+    def __init__(self) -> None:
         """Initialize the worker with the proper class objects and input data.
-
-        Args:
-            input_paths (dict): the paths to all the files to be processed
         """
         super().__init__()
         self.pixhawk_reader = ArdupilotLogReader()
         self.hypack_reader = HypackFileManipulator()
         self.hypack_reader.set_timezone_offset(-3)  # UTC-3 for Brazil
-        # The paths from the dict
-        self.hsx_path = input_paths["hsx_path"]
-        self.hsx_log_path = input_paths["hsx_log_path"]
-        self.raw_path = input_paths["raw_path"]
-        self.raw_log_path = input_paths["raw_log_path"]
-        self.bin_path = input_paths["bin_path"]
-        self.hypack_reader.set_hsx_file_path(self.hsx_path)
-        self.hypack_reader.set_hsx_log_file_path(self.hsx_log_path)
-        self.hypack_reader.set_raw_file_path(self.raw_path)
-        self.hypack_reader.set_raw_log_file_path(self.raw_log_path)
-        self.pixhawk_reader.set_log_file_path(self.bin_path)
         # The optimized points from GPS optimization procedure
         self.optimized_points_hypack = None
         # The list of dicts with split content, when spliting the original file with the pixhawk log
         self.data_split_content = None
+        # Connect the signals to the slots
+        self.run_gps_opt_signal.connect(self.run_gps_opt)
+        self.run_hsx_split_signal.connect(self.run_hsx_mission_split)
+        self.run_view_data_signal.connect(self.create_map_data_figure)
+        # The paths to the HSX and RAW files
+        self.hsx_path = None
+        self.raw_path = None
+        self.hsx_log_path = None
+        self.raw_log_path = None
+        self.bin_path = None
+
+    def set_project_paths(self, input_paths: dict) -> None:
+        """Set the project paths for the HSX and RAW files.
+
+        Args:
+            input_paths (dict): The paths to the HSX and RAW files.
+        """
+        self.hsx_path = input_paths["hsx_path"]
+        self.raw_path = input_paths["raw_path"]
+        self.hsx_log_path = input_paths["hsx_log_path"]
+        self.raw_log_path = input_paths["raw_log_path"]
+        self.bin_path = input_paths["bin_path"]
+        self.pixhawk_reader.set_log_file_path(self.bin_path)
+        self.hypack_reader.set_project_paths(hsx_file_path=self.hsx_path,
+                                             hsx_log_file_path=self.hsx_log_path,
+                                             raw_file_path=self.raw_path,
+                                             raw_log_file_path=self.raw_log_path)
 
     def crop_data_from_time_range(self, initial_time: float, final_time: float, offset: float, gps_data: dict) -> list:
         """Crop the GPS data based on the given time range and offset.
@@ -57,7 +73,7 @@ class Mb2OptWorker(QObject):
             if gps['timestamp'] >= initial_time - offset and gps['timestamp'] <= final_time + offset:
                 cropped_data.append(gps)
         return cropped_data
-    
+
     def reset_data(self) -> None:
         """Reset the data in the worker.
         """
@@ -73,7 +89,7 @@ class Mb2OptWorker(QObject):
         """
         self.hypack_reader.write_optimized_files(optimized_gps_data=optimized_gps_data,
                                                  output_files_base_path=output_files_base_path)
-        
+
     def write_file_and_log(self, content: list, file_path: str) -> None:
         """Write the content to a file.
 
@@ -81,7 +97,8 @@ class Mb2OptWorker(QObject):
             content (list): The content to be written to the file.
             file_path (str): The path of the file to be written.
         """
-        self.hypack_reader.write_file_and_log(content=content, file_path=file_path)
+        self.hypack_reader.write_file_and_log(
+            content=content, file_path=file_path)
 
     @Slot()
     def run_gps_opt(self) -> None:
@@ -111,8 +128,8 @@ class Mb2OptWorker(QObject):
         self.optimized_hypack_data_signal.emit(self.optimized_points_hypack)
         # Obtain merged cloud to display
         self.log.emit("We are finished optimizing the HSX file GPS points.")
-        self.finished.emit()
-
+        self.slot_process_finished.emit()
+        
     @Slot()
     def run_hsx_mission_split(self) -> None:
         """Splits the original HSX file into multiple HSX files based on the mission in the pixhawk log.
@@ -137,7 +154,8 @@ class Mb2OptWorker(QObject):
         ardupilot_pct_pairs_list = self.pixhawk_reader.get_data_percentages_from_mission_waypoints(
             log_gps_points=points_pixhawk)
         if not ardupilot_pct_pairs_list:
-            self.log.emit("No mission sychronized waypoints found in the log file (100%).")
+            self.log.emit(
+                "No mission sychronized waypoints found in the log file (100%).")
             self.finished.emit()
             return
         self.log.emit("Obtained the percentage pairs for each line (80%)...")
@@ -161,8 +179,8 @@ class Mb2OptWorker(QObject):
         self.data_split_content_signal.emit(self.data_split_content)
         self.log.emit(
             f"Done spliting original content into {len(ardupilot_pct_pairs_list)} files (100%).")
-        self.finished.emit()
-
+        self.slot_process_finished.emit()
+        
     @Slot()
     def create_map_data_figure(self) -> None:
         """Create the map data figure with GPS points from ardupilot log and HSX file.
@@ -188,10 +206,10 @@ class Mb2OptWorker(QObject):
         fig = Figure(figsize=(5, 4))
         ax = fig.add_subplot(111)
         if len(points_hypack) > 0:
-            ax.plot([gps['utm_east'] for gps in points_hypack], 
+            ax.plot([gps['utm_east'] for gps in points_hypack],
                     [gps['utm_north']for gps in points_hypack], 'o-', color='blue', label='HSX')
         if len(points_pixhawk) > 0:
-            ax.plot([gps['utm_east'] for gps in points_pixhawk], 
+            ax.plot([gps['utm_east'] for gps in points_pixhawk],
                     [gps['utm_north']for gps in points_pixhawk], '*-', color='black', label='Pixhawk')
         ax.set_xlabel('UTM Easting')
         ax.set_ylabel('UTM Northing')
@@ -200,5 +218,7 @@ class Mb2OptWorker(QObject):
         ax.set_title(
             f'GPS Data')
         self.map_canvas_signal.emit(fig)
-        self.log.emit("Map data generated. Canvas updated with the new map (100%).")
-        self.finished.emit()
+        self.log.emit(
+            "Map data generated. Canvas updated with the new map (100%).")
+        self.slot_process_finished.emit()
+        

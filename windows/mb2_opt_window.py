@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QPushButton, QLineEdit, QFileDialog, QTextEdit, QLabel, QSizePolicy, QSplitter
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import Qt, QThread, QTimer
 from os import path, listdir
 from workers.mb2_opt_worker import Mb2OptWorker
 from modules.path_tool import get_file_placement_path
@@ -44,9 +44,17 @@ class Mb2OptWindow(QMainWindow):
                 background: #e0e0e0;
             }
         """
-        
+        # Create the MB2 window to keep track of the project data (big files)
+        self.worker = Mb2OptWorker()
+        self.thread = QThread()
+        self.signals_connected = False  # Flag to prevent duplicate connections
+        self.worker.moveToThread(self.thread)
+        self.connect_worker_signals()
+        self.thread.start()
+
         self.setWindowTitle("MB2 Raw data optimization")
-        self.setWindowIcon(QPixmap(get_file_placement_path("resources/mb2_opt.png")))
+        self.setWindowIcon(
+            QPixmap(get_file_placement_path("resources/mb2_opt.png")))
         self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
         self.setup_background()
@@ -85,7 +93,8 @@ class Mb2OptWindow(QMainWindow):
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
-        self.background = QPixmap(get_file_placement_path("resources/background.png"))
+        self.background = QPixmap(
+            get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
@@ -129,7 +138,8 @@ class Mb2OptWindow(QMainWindow):
         input_layout.addLayout(bin_btn_layout)
         # Add the input plus the view button to the top layout
         self.view_data_btn = QPushButton("View Data")
-        self.view_data_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.view_data_btn.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding)
         self.view_data_btn.clicked.connect(self.view_data_btn_callback)
         input_view_layout.addLayout(input_layout)
         input_view_layout.addWidget(self.view_data_btn)
@@ -223,9 +233,29 @@ class Mb2OptWindow(QMainWindow):
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
 
+    def closeEvent(self, event):
+        # Make sure the worker thread is cleanly stopped
+        if self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait()
+        event.accept()
+
 # endregion
 ##############################################################################################
 # region processing callbacks
+    def connect_worker_signals(self):
+        if self.signals_connected:
+            return
+        self.worker.log.connect(self.log_output)
+        self.worker.optimized_hypack_data_signal.connect(
+            self._set_optimized_hsx_points_data)
+        self.worker.data_split_content_signal.connect(
+            self._set_data_split_content)
+        self.worker.map_canvas_signal.connect(self.draw_map_to_canvas)
+        self.worker.slot_process_finished.connect(self.enable_buttons)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.signals_connected = True
+
     def hsx_browse_btn_callback(self) -> None:
         """Open a file dialog to select the HSX file.
         """
@@ -304,19 +334,8 @@ class Mb2OptWindow(QMainWindow):
             "raw_log_path": self.raw_log_path,
             "bin_path": self.bin_path
         }
-        # Start the parallel process
-        self.thread = QThread()
-        self.worker = Mb2OptWorker(input_paths=input_paths)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run_gps_opt)
-        self.worker.log.connect(self.log_output)
-        self.worker.optimized_hypack_data_signal.connect(
-            self._set_optimized_hsx_points_data)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
-        self.enable_buttons()
+        self.worker.set_project_paths(input_paths=input_paths)
+        QTimer.singleShot(0, self.worker.run_gps_opt_signal.emit)
 
     def _set_optimized_hsx_points_data(self, optimized_hypack_points_data: list) -> None:
         """Set the optimized HSX points data.
@@ -341,19 +360,8 @@ class Mb2OptWindow(QMainWindow):
             "raw_log_path": self.raw_log_path,
             "bin_path": self.bin_path
         }
-        # Start the parallel process
-        self.thread = QThread()
-        self.worker = Mb2OptWorker(input_paths=input_paths)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run_hsx_mission_split)
-        self.worker.log.connect(self.log_output)
-        self.worker.data_split_content_signal.connect(
-            self._set_data_split_content)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.enable_buttons)
-        self.thread.start()
+        self.worker.set_project_paths(input_paths=input_paths)
+        QTimer.singleShot(0, self.worker.run_hsx_split_signal.emit)
 
     def _set_data_split_content(self, data_list: list) -> None:
         """Sets the mission split content once we use the mission from the ardupilot log
@@ -362,9 +370,6 @@ class Mb2OptWindow(QMainWindow):
             data_list (list): the split data list
         """
         self.data_split_content_with_mission = data_list
-
-    # def split_line_manual_btn_callback(self) -> None:
-    #     pass
 
     def view_data_btn_callback(self) -> None:
         """Draw the HSX data in the visualizer.
@@ -382,19 +387,8 @@ class Mb2OptWindow(QMainWindow):
             "raw_log_path": self.raw_log_path,
             "bin_path": self.bin_path
         }
-        # Start the parallel process
-        self.thread = QThread()
-        self.worker = Mb2OptWorker(input_paths=input_paths)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.create_map_data_figure)
-        self.worker.log.connect(self.log_output)
-        self.worker.map_canvas_signal.connect(
-            self.draw_map_to_canvas)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.enable_buttons)
-        self.thread.start()
+        self.worker.set_project_paths(input_paths=input_paths)
+        QTimer.singleShot(0, self.worker.run_view_data_signal.emit)
 
     def draw_map_to_canvas(self, fig) -> None:
         """Draw the content to the canvas in the GUI
@@ -472,7 +466,7 @@ class Mb2OptWindow(QMainWindow):
                 "raw_log_path": self.raw_log_path,
                 "bin_path": self.bin_path
             }
-            self.worker = Mb2OptWorker(input_paths=input_paths)
+            self.worker.set_project_paths(input_paths=input_paths)
             self.worker.write_hypack_optimized_files(optimized_gps_data=self.optimized_hypack_points_data,
                                                      output_files_base_path=output_files_base_path)
             self.log_output(f"Optimized files saved to: {optimized_files_dir}")
@@ -501,7 +495,7 @@ class Mb2OptWindow(QMainWindow):
                 "raw_log_path": self.raw_log_path,
                 "bin_path": self.bin_path
             }
-            self.worker = Mb2OptWorker(input_paths=input_paths)
+            self.worker.set_project_paths(input_paths=input_paths)
             # Save every file content based on the split data content we got
             for data_section in self.data_split_content_with_mission:
                 hsx_save_path = path.join(
@@ -527,7 +521,7 @@ class Mb2OptWindow(QMainWindow):
             msg (str): The message to log.
         """
         self.text_panel.append(msg)
-        
+
     def disable_buttons(self) -> None:
         """Disable the buttons in the processing section.
         """
@@ -542,7 +536,7 @@ class Mb2OptWindow(QMainWindow):
         self.hsx_browse_btn.setEnabled(False)
         self.bin_browse_btn.setEnabled(False)
         self.view_data_btn.setEnabled(False)
-        
+
     def enable_buttons(self) -> None:
         """Enable the buttons in the processing section.
         """
