@@ -428,13 +428,37 @@ class Mb2OptWindow(QMainWindow):
     def reset_btn_callback(self) -> None:
         """Reset the data and clear the visualizer.
         """
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
         self.disable_buttons()
         self.log_output(self.skip_print)
         self.log_output("Resetting data...")
         # Clearing the canvas
         self.figure.clear()
-        self.canvas.draw()
-        # Resetting the text panel
+        layout = self.right_panel.layout()
+        for i in range(layout.count()):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, FigureCanvas):
+                widget.setParent(None)
+                layout.removeWidget(widget)
+                widget.deleteLater()
+                # Create a new canvas
+                new_canvas = FigureCanvas(self.figure)
+                layout.insertWidget(i, new_canvas)
+                break
+        for i in range(layout.count()):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, NavigationToolbar):
+                layout.removeWidget(widget)
+                widget.setParent(None)
+                new_toolbar = NavigationToolbar(new_canvas, self)
+                new_toolbar.setStyleSheet(self.toolbar_style)
+                layout.insertWidget(i, new_toolbar)
+                self.toolbar = new_toolbar
+                break
+        # Reseting the text panel
         self.text_panel.clear()
         # Reseting control variables
         self.optimized_hypack_points_data = None
