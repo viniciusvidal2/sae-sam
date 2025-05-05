@@ -11,11 +11,12 @@ SolidCompression=yes
 
 [Files]
 Source: "dist\sae_sam\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "resources\saesam_icon.ico"; DestDir: "{app}\resources"
 
 [Icons]
-Name: "{group}\SAE SAM"; Filename: "{app}\sae_sam.exe"
+Name: "{group}\SAE SAM"; Filename: "{app}\sae_sam.exe"; IconFilename: "{app}\resources\saesam_icon.ico"
+Name: "{autodesktop}\SAE SAM"; Filename: "{app}\sae_sam.exe"; Tasks: desktopicon; IconFilename: "{app}\resources\saesam_icon.ico"
 Name: "{group}\Uninstall SAE SAM"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\SAE SAM"; Filename: "{app}\sae_sam.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
