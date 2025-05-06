@@ -16,38 +16,22 @@ class HypackFileManipulator:
         self.gps_coordinates = []
 
 # region Setters
-
-    def set_hsx_file_path(self, file_path: str) -> None:
-        """Set the path to the HSX file
-
-        Args:
-            file_path (str): the HSX path
-        """
-        self.input_hsx_file_path = file_path
-
-    def set_raw_file_path(self, file_path: str) -> None:
-        """Set the path to the RAW file
+    def set_project_paths(self, hsx_file_path: str, raw_file_path: str, hsx_log_file_path: str, raw_log_file_path: str) -> None:
+        """Set the project paths
 
         Args:
-            file_path (str): the RAW path
+            hsx_file_path (str): the HSX file path
+            raw_file_path (str): the RAW file path
+            hsx_log_file_path (str): the HSX log file path
+            raw_log_file_path (str): the RAW log file path
         """
-        self.input_raw_file_path = file_path
-
-    def set_hsx_log_file_path(self, file_path: str) -> None:
-        """Set the path to the HSX log file
-
-        Args:
-            file_path (str): the HSX log path
-        """
-        self.input_hsx_log_file_path = file_path
-
-    def set_raw_log_file_path(self, file_path: str) -> None:
-        """Set the path to the RAW log file
-
-        Args:
-            file_path (str): the RAW log path
-        """
-        self.input_raw_log_file_path = file_path
+        # Reset the data if the file path is different
+        if hsx_file_path != self.input_hsx_file_path or raw_file_path != self.input_raw_file_path:
+            self.reset_data()
+        self.input_hsx_file_path = hsx_file_path
+        self.input_raw_file_path = raw_file_path
+        self.input_hsx_log_file_path = hsx_log_file_path
+        self.input_raw_log_file_path = raw_log_file_path
 
     def set_timezone_offset(self, offset: int) -> None:
         """Set the timezone offset in hours
