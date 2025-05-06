@@ -9,17 +9,34 @@ from io import BytesIO
 from datetime import datetime
 
 class ReportGenerator:
-    def __init__(self):
+    def __init__(self) -> None:
+        """Constructor for the ReportGenerator class.
+        """
         self.styles = getSampleStyleSheet()
         self.story = []
 
-    def set_data(self, data):
+    def set_data(self, data: dict) -> None:
+        """Set the data for the report.
+
+        Args:
+            data (dict): The data to be included in the report.
+        """
         self.data = data
 
-    def set_output_path(self, output_path):
+    def set_output_path(self, output_path: str) -> None:
+        """Set the output path for the report.
+
+        Args:
+            output_path (str): The path where the report will be saved.
+        """
         self.output_path = output_path
 
-    def build_report(self):
+    def build_report(self) -> str:
+        """Build the report using the provided data and output path.
+
+        Returns:
+            str: The message with the process result.
+        """
         try:
             # Adding the header information
             self.add_title("Relatório de análises métricas de imagem do sonar Apex")
@@ -45,34 +62,70 @@ class ReportGenerator:
         except Exception as e:
             return f"Error generating report: {str(e)}"
 
-    def add_title(self, text):
+    def add_title(self, text: str) -> None:
+        """Add a title to the report.
+
+        Args:
+            text (str): The title text.
+        """
         self.story.append(Paragraph(f"<b><font size=18>{text}</font></b>", self.styles["Title"]))
         self.story.append(Spacer(1, 0.2 * inch))
 
-    def add_subtitle(self, text, level=1):
+    def add_subtitle(self, text: str, level: int = 1) -> None:
+        """Add a subtitle to the report.
+
+        Args:
+            text (str): The subtitle text.
+            level (int): The level of the subtitle (1 for Heading2, 2 for Heading3).
+        """
         if level == 1:
             self.story.append(Paragraph(f"<b><font size=16>{text}</font></b>", self.styles["Heading2"]))
         elif level == 2:
             self.story.append(Paragraph(f"<b><font size=14>{text}</font></b>", self.styles["Heading3"]))
         self.story.append(Spacer(1, 0.2 * inch))
 
-    def add_paragraph(self, text):
+    def add_paragraph(self, text: str) -> None:
+        """Add a paragraph to the report.
+
+        Args:
+            text (str): The paragraph text.
+        """
         self.story.append(Paragraph(text, self.styles["BodyText"]))
         self.story.append(Spacer(1, 0.1 * inch))
 
-    def add_item(self, text):
+    def add_item(self, text: str) -> None:
+        """Add an item to the report.
+
+        Args:
+            text (str): The item text.
+        """
         self.story.append(Paragraph(text, self.styles["BodyText"]))
         self.story.append(Spacer(1, 0.01 * inch))
 
-    def add_image(self, image_path):
-        self.story.append(Image(image_path, width=4*inch, height=3*inch))
+    def add_image(self, image_bytes: BytesIO) -> None:
+        """Add an image to the report.
+
+        Args:
+            image_bytes (BytesIO): The image data in bytes.
+        """
+        self.story.append(Image(image_bytes, width=4*inch, height=3*inch))
         self.story.append(Spacer(1, 0.2 * inch))
 
-    def save_pdf(self):
+    def save_pdf(self) -> None:
+        """Save the report as a PDF file.
+        """
         doc = SimpleDocTemplate(self.output_path, pagesize=A4)
         doc.build(self.story)
 
     def qpixmap_to_bytesio(self, pixmap: QPixmap) -> BytesIO:
+        """Convert a QPixmap to a BytesIO object.
+
+        Args:
+            pixmap (QPixmap): The QPixmap to convert.
+            
+        Returns:
+            BytesIO: The converted image data.
+        """
         buffer = QBuffer()
         buffer.open(QIODevice.WriteOnly)
         pixmap.save(buffer, "PNG")
