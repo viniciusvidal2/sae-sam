@@ -126,6 +126,30 @@ class EditableImageLabel(QLabel):
         input_field.returnPressed.connect(finalize)
         input_field.show()
 
+    def export_image(self, output_path: str) -> None:
+        """Export the image with text labels to a file.
+
+        Args:
+            output_path (str): The path to save the exported image.
+        """
+        if not self.image_original_pixmap:
+            return
+        # Get a copy of the panel image and draw the text labels on it
+        painted_image = self.image_original_pixmap.copy()
+        painter = QPainter(painted_image)
+        for label in self.text_labels.values():
+            if label and label.isVisible():
+                if hasattr(label, "relative_pos"):
+                    pos = label.relative_pos
+                else:
+                    pos = label.pos()
+                painter.setFont(label.font())
+                painter.setPen("white")
+                painter.drawText(pos, label.text())
+        # Save the image with text labels
+        painted_image.save(output_path)
+        painter.end()
+
     def rescaleEvent(self, event: QResizeEvent) -> None:
         """Handle resize events to adjust the label size.
 

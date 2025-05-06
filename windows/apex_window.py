@@ -302,16 +302,15 @@ class ApexWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        if not self.image_segmented:
-            self.log_output("No image to download.")
-            self.enable_buttons()
-            return
         save_path, _ = QFileDialog.getSaveFileName(
             self, "Save Image As", "output.png", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)"
         )
         if save_path:
-            self.image_segmented.save(save_path)
-            self.log_output(f"Segmented image saved to {save_path}")
+            self.editable_image_label.export_image(save_path)
+            if self.image_panel_state == "original":
+                self.log_output(f"Original image saved to {save_path}")
+            elif self.image_panel_state == "segmented":
+                self.log_output(f"Segmented image saved to {save_path}")
         self.enable_buttons()
 
     def download_report_btn_callback(self) -> None:
