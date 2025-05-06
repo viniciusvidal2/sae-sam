@@ -6,6 +6,7 @@ from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread, QSize
 from workers.apex_worker import ApexWorker
 from modules.path_tool import get_file_placement_path
+from modules.report_generator import ReportGenerator
 from windows.editable_labels import EditableImageLabel
 
 
@@ -26,6 +27,9 @@ class ApexWindow(QMainWindow):
         self.image_path = None
         self.image_original = None
         self.image_segmented = None
+        # Output report generator
+        self.output_metrics = None
+        self.report_generator = ReportGenerator()
 
         # Setup the UI background
         self.setup_background()
@@ -259,6 +263,7 @@ class ApexWindow(QMainWindow):
         self.log_output(self.skip_print)
         self.log_output(self.skip_print)
         if metrics:
+            self.output_metrics = metrics
             self.log_output("Metrics:")
             for i, metric in enumerate(metrics):
                 self.log_output(self.skip_print)
@@ -324,13 +329,27 @@ class ApexWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
+        if not self.output_metrics:
+            self.log_output("No metrics to save.")
+            self.enable_buttons()
+            return
+        # Get the save path for the report
         save_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Report As", "report.txt", "Text Files (*.txt)"
+            self, "Save Report As", "report.pdf", "PDF Files (*.pdf)"
         )
-        if save_path:
-            with open(save_path, "w") as f:
-                f.write(self.output_panel.toPlainText())
-            self.log_output(f"Report saved to {save_path}")
+        self.report_generator.set_output_path(save_path)
+        # Creating the report data on top of the output metrics
+        report_data = {
+            "image_name": self.image_path.split("/")[-1],
+            "model_name": "distill_any_depth",
+            "original_image": self.image_original,
+            "segmented_image": self.image_segmented,
+            "metrics": self.output_metrics
+        }
+        self.report_generator.set_data(report_data)
+        # Generating the report
+        report_message = self.report_generator.build_report()
+        self.log_output(f"{report_message}")
         self.enable_buttons()
 
     def enable_buttons(self) -> None:
