@@ -127,12 +127,6 @@ class EditableImageLabel(QLabel):
         input_field.returnPressed.connect(finalize)
         input_field.show()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if self.image_original_pixmap:
-            scaled = self.image_original_pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.setPixmap(scaled)
-
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Handle double-click events to create a text input field.
 

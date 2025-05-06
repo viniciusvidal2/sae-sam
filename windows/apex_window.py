@@ -1,11 +1,12 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, 
-    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QSizePolicy
 )
-from PySide6.QtGui import QPixmap, QPalette, QBrush
+from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread, QSize
 from workers.apex_worker import ApexWorker
 from modules.path_tool import get_file_placement_path
+from windows.editable_labels import EditableImageLabel
 
 
 class ApexWindow(QMainWindow):
@@ -127,11 +128,7 @@ class ApexWindow(QMainWindow):
         self.toggle_btn = QPushButton("Toggle Image", self)
         self.toggle_btn.clicked.connect(self.toggle_btn_callback)
         # Setting image display
-        self.image_display = QLabel(self)
-        self.image_display.setStyleSheet(
-            "border: 1px solid white; background-color: rgba(0,0,0,50);")
-        self.image_display.setAlignment(Qt.AlignCenter)
-        self.image_display.resize(self.width() // 2, self.height() // 2)
+        self.editable_image_label = EditableImageLabel(self)
         self.image_panel_state = "None"
         # Download buttons and layout
         download_layout = QHBoxLayout()
@@ -145,7 +142,7 @@ class ApexWindow(QMainWindow):
         download_layout.addWidget(self.download_report_btn)
         # Add the widgets to the layout
         layout.addWidget(self.toggle_btn)
-        layout.addWidget(self.image_display)
+        layout.addWidget(self.editable_image_label)
         layout.addLayout(download_layout)
 
     def setup_background(self) -> None:
@@ -157,8 +154,11 @@ class ApexWindow(QMainWindow):
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
 
-    def resizeEvent(self, event) -> None:
+    def resizeEvent(self, event: QResizeEvent) -> None:
         """Resizes the window and all the elements in it when resize callback is called
+
+        Args:
+            event (QResizeEvent): The resize event.
         """
         # Rescale background
         scaled_bg = self.background.scaled(
@@ -167,18 +167,14 @@ class ApexWindow(QMainWindow):
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
-        # # Rescale the text panel
-        # if self.output_panel:
-        #     self.output_panel.resize(
-        #         self.width() // 2 - self.base_x - self.margin, self.height() // 2)
         # Rescale image display
-        if self.image_display:
+        if self.editable_image_label.image_original_pixmap:
             new_size = QSize(self.width() // 2, self.height() // 2)
-            scaled = self.image_display.pixmap().scaled(
+            scaled = self.editable_image_label.pixmap().scaled(
                 new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
-            self.image_display.setPixmap(scaled)
-            self.image_display.resize(new_size)
+            self.editable_image_label.setPixmap(scaled)
+            self.editable_image_label.resize(new_size)
         # Call the base class method
         super().resizeEvent(event)
 
@@ -200,6 +196,7 @@ class ApexWindow(QMainWindow):
             self.image_original = QPixmap(self.image_path)
             self.display_image(self.image_original)
             self.image_panel_state = "original"
+            self.editable_image_label.set_image(self.image_original)
         else:
             self.log_output("No valid image path was inserted.")
         self.enable_buttons()
@@ -253,6 +250,7 @@ class ApexWindow(QMainWindow):
         self.log_output("Segmented image generated successfully.")
         self.display_image(self.image_segmented)
         self.image_panel_state = "segmented"
+        self.editable_image_label.set_image(self.image_segmented)        
 
     def _log_metrics(self, metrics: list) -> None:
         """Logs the metrics from the pipeline
@@ -287,10 +285,12 @@ class ApexWindow(QMainWindow):
             self.display_image(self.image_original)
             self.log_output("Displaying original image.")
             self.image_panel_state = "original"
+            self.editable_image_label.set_image(self.image_original)
         elif self.image_panel_state == "original" and self.image_segmented:
             self.display_image(self.image_segmented)
             self.log_output("Displaying segmented image.")
             self.image_panel_state = "segmented"
+            self.editable_image_label.set_image(self.image_segmented)
         else:
             self.log_output("No image to toggle.")
             self.image_panel_state = "None"
@@ -302,9 +302,8 @@ class ApexWindow(QMainWindow):
             image (QPixmap): The image to be displayed
         """
         scaled = image.scaled(
-            self.image_display.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            self.editable_image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
-        self.image_display.setPixmap(scaled)
 
     def download_image_btn_callback(self) -> None:
         """Callback for the download image btn
