@@ -196,7 +196,6 @@ class ApexWindow(QMainWindow):
             self.log_output(f"Loaded image: {filename}")
             self.load_image_text_box.setText(filename)
             self.image_original = QPixmap(self.image_path)
-            self.display_image(self.image_original)
             self.image_panel_state = "original"
             self.editable_image_label.set_image(self.image_original)
         else:
@@ -250,7 +249,6 @@ class ApexWindow(QMainWindow):
             self.log_output("Failed to generate segmented image.")
             return
         self.log_output("Segmented image generated successfully.")
-        self.display_image(self.image_segmented)
         self.image_panel_state = "segmented"
         self.editable_image_label.set_image(self.image_segmented)        
 
@@ -285,28 +283,16 @@ class ApexWindow(QMainWindow):
         """
         self.log_output(self.skip_print)
         if self.image_panel_state == "segmented" and self.image_original:
-            self.display_image(self.image_original)
             self.log_output("Displaying original image.")
             self.image_panel_state = "original"
             self.editable_image_label.set_image(self.image_original)
         elif self.image_panel_state == "original" and self.image_segmented:
-            self.display_image(self.image_segmented)
             self.log_output("Displaying segmented image.")
             self.image_panel_state = "segmented"
             self.editable_image_label.set_image(self.image_segmented)
         else:
             self.log_output("No image to toggle.")
             self.image_panel_state = "None"
-
-    def display_image(self, image: QPixmap) -> None:
-        """Displays the image in the image panel
-
-        Args:
-            image (QPixmap): The image to be displayed
-        """
-        scaled = image.scaled(
-            self.editable_image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
-        )
 
     def download_image_btn_callback(self) -> None:
         """Callback for the download image btn

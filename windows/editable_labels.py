@@ -84,7 +84,7 @@ class EditableImageLabel(QLabel):
         self.setStyleSheet(
             "border: 1px solid white; background-color: rgba(0,0,0,50);")
         self.setAlignment(Qt.AlignCenter)
-        self.resize(self.width() // 2, self.height() // 2)
+        self.resize(parent.width() // 2, parent.height() // 2)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setScaledContents(True)
         # Text labels dictionary to store text labels
@@ -96,7 +96,8 @@ class EditableImageLabel(QLabel):
         Args:
             image (QPixmap): The image to set.
         """
-        self.image_original_pixmap = image
+        self.image_original_pixmap = image.scaled(
+                self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         self.setPixmap(self.image_original_pixmap)
 
     def create_text_input(self, position: QPoint) -> None:
