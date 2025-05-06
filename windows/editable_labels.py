@@ -66,7 +66,6 @@ class DraggableTextLabel(QLabel):
             relative_x = self.pos().x() / self.parent.size().width()
             relative_y = self.pos().y() / self.parent.size().height()
             self.relative_pos = (relative_x, relative_y)
-            print(f"Label moved to relative position: {self.relative_pos}")
             self._drag_active = False
 
 
