@@ -8,7 +8,7 @@ from PySide6.QtGui import (
 from PySide6.QtCore import Qt, QPoint, QPointF, QSize
 
 
-DEFAULT_FONT = QFont("Arial", 14)
+DEFAULT_FONT = QFont("Arial", 11)
 
 
 class DraggableTextLabel(QLabel):
@@ -97,7 +97,6 @@ class EditableImageLabel(QLabel):
         """
         self.image_original_pixmap = image
         self.setPixmap(self.image_original_pixmap)
-        self.setFixedSize(self.image_original_pixmap.size())
 
     def create_text_input(self, position: QPoint) -> None:
         """Create a text input field at the specified position.
@@ -110,7 +109,7 @@ class EditableImageLabel(QLabel):
         input_field.setFont(DEFAULT_FONT)
         input_field.setStyleSheet("color: black; background-color: white;")
         input_field.move(position)
-        input_field.resize(150, 30)
+        input_field.resize(120, 30)
         input_field.setFocus()
         # Internal function to finalize the text input and create a label
         # when the user presses Enter
@@ -126,6 +125,19 @@ class EditableImageLabel(QLabel):
         # Connect the returnPressed signal to finalize the input
         input_field.returnPressed.connect(finalize)
         input_field.show()
+
+    def rescaleEvent(self, event: QResizeEvent) -> None:
+        """Handle resize events to adjust the label size.
+
+        Args:
+            event (QResizeEvent): The resize event.
+        """
+        super().resizeEvent(event)
+        if self.image_original_pixmap:
+            # Resize the label to fit the image
+            self.image_original_pixmap = self.image_original_pixmap.scaled(
+                self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.setPixmap(self.image_original_pixmap)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Handle double-click events to create a text input field.

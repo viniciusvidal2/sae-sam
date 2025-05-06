@@ -167,14 +167,6 @@ class ApexWindow(QMainWindow):
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(scaled_bg))
         self.setPalette(palette)
-        # Rescale image display
-        if self.editable_image_label.image_original_pixmap:
-            new_size = QSize(self.width() // 2, self.height() // 2)
-            scaled = self.editable_image_label.pixmap().scaled(
-                new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
-            self.editable_image_label.setPixmap(scaled)
-            self.editable_image_label.resize(new_size)
         # Call the base class method
         super().resizeEvent(event)
 
