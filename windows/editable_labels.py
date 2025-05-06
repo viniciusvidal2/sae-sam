@@ -80,10 +80,11 @@ class EditableImageLabel(QLabel):
         self.image = None
         self.image_original_pixmap = None
         # Font and style settings
-        self.setStyleSheet("border: 1px solid white; background-color: rgba(0,0,0,50);")
+        self.setStyleSheet(
+            "border: 1px solid white; background-color: rgba(0,0,0,50);")
         self.setAlignment(Qt.AlignCenter)
+        self.resize(self.width() // 2, self.height() // 2)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setFixedSize(self.sizeHint())
         self.setScaledContents(True)
         # Text labels dictionary to store text labels
         self.text_labels = dict()
