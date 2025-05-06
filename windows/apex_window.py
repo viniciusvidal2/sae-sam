@@ -170,6 +170,12 @@ class ApexWindow(QMainWindow):
         # Call the base class method
         super().resizeEvent(event)
 
+    def destroyEvent(self) -> None:
+        """Handles the destruction of the window and cleans up resources
+        """
+        self.editable_image_label.text_labels.clear()
+        super().destroyEvent()
+
     # endregion
     ##############################################################################################
     # region Callbacks
