@@ -62,10 +62,12 @@ class DraggableTextLabel(QLabel):
             event (QMouseEvent): The mouse release event.
         """
         if self._drag_active:
+            # Save the relative position to the image size
+            relative_x = self.pos().x() / self.parent.size().width()
+            relative_y = self.pos().y() / self.parent.size().height()
+            self.relative_pos = (relative_x, relative_y)
+            print(f"Label moved to relative position: {self.relative_pos}")
             self._drag_active = False
-            if hasattr(self.parent, "scale_factor") and self.parent.scale_factor:
-                # Save the relative position based on the scale factor for saving the label afterwards
-                self.relative_pos = QPointF(self.pos()) / self.parent().scale_factor
 
 
 class EditableImageLabel(QLabel):
@@ -118,7 +120,12 @@ class EditableImageLabel(QLabel):
             if text:
                 label = DraggableTextLabel(text, self)
                 label.move(input_field.pos())
-                label.relative_pos = input_field.pos()
+                # Save relative position of the label
+                label_pos = input_field.pos()
+                parent_size = self.size()
+                relative_x = label_pos.x() / parent_size.width()
+                relative_y = label_pos.y() / parent_size.height()
+                label.relative_pos = (relative_x, relative_y)
                 label.show()
                 self.text_labels[text] = label
             input_field.deleteLater()
@@ -139,13 +146,10 @@ class EditableImageLabel(QLabel):
         painter = QPainter(painted_image)
         for label in self.text_labels.values():
             if label and label.isVisible():
-                if hasattr(label, "relative_pos"):
-                    pos = label.relative_pos
-                else:
-                    pos = label.pos()
+                image_pos = QPointF(label.relative_pos[0] * painted_image.width(), label.relative_pos[1] * painted_image.height())
                 painter.setFont(label.font())
                 painter.setPen("white")
-                painter.drawText(pos, label.text())
+                painter.drawText(image_pos, label.text())
         # Save the image with text labels
         painted_image.save(output_path)
         painter.end()
