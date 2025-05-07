@@ -197,7 +197,7 @@ class ApexWindow(QMainWindow):
             self.load_image_text_box.setText(filename)
             self.image_original = QPixmap(self.image_path)
             self.image_panel_state = "original"
-            self.editable_image_label.set_image(self.image_original)
+            self.editable_image_label.set_image(image=self.image_original, state=self.image_panel_state)
         else:
             self.log_output("No valid image path was inserted.")
         self.enable_buttons()
@@ -224,7 +224,6 @@ class ApexWindow(QMainWindow):
             "grid_height": grid_height,
             "collumn_width": column_width
         }
-
         # Deal with parallelism in the worker thread to run the pipeline
         self.thread = QThread()
         self.worker = ApexWorker(self.image_path, barrier_dimensions)
@@ -250,7 +249,7 @@ class ApexWindow(QMainWindow):
             return
         self.log_output("Segmented image generated successfully.")
         self.image_panel_state = "segmented"
-        self.editable_image_label.set_image(self.image_segmented)        
+        self.editable_image_label.set_image(image=self.image_segmented, state=self.image_panel_state)        
 
     def _log_metrics(self, metrics: list) -> None:
         """Logs the metrics from the pipeline
@@ -285,11 +284,11 @@ class ApexWindow(QMainWindow):
         if self.image_panel_state == "segmented" and self.image_original:
             self.log_output("Displaying original image.")
             self.image_panel_state = "original"
-            self.editable_image_label.set_image(self.image_original)
+            self.editable_image_label.set_image(image=self.image_original, state=self.image_panel_state)
         elif self.image_panel_state == "original" and self.image_segmented:
             self.log_output("Displaying segmented image.")
             self.image_panel_state = "segmented"
-            self.editable_image_label.set_image(self.image_segmented)
+            self.editable_image_label.set_image(image=self.image_segmented, state=self.image_panel_state)
         else:
             self.log_output("No image to toggle.")
             self.image_panel_state = "None"
@@ -303,11 +302,9 @@ class ApexWindow(QMainWindow):
             self, "Save Image As", "output.png", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)"
         )
         if save_path:
-            self.editable_image_label.export_image(save_path)
-            if self.image_panel_state == "original":
-                self.log_output(f"Original image saved to {save_path}")
-            elif self.image_panel_state == "segmented":
-                self.log_output(f"Segmented image saved to {save_path}")
+            painted_image = self.editable_image_label.get_painted_image(state=self.image_panel_state)
+            painted_image.save(save_path)
+            self.log_output(f"{self.image_panel_state} image saved to {save_path}")
         self.enable_buttons()
 
     def download_report_btn_callback(self) -> None:
@@ -328,8 +325,8 @@ class ApexWindow(QMainWindow):
         report_data = {
             "image_name": self.image_path.split("/")[-1],
             "model_name": "distill_any_depth",
-            "original_image": self.image_original,
-            "segmented_image": self.image_segmented,
+            "original_image": self.editable_image_label.get_painted_image(state="original"),
+            "segmented_image": self.editable_image_label.get_painted_image(state="segmented"),
             "metrics": self.output_metrics
         }
         self.report_generator.set_data(report_data)

@@ -78,8 +78,8 @@ class EditableImageLabel(QLabel):
         """
         super().__init__(parent)
         # Image data
-        self.image = None
         self.image_original_pixmap = None
+        self.image_segmented_pixmap = None
         # Font and style settings
         self.setStyleSheet(
             "border: 1px solid white; background-color: rgba(0,0,0,50);")
@@ -88,17 +88,47 @@ class EditableImageLabel(QLabel):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setScaledContents(True)
         # Text labels dictionary to store text labels
-        self.text_labels = dict()
+        self.text_labels_original = dict()
+        self.text_labels_segmented = dict()
+        # The image we are displaying depending on the state
+        self.image_state = "None"  # None, original, segmented
 
-    def set_image(self, image: QPixmap) -> None:
+    def set_image(self, image: QPixmap, state: str) -> None:
         """Set the image for the label and clear any existing text labels.
 
         Args:
             image (QPixmap): The image to set.
+            state (str): The state of the image ("original" or "segmented").
         """
-        self.image_original_pixmap = image.scaled(
-                self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-        self.setPixmap(self.image_original_pixmap)
+        # Define the image based on the state
+        image_scaled = image.scaled(
+            self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        if state == "original":
+            self.image_original_pixmap = image_scaled
+        elif state == "segmented":
+            self.image_segmented_pixmap = image_scaled
+        self.setPixmap(image_scaled)
+        # Update the image state
+        self.set_image_state(state)
+
+    def set_image_state(self, state: str) -> None:
+        """Set the image state to either "original" or "segmented".
+
+        Args:
+            state (str): The state of the image ("original" or "segmented").
+        """
+        if state == "original":
+            self.image_state = "original"
+            for label in self.text_labels_original.values():
+                label.show()
+            for label in self.text_labels_segmented.values():
+                label.hide()
+        elif state == "segmented":
+            self.image_state = "segmented"
+            for label in self.text_labels_segmented.values():
+                label.show()
+            for label in self.text_labels_original.values():
+                label.hide()
 
     def create_text_input(self, position: QPoint) -> None:
         """Create a text input field at the specified position.
@@ -127,32 +157,45 @@ class EditableImageLabel(QLabel):
                 relative_y = label_pos.y() / parent_size.height()
                 label.relative_pos = (relative_x, relative_y)
                 label.show()
-                self.text_labels[text] = label
+                # Store the label in the appropriate dictionary based on the image state
+                if self.image_state == "original":
+                    self.text_labels_original[text] = label
+                elif self.image_state == "segmented":
+                    self.text_labels_segmented[text] = label
             input_field.deleteLater()
         # Connect the returnPressed signal to finalize the input
         input_field.returnPressed.connect(finalize)
         input_field.show()
 
-    def export_image(self, output_path: str) -> None:
+    def get_painted_image(self, state: str) -> QPixmap:
         """Export the image with text labels to a file.
 
         Args:
-            output_path (str): The path to save the exported image.
+            state (str): The state of the image ("original" or "segmented").
+
+        Returns:
+            QPixmap: The painted image with text labels.
         """
-        if not self.image_original_pixmap:
-            return
-        # Get a copy of the panel image and draw the text labels on it
-        painted_image = self.image_original_pixmap.copy()
+        # Choose the image and labels based on the state
+        if state == "original":
+            if not self.image_original_pixmap:
+                return
+            painted_image = self.image_original_pixmap.copy()
+            text_labels = self.text_labels_original
+        elif state == "segmented":
+            if not self.image_segmented_pixmap:
+                return
+            painted_image = self.image_segmented_pixmap.copy()
+            text_labels = self.text_labels_segmented
+        # Get the copy of the desired panel image and paint the text labels in it
         painter = QPainter(painted_image)
-        for label in self.text_labels.values():
-            if label and label.isVisible():
-                image_pos = QPointF(label.relative_pos[0] * painted_image.width(), label.relative_pos[1] * painted_image.height())
-                painter.setFont(label.font())
-                painter.setPen("white")
-                painter.drawText(image_pos, label.text())
-        # Save the image with text labels
-        painted_image.save(output_path)
+        for label in text_labels.values():
+            image_pos = QPointF(label.relative_pos[0] * painted_image.width(), label.relative_pos[1] * painted_image.height())
+            painter.setFont(label.font())
+            painter.setPen("white")
+            painter.drawText(image_pos, label.text())
         painter.end()
+        return painted_image
 
     def rescaleEvent(self, event: QResizeEvent) -> None:
         """Handle resize events to adjust the label size.
@@ -165,7 +208,13 @@ class EditableImageLabel(QLabel):
             # Resize the label to fit the image
             self.image_original_pixmap = self.image_original_pixmap.scaled(
                 self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.image_segmented_pixmap = self.image_segmented_pixmap.scaled(
+                self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        # Update the label's pixmap to the resized image
+        if self.image_state == "original":
             self.setPixmap(self.image_original_pixmap)
+        elif self.image_state == "segmented":
+            self.setPixmap(self.image_segmented_pixmap)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Handle double-click events to create a text input field.
