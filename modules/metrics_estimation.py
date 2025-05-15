@@ -114,7 +114,7 @@ class MetricsEstimation:
             likely_grid_plane_points)
         return [a, b, c, d], plane_ptc.paint_uniform_color([0, 1, 0])
 
-    def get_grid_plane_candidate_points(self, grid_ptc: o3d.geometry.PointCloud, n_cells_side: int):
+    def get_grid_plane_candidate_points(self, grid_ptc: o3d.geometry.PointCloud, n_cells_side: int) -> ndarray:
         """Get the grid plane candidate points based on the grid point cloud
 
         Args:
@@ -132,6 +132,9 @@ class MetricsEstimation:
         # Compute bin size
         x_step = (max_x - min_x) / n_cells_side
         y_step = (max_y - min_y) / n_cells_side
+        # If the step is 0, return the points
+        if x_step == 0 or y_step == 0:
+            return points
         # Create a dictionary of bins with n by n cells to help find the points
         # that are the lowest in each bin
         bin_dict = dict()
