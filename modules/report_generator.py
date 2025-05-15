@@ -50,11 +50,20 @@ class ReportGenerator:
             self.add_image(self.qpixmap_to_bytesio(self.data.get("segmented_image")))
             # Adding the metrics
             self.add_subtitle("Valores de métricas por detecção", level=1)
-            for i, detection in enumerate(self.data.get("metrics", [])):
+            metrics = self.data.get("metrics", ())
+            metrics_per_detection = metrics[0]
+            for i, detection in enumerate(metrics_per_detection):
                 self.add_item(f"Número: {i}")
                 self.add_item(f"Tipo de detecção: {detection.get('class', 'N/A')}")
                 self.add_item(f"Área: {detection.get('area', 'N/A')}")
                 self.add_item(f"Volume: {detection.get('volume', 'N/A')}")
+                self.story.append(Spacer(1, 0.2 * inch))
+            self.add_subtitle("Valores de métricas por classe", level=1)
+            metrics_per_class = metrics[1]
+            for class_key, class_metrics in metrics_per_class.items():
+                self.add_item(f"Classe de detecção: {class_key}")
+                self.add_item(f"Área: {class_metrics.get('area', 'N/A')}")
+                self.add_item(f"Volume: {class_metrics.get('volume', 'N/A')}")
                 self.story.append(Spacer(1, 0.2 * inch))
             # Saving the report
             self.save_pdf()

@@ -18,6 +18,7 @@ class ApexPipeline:
         """
         self.undistort_m_pixel_ratio = undistort_m_pixel_ratio
         self.detections_metrics = list()
+        self.image_total_metrics = dict()
         # Classes to keep track of metrics
         self.desired_classes = ["macrofita", "sedimento", "tronco"]
         # Segmented image to show after processing is done
@@ -104,6 +105,7 @@ class ApexPipeline:
         # Lets estimate the metrics
         metrics_estimation = MetricsEstimation(model_local_path=get_file_placement_path("models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc"), 
                                                m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
+        total_area, total_volume = 0, 0
         for k, desired_class in enumerate(self.desired_classes):
             pct = 60 + (k + 1) * 10
             # Get the global mask and macrofitas boxes
@@ -121,6 +123,9 @@ class ApexPipeline:
                 # Add the detection metrics to the dictionary
                 self.detections_metrics.append(
                     {"area": area, "volume": volume, "box": box, "class": desired_class})
+                total_area += area
+                total_volume += volume
+            self.image_total_metrics[desired_class] = {"area": total_area, "volume": total_volume}
             yield pct, f"{desired_class} metrics estimated successfully."
 
         yield pct, "Metrics estimation completed successfully. Generating image with detections..."
@@ -138,12 +143,12 @@ class ApexPipeline:
                         FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
         yield 100, "Masked image with detections was generated successfully."
 
-    def get_detections_metrics(self) -> dict:
+    def get_detections_metrics(self) -> tuple:
         """Get the detected metrics.
         Returns:
-            dict: Dictionary containing the detected metrics.
+            tuple: Each detection metrics and total per class.
         """
-        return self.detections_metrics
+        return self.detections_metrics, self.image_total_metrics
 
     def get_segmented_image(self) -> Image.Image:
         """Get the segmented image.

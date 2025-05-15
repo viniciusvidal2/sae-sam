@@ -10,7 +10,7 @@ class ApexWorker(QObject):
     finished = Signal()
     log = Signal(str)
     set_segmented_image = Signal(QImage)
-    set_metrics = Signal(list)
+    set_metrics = Signal(tuple)
 
     def __init__(self, image_path: str, barrier_dimensions: dict) -> None:
         """Initialize the worker with the pipeline and image path.
@@ -45,6 +45,6 @@ class ApexWorker(QObject):
             self.set_segmented_image.emit(qimage)
         self.log.emit("Processing complete!")
         # Getting the detection metrics and emitting them as a signal
-        metrics = self.apex_pipeline.get_detections_metrics()
-        self.set_metrics.emit(metrics or [])
+        metrics_per_detection, metrics_per_class = self.apex_pipeline.get_detections_metrics()
+        self.set_metrics.emit((metrics_per_detection, metrics_per_class))
         self.finished.emit()

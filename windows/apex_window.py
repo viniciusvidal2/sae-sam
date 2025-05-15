@@ -251,18 +251,19 @@ class ApexWindow(QMainWindow):
         self.image_panel_state = "segmented"
         self.editable_image_label.set_image(image=self.image_segmented, state=self.image_panel_state)        
 
-    def _log_metrics(self, metrics: list) -> None:
+    def _log_metrics(self, metrics: tuple) -> None:
         """Logs the metrics from the pipeline
 
         Args:
-            metrics (list): the metrics output from the pipeline
+            metrics (tuple): the metrics per detection and per class
         """
         self.log_output(self.skip_print)
         self.log_output(self.skip_print)
         if metrics:
             self.output_metrics = metrics
+            metrics_per_detection = metrics[0]
             self.log_output("Metrics:")
-            for i, metric in enumerate(metrics):
+            for i, metric in enumerate(metrics_per_detection):
                 self.log_output(self.skip_print)
                 self.log_output(
                     f" Detection {i}: class {metric['class']}, area: {metric['area']} m2, volume: {metric['volume']} m3")
