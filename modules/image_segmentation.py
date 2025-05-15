@@ -51,7 +51,7 @@ class ImageSegmentation:
             (image_height, image_width), dtype=uint8)
 
         # Predict detections in the image
-        results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.3,
+        results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.2,
                                      line_width=1, save_crop=False, save_txt=False,
                                      show_labels=False, show_conf=False)
 

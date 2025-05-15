@@ -246,15 +246,6 @@ class SaescPipeline:
 
         return polydata
 
-    def get_merged_cloud_bytes(self) -> bytes:
-        """Returns the merged point cloud as bytes.
-
-        Returns:
-            bytes: merged point cloud as bytes
-        """
-        with open(self.output_path, "rb") as f:
-            return f.read()
-
     def set_sea_level_ref(self, sea_level_ref: float) -> None:
         """Sets the sea level reference.
 
