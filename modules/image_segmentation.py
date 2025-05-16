@@ -3,6 +3,7 @@ from typing import Tuple
 from PIL import Image
 from numpy import ndarray, arange, array, zeros, zeros_like, float32, uint8
 from numpy import max as np_max
+from torch import cuda
 
 
 class ImageSegmentation:
@@ -51,9 +52,10 @@ class ImageSegmentation:
             (image_height, image_width), dtype=uint8)
 
         # Predict detections in the image
+        device = "cuda" if cuda.is_available() else "cpu"
         results = self.model.predict(source=resized_image_pil, show=False, save=False, conf=0.2,
                                      line_width=1, save_crop=False, save_txt=False,
-                                     show_labels=False, show_conf=False)
+                                     show_labels=False, show_conf=False, device=device)
 
         # Check if the model has detected any masks or boxes
         if results[0].masks is None or results[0].boxes is None:

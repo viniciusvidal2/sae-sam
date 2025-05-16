@@ -7,6 +7,7 @@ import open3d as o3d
 from typing import Tuple
 from os import path
 from json import load as json_load
+from torch import cuda
 from modules.path_tool import get_file_placement_path
 
 
@@ -30,10 +31,14 @@ class MetricsEstimation:
         config = DepthAnythingConfig.from_dict(config_data)
         model = DepthAnythingForDepthEstimation.from_pretrained(model_local_path, config=config, ignore_mismatched_sizes=True)
         processor = AutoImageProcessor.from_pretrained(model_local_path)
+        # Checking if GPU is available and using it if possible
+        device = 0 if cuda.is_available() else -1
         # Loading the pipeline from the proper model configs and image processor, and other class variables
-        self.pipe = pipeline(task="depth-estimation", model=model, image_processor=processor)
+        self.pipe = pipeline(task="depth-estimation", model=model, image_processor=processor, device=device)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids
+        # Grid plane model to use if no grid is detected in the section
+        self.grid_plane_model = None
 
     def estimate_blocking_area_volume(self, image: ndarray, box: list, mask: ndarray, class_name: str, debug: bool = False) -> Tuple:
         """Estimates the volume of objects in the image.
@@ -68,16 +73,22 @@ class MetricsEstimation:
         grid_ptc, class_ptc = self.split_class_grid_ptcs(
             mask=mask_bbox, depth_image=depth_image_bbox,
             rgb_image=image_bbox, class_name=class_name)
-
         # Obtain the estimated plane for the grid point cloud
-        grid_plane_model, _ = self.estimate_original_grid_plane(
-            grid_ptc=grid_ptc)
-
-        # Get the grid point cloud aligned to the plane and the detection class smoothed along it
-        grid_aligned_ptc = self.create_grid_aligned_ptc(
-            grid_ptc=grid_ptc, plane_model=grid_plane_model)
+        if len(array(grid_ptc.points)) > 3:
+            self.grid_plane_model, _ = self.estimate_original_grid_plane(
+                grid_ptc=grid_ptc)
+        # If we dont have a grid plane model up to this point, not even the default one, we return 0
+        if self.grid_plane_model is None:
+            return 0, 0
+        
+        # Align the class ptc to the grid plane if we have a grid point cloud
+        grid_aligned_ptc = o3d.geometry.PointCloud()
+        if len(grid_ptc.points) > 3:
+            # Get the grid point cloud aligned to the plane and the detection class smoothed along it
+            grid_aligned_ptc = self.create_grid_aligned_ptc(
+                grid_ptc=grid_ptc, plane_model=self.grid_plane_model)
         class_aligned_ptc = self.smooth_class_from_grid_plane(
-            grid_ptc=grid_aligned_ptc, class_ptc=class_ptc, plane_model=grid_plane_model)
+            grid_ptc=grid_aligned_ptc, class_ptc=class_ptc, plane_model=self.grid_plane_model)
         if debug:
             axis = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=50, origin=[0, 0, 0])
@@ -86,10 +97,10 @@ class MetricsEstimation:
 
         # Calculate the volume of the class point cloud based on the discrete integral for each point (pixel)
         class_volume = self.calculate_detection_volume(
-            ptc=class_aligned_ptc, plane_model=grid_plane_model)
+            ptc=class_aligned_ptc, plane_model=self.grid_plane_model)
         # Calculate the area of the class point cloud based on the discrete integral for each point (pixel)
         class_area = self.calculate_detection_area(
-            ptc=class_aligned_ptc, plane_model=grid_plane_model)
+            ptc=class_aligned_ptc, plane_model=self.grid_plane_model)
 
         return class_area, class_volume
 
@@ -221,11 +232,12 @@ class MetricsEstimation:
 
         # Create point clouds for the grid and the class
         class_ptc = o3d.geometry.PointCloud()
-        grid_ptc = o3d.geometry.PointCloud()
         class_ptc.points = o3d.utility.Vector3dVector(array(class_points))
-        grid_ptc.points = o3d.utility.Vector3dVector(array(grid_points))
         class_ptc.colors = o3d.utility.Vector3dVector(array(class_colors))
-        grid_ptc.colors = o3d.utility.Vector3dVector(array(grid_colors))
+        grid_ptc = o3d.geometry.PointCloud()
+        if len(grid_points) > 0:  # Sometimes the grid is not detected
+            grid_ptc.points = o3d.utility.Vector3dVector(array(grid_points))
+            grid_ptc.colors = o3d.utility.Vector3dVector(array(grid_colors))
         return grid_ptc, class_ptc
 
     def calculate_detection_volume(self, ptc: o3d.geometry.PointCloud, plane_model: list) -> float:
