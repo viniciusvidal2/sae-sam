@@ -83,7 +83,7 @@ class ApexWindow(QMainWindow):
         self.grid_height_input = QLineEdit(self)
         self.grid_width_input = QLineEdit(self)
         self.column_width_input = QLineEdit(self)
-        self.grid_height_input.setText("40.0")
+        self.grid_height_input.setText("30.0")
         self.grid_width_input.setText("15.618")
         self.column_width_input.setText("5.232")
         # Place everything side by side

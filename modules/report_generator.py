@@ -4,7 +4,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QBuffer, QIODevice
-import os
 from io import BytesIO
 from datetime import datetime
 
