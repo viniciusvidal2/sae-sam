@@ -140,7 +140,7 @@ class ApexPipeline:
             color = tuple(int(c) for c in colormap[class_id])
             rectangle(self.segmented_image, pt1, pt2, color, 2)
             putText(self.segmented_image, str(d), pt3,
-                        FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
+                        FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
         yield 100, "Masked image with detections was generated successfully."
 
     def get_detections_metrics(self) -> tuple:
