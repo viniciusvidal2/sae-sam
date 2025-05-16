@@ -198,6 +198,8 @@ class ApexWindow(QMainWindow):
             self.image_original = QPixmap(self.image_path)
             self.image_panel_state = "original"
             self.editable_image_label.set_image(image=self.image_original, state=self.image_panel_state)
+            # Remove any old segmented image
+            self.image_segmented = None
         else:
             self.log_output("No valid image path was inserted.")
         self.enable_buttons()

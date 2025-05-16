@@ -7,7 +7,6 @@ import open3d as o3d
 from typing import Tuple
 from os import path
 from json import load as json_load
-from torch import cuda
 from modules.path_tool import get_file_placement_path
 
 
@@ -31,10 +30,8 @@ class MetricsEstimation:
         config = DepthAnythingConfig.from_dict(config_data)
         model = DepthAnythingForDepthEstimation.from_pretrained(model_local_path, config=config, ignore_mismatched_sizes=True)
         processor = AutoImageProcessor.from_pretrained(model_local_path)
-        # Checking if GPU is available and using it if possible
-        device = 0 if cuda.is_available() else -1
         # Loading the pipeline from the proper model configs and image processor, and other class variables
-        self.pipe = pipeline(task="depth-estimation", model=model, image_processor=processor, device=device)
+        self.pipe = pipeline(task="depth-estimation", model=model, image_processor=processor)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids
         # Grid plane model to use if no grid is detected in the section
@@ -82,13 +79,14 @@ class MetricsEstimation:
             return 0, 0
         
         # Align the class ptc to the grid plane if we have a grid point cloud
-        grid_aligned_ptc = o3d.geometry.PointCloud()
         if len(grid_ptc.points) > 3:
             # Get the grid point cloud aligned to the plane and the detection class smoothed along it
             grid_aligned_ptc = self.create_grid_aligned_ptc(
                 grid_ptc=grid_ptc, plane_model=self.grid_plane_model)
-        class_aligned_ptc = self.smooth_class_from_grid_plane(
-            grid_ptc=grid_aligned_ptc, class_ptc=class_ptc, plane_model=self.grid_plane_model)
+            class_aligned_ptc = self.smooth_class_from_grid_plane(
+                grid_ptc=grid_aligned_ptc, class_ptc=class_ptc, plane_model=self.grid_plane_model)
+        else:
+            class_aligned_ptc = class_ptc
         if debug:
             axis = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=50, origin=[0, 0, 0])
