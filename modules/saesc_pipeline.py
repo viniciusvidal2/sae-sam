@@ -71,7 +71,7 @@ class SaescPipeline:
         matplotlib.use('Qt5Agg')
         from matplotlib import colormaps
         # Voxelgrid
-        cloud = cloud.voxel_down_sample(voxel_size=0.2)
+        cloud = cloud.voxel_down_sample(voxel_size=0.3)
         # Remove SOR noise
         cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
                                                     std_ratio=1)
@@ -90,7 +90,7 @@ class SaescPipeline:
         z_values = np_abs(array(cloud.points)[:, 2])
         intensity = 1.0 - (z_values - np_min(z_values)) / \
             (np_max(z_values) - np_min(z_values))
-        colormap_name = "seismic"  # or viridis
+        colormap_name = "jet"  # [jet, seismic, viridis]
         cmap = colormaps.get_cmap(colormap_name)
         cloud.colors = o3d.utility.Vector3dVector(cmap(intensity)[:, :3])
 
