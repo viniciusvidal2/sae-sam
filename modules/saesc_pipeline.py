@@ -88,7 +88,7 @@ class SaescPipeline:
             array(cloud.normals) * array([1, 1, -1]))
         # Apply colormap intensity to the point cloud according to the depth in z
         z_values = np_abs(array(cloud.points)[:, 2])
-        intensity = 1.0 - (z_values - np_min(z_values)) / \
+        intensity = (z_values - np_min(z_values)) / \
             (np_max(z_values) - np_min(z_values))
         colormap_name = "jet"  # [jet, seismic, viridis]
         cmap = colormaps.get_cmap(colormap_name)
