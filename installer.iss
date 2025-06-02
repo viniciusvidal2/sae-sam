@@ -1,7 +1,7 @@
 ; installer.iss
 [Setup]
 AppName=SAE SAM
-AppVersion=1.2.0
+AppVersion=1.2.2
 DefaultDirName={pf64}\SAE SAM
 DefaultGroupName=SAE SAM
 OutputDir=.
