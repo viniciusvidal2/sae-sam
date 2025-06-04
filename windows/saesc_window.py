@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QRadioButton, QFileDialog, QScrollArea,
-    QButtonGroup, QTextEdit, QLabel, QSplitter
+    QButtonGroup, QTextEdit, QLabel, QSplitter, QCheckBox
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtCore import Qt, QThread
@@ -45,6 +45,9 @@ class PointCloudEntry(QWidget):
         self.quote_edit = QLineEdit()
         self.quote_edit.setText("0")
         self.quote_edit.setFixedWidth(70)
+        # Preprocess checkbox, ticked by default
+        self.preprocess_checkbox = QCheckBox("Preprocess Point Cloud")
+        self.preprocess_checkbox.setChecked(False)
         # Remove button
         self.remove_btn = QPushButton("Remove")
         self.remove_btn.clicked.connect(self.remove_entry)
@@ -56,6 +59,7 @@ class PointCloudEntry(QWidget):
         layout.addWidget(self.radio_sonar)
         layout.addWidget(self.label)
         layout.addWidget(self.quote_edit)
+        layout.addWidget(self.preprocess_checkbox)
         layout.addWidget(self.remove_btn)
         self.setLayout(layout)
 
@@ -71,9 +75,11 @@ class PointCloudEntry(QWidget):
             if file_path.endswith(".xyz"):
                 self.radio_sonar.setChecked(True)
                 self.radio_drone.setChecked(False)
+                self.preprocess_checkbox.setChecked(True)
             elif file_path.endswith(".ply"):
                 self.radio_drone.setChecked(True)
                 self.radio_sonar.setChecked(False)
+                self.preprocess_checkbox.setChecked(False)
 
     def remove_entry(self) -> None:
         """Remove the entry from the layout and clear the line edit.
@@ -203,6 +209,7 @@ class SaescWindow(QMainWindow):
         input_paths = []
         input_types = []
         sea_level_refs = []
+        preprocess_flags = []
         self.log_output(self.skip_print)
         self.log_output("Reading the input point clouds and its types...")
         for entry in self.entries:
@@ -211,6 +218,7 @@ class SaescWindow(QMainWindow):
                 input_types.append(
                     "drone" if entry.radio_drone.isChecked() else "sonar")
                 sea_level_refs.append(float(entry.quote_edit.text()))
+                preprocess_flags.append(entry.preprocess_checkbox.isChecked())
             else:
                 continue
         if len(input_paths) == 0:
@@ -219,7 +227,8 @@ class SaescWindow(QMainWindow):
             return
         input_data = {"paths": input_paths,
                       "types": input_types,
-                      "sea_level_refs": sea_level_refs}
+                      "sea_level_refs": sea_level_refs,
+                      "preprocess_flags": preprocess_flags}
 
         # Create a worker to deal with the pipeline in a separate thread
         self.log_output("Processing started...")

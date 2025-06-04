@@ -17,17 +17,19 @@ class SaescPipeline:
         self.output_path = ""
         self.sonar_depth = 0.5  # [m]
 
-    def set_input_data(self, input_clouds_paths: list, input_clouds_types: list, sea_level_refs: list) -> None:
+    def set_input_data(self, input_clouds_paths: list, input_clouds_types: list, sea_level_refs: list, preprocess_flags: list) -> None:
         """Sets the input data for the pipeline.
 
         Args:
             input_clouds_paths (list): input point clouds paths
             input_clouds_types (list): input point clouds types, wether sonar or drone
             sea_level_ref (list): reference sea level [m] to add to Z readings
+            preprocess_flags (list): flags to indicate if preprocessing must be applied to each cloud
         """
         self.input_clouds_paths = input_clouds_paths
         self.input_clouds_types = input_clouds_types
         self.sea_level_refs = sea_level_refs  # Reference sea level [m]
+        self.preprocess_flags = preprocess_flags
 
     def xyz_to_point_cloud(self, filename: str, invert_z: bool = True) -> o3d.geometry.PointCloud:
         """Converts a .xyz file to an open3d point cloud.
@@ -54,15 +56,15 @@ class SaescPipeline:
         # Convert points to numpy array and then to open3d point cloud
         point_cloud = o3d.geometry.PointCloud()
         point_cloud.points = o3d.utility.Vector3dVector(asarray(points))
-
         return point_cloud
 
-    def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float) -> o3d.geometry.PointCloud:
+    def process_sonar_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float, preprocess_flag: bool) -> o3d.geometry.PointCloud:
         """Processes the sonar point cloud by removing the noise and the ground plane.
 
         Args:
             cloud (o3d.geometry.PointCloud): input sonar point cloud
             sea_level_ref (float): reference sea level to add to Z readings
+            preprocess_flag (bool): flag to indicate if preprocessing must be applied
 
         Returns:
             o3d.geometry.PointCloud: processed sonar point cloud
@@ -72,11 +74,12 @@ class SaescPipeline:
         from matplotlib import colormaps
         # Voxelgrid
         cloud = cloud.voxel_down_sample(voxel_size=0.3)
-        # Remove SOR noise
-        cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
-                                                    std_ratio=1)
-        # Remove spikes in the Z axis
-        cloud = self.remove_spikes(pcd=cloud, radius=2, deviation=1.5)
+        if preprocess_flag:
+            # Remove SOR noise
+            cloud, _ = cloud.remove_statistical_outlier(nb_neighbors=20,
+                                                        std_ratio=1)
+            # Remove spikes in the Z axis
+            cloud = self.remove_spikes(pcd=cloud, radius=2, deviation=1.5)
         # Correct sea level
         points = array(cloud.points)
         points[:, 2] += sea_level_ref - self.sonar_depth
@@ -93,7 +96,6 @@ class SaescPipeline:
         colormap_name = "jet"  # [jet, seismic, viridis]
         cmap = colormaps.get_cmap(colormap_name)
         cloud.colors = o3d.utility.Vector3dVector(cmap(intensity)[:, :3])
-
         return deepcopy(cloud)
 
     def process_drone_cloud(self, cloud: o3d.geometry.PointCloud, sea_level_ref: float) -> o3d.geometry.PointCloud:
@@ -120,7 +122,6 @@ class SaescPipeline:
             search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
         cloud.normals = o3d.utility.Vector3dVector(
             array(cloud.normals) * array([1, 1, -1]))
-
         return deepcopy(cloud)
 
     def remove_spikes(self, pcd: o3d.geometry.PointCloud, radius: float, deviation: float) -> o3d.geometry.PointCloud:
@@ -197,15 +198,14 @@ class SaescPipeline:
                 yield {"status": f"Error: unknown point cloud type {c_type} for point cloud {c_path}", "result": False, "pct": 0}
             elif c_type == "sonar":
                 self.merged_cloud += self.process_sonar_cloud(
-                    cloud, self.sea_level_refs[i])
+                    cloud=cloud, sea_level_ref=self.sea_level_refs[i], preprocess_flag=self.preprocess_flags[i])
             elif c_type == "drone":
                 self.merged_cloud += self.process_drone_cloud(
-                    cloud, global_sea_level_ref)
+                    cloud=cloud, sea_level_ref=global_sea_level_ref)
 
             # Final percentage yield
             pct = float(i + 1) / process_count
             yield {"status": f"Processed point cloud {i + 1}!", "result": True, "pct": pct}
-
         yield {"status": "Point cloud was merged succesfully and is ready for download.", "result": True, "pct": 1.0}
 
     def save_merged_cloud(self) -> bool:
@@ -217,7 +217,6 @@ class SaescPipeline:
         # Save the merged point cloud
         if not o3d.io.write_point_cloud(self.output_path, self.merged_cloud):
             return False
-
         return True
 
     def get_merged_cloud(self) -> o3d.geometry.PointCloud:
@@ -243,7 +242,6 @@ class SaescPipeline:
         if self.merged_cloud.has_normals():
             normals = asarray(self.merged_cloud.normals)
             polydata.point_data["Normals"] = normals
-
         return polydata
 
     def set_sea_level_ref(self, sea_level_ref: float) -> None:

@@ -11,13 +11,14 @@ class SaescWorker(QObject):
     def __init__(self, input_data: dict) -> None:
         """Initialize the worker with the pipeline and input data.
         Args:
-            input_data (dict): A dictionary containing the paths, types, and sea level reference.
+            input_data (dict): A dictionary containing the paths, types, sea level reference and flags for preprocessing.
         """
         super().__init__()
         self.saesc_pipeline = SaescPipeline()
         self.cloud_paths = input_data["paths"]
         self.cloud_types = input_data["types"]
         self.sea_level_refs = input_data["sea_level_refs"]
+        self.apply_preprocessing = input_data["preprocess_flags"]
 
     @Slot()
     def run(self) -> None:
@@ -26,7 +27,8 @@ class SaescWorker(QObject):
         # Set input data and process
         self.saesc_pipeline.set_input_data(input_clouds_paths=self.cloud_paths,
                                            input_clouds_types=self.cloud_types,
-                                           sea_level_refs=self.sea_level_refs)
+                                           sea_level_refs=self.sea_level_refs,
+                                           preprocess_flags=self.apply_preprocessing)
         # Run pipeline and get each stage feedback
         for stage_msg in self.saesc_pipeline.merge_clouds():
             status = stage_msg["status"]
