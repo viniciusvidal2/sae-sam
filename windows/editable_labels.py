@@ -26,7 +26,8 @@ class DraggableTextLabel(QLabel):
         # Set the label's font and style
         self.setStyleSheet("color: white; background-color: transparent;")
         self.setFont(DEFAULT_FONT)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.setFixedSize(self.sizeHint())
         self._drag_active = False
 
@@ -145,6 +146,7 @@ class EditableImageLabel(QLabel):
         input_field.setFocus()
         # Internal function to finalize the text input and create a label
         # when the user presses Enter
+
         def finalize():
             text = input_field.text().strip()
             if text:
@@ -190,7 +192,8 @@ class EditableImageLabel(QLabel):
         # Get the copy of the desired panel image and paint the text labels in it
         painter = QPainter(painted_image)
         for label in text_labels.values():
-            image_pos = QPointF(label.relative_pos[0] * painted_image.width(), label.relative_pos[1] * painted_image.height())
+            image_pos = QPointF(
+                label.relative_pos[0] * painted_image.width(), label.relative_pos[1] * painted_image.height())
             painter.setFont(label.font())
             painter.setPen("white")
             painter.drawText(image_pos, label.text())
@@ -223,7 +226,7 @@ class EditableImageLabel(QLabel):
             event (QMouseEvent): The mouse double-click event.
         """
         if not self.image_original_pixmap:
-            return 
+            return
         if event.button() == Qt.MouseButton.LeftButton:
             # Create a text input field at the clicked position
             position = event.position().toPoint()

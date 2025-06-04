@@ -7,6 +7,7 @@ from PySide6.QtCore import QBuffer, QIODevice
 from io import BytesIO
 from datetime import datetime
 
+
 class ReportGenerator:
     def __init__(self) -> None:
         """Constructor for the ReportGenerator class.
@@ -38,22 +39,29 @@ class ReportGenerator:
         """
         try:
             # Adding the header information
-            self.add_title("Relatório de análises métricas de imagem do sonar Apex")
-            self.add_paragraph(f"Imagem de inferência: {self.data.get('image_name', 'N/A')}")
-            self.add_paragraph(f"Data de execução: {datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
-            self.add_paragraph(f"Modelo utilizado: {self.data.get('model_name', 'N/A')}")
+            self.add_title(
+                "Relatório de análises métricas de imagem do sonar Apex")
+            self.add_paragraph(
+                f"Imagem de inferência: {self.data.get('image_name', 'N/A')}")
+            self.add_paragraph(
+                f"Data de execução: {datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+            self.add_paragraph(
+                f"Modelo utilizado: {self.data.get('model_name', 'N/A')}")
             # Adding images section
             self.add_subtitle("Imagem original", level=1)
-            self.add_image(self.qpixmap_to_bytesio(self.data.get("original_image")))
+            self.add_image(self.qpixmap_to_bytesio(
+                self.data.get("original_image")))
             self.add_subtitle("Imagem segmentada")
-            self.add_image(self.qpixmap_to_bytesio(self.data.get("segmented_image")))
+            self.add_image(self.qpixmap_to_bytesio(
+                self.data.get("segmented_image")))
             # Adding the metrics
             self.add_subtitle("Valores de métricas por detecção", level=1)
             metrics = self.data.get("metrics", ())
             metrics_per_detection = metrics[0]
             for i, detection in enumerate(metrics_per_detection):
                 self.add_item(f"Número: {i}")
-                self.add_item(f"Tipo de detecção: {detection.get('class', 'N/A')}")
+                self.add_item(
+                    f"Tipo de detecção: {detection.get('class', 'N/A')}")
                 self.add_item(f"Área: {detection.get('area', 'N/A')}")
                 self.add_item(f"Volume: {detection.get('volume', 'N/A')}")
                 self.story.append(Spacer(1, 0.2 * inch))
@@ -76,7 +84,8 @@ class ReportGenerator:
         Args:
             text (str): The title text.
         """
-        self.story.append(Paragraph(f"<b><font size=18>{text}</font></b>", self.styles["Title"]))
+        self.story.append(
+            Paragraph(f"<b><font size=18>{text}</font></b>", self.styles["Title"]))
         self.story.append(Spacer(1, 0.2 * inch))
 
     def add_subtitle(self, text: str, level: int = 1) -> None:
@@ -87,9 +96,11 @@ class ReportGenerator:
             level (int): The level of the subtitle (1 for Heading2, 2 for Heading3).
         """
         if level == 1:
-            self.story.append(Paragraph(f"<b><font size=16>{text}</font></b>", self.styles["Heading2"]))
+            self.story.append(
+                Paragraph(f"<b><font size=16>{text}</font></b>", self.styles["Heading2"]))
         elif level == 2:
-            self.story.append(Paragraph(f"<b><font size=14>{text}</font></b>", self.styles["Heading3"]))
+            self.story.append(
+                Paragraph(f"<b><font size=14>{text}</font></b>", self.styles["Heading3"]))
         self.story.append(Spacer(1, 0.2 * inch))
 
     def add_paragraph(self, text: str) -> None:
@@ -130,7 +141,7 @@ class ReportGenerator:
 
         Args:
             pixmap (QPixmap): The QPixmap to convert.
-            
+
         Returns:
             BytesIO: The converted image data.
         """

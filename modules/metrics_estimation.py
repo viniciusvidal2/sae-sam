@@ -28,10 +28,12 @@ class MetricsEstimation:
         config_data["backbone_config"]["image_size"] = 518
         config_data["backbone_config"]["patch_size"] = 14
         config = DepthAnythingConfig.from_dict(config_data)
-        model = DepthAnythingForDepthEstimation.from_pretrained(model_local_path, config=config, ignore_mismatched_sizes=True)
+        model = DepthAnythingForDepthEstimation.from_pretrained(
+            model_local_path, config=config, ignore_mismatched_sizes=True)
         processor = AutoImageProcessor.from_pretrained(model_local_path)
         # Loading the pipeline from the proper model configs and image processor, and other class variables
-        self.pipe = pipeline(task="depth-estimation", model=model, image_processor=processor)
+        self.pipe = pipeline(task="depth-estimation",
+                             model=model, image_processor=processor)
         self.m_per_pixel = m_per_pixel
         self.class_ids = class_ids
         # Grid plane model to use if no grid is detected in the section
@@ -77,7 +79,7 @@ class MetricsEstimation:
         # If we dont have a grid plane model up to this point, not even the default one, we return 0
         if self.grid_plane_model is None:
             return 0, 0
-        
+
         # Align the class ptc to the grid plane if we have a grid point cloud
         if len(grid_ptc.points) > 3:
             # Get the grid point cloud aligned to the plane and the detection class smoothed along it
@@ -353,8 +355,10 @@ class MetricsEstimation:
             smoothed_points.append(smoothed_point/(len(idx)+1))
         # Create a point cloud for the smoothed points
         smoothed_class_ptc = o3d.geometry.PointCloud()
-        smoothed_class_ptc.points = o3d.utility.Vector3dVector(array(smoothed_points))
-        smoothed_class_ptc.colors = o3d.utility.Vector3dVector(array(class_ptc.colors))
+        smoothed_class_ptc.points = o3d.utility.Vector3dVector(
+            array(smoothed_points))
+        smoothed_class_ptc.colors = o3d.utility.Vector3dVector(
+            array(class_ptc.colors))
         return smoothed_class_ptc
 
     def point_hidden_behind_grid_plane(self, point: ndarray, plane_model: list) -> bool:

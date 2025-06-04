@@ -234,7 +234,7 @@ if __name__ == "__main__":
         grid_width_m, collumn_width_m, meters_pixel_ratio)
     # Load an image
     image = array(Image.open(path.join(getenv("HOME"), "yolo", "full_train_set",
-                                          "train", "images", "snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")))
+                                       "train", "images", "snp0206251005_png.rf.a8bbdfbc64967838a2a76b632c711c7c.jpg")))
     # Set detected boxes (example values)
     collumn_boxes = [[50, 200, 150, 300], [250, 200, 350, 300]]
     rectifier.set_detected_boxes(collumn_boxes)

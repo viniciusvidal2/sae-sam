@@ -23,12 +23,14 @@ class MainWindow(QMainWindow):
         # Variables to control labels
         self.label_size = (300, 300)
         self.apex_label_path = get_file_placement_path("resources/apex.png")
-        self.hypack_label_path = get_file_placement_path("resources/mb2_opt.png")
+        self.hypack_label_path = get_file_placement_path(
+            "resources/mb2_opt.png")
         self.saesc_label_path = get_file_placement_path("resources/saesc.jpeg")
 
         # Title, icons, and position/sizes
         self.setWindowTitle("SAE SAM")
-        self.setWindowIcon(QPixmap(get_file_placement_path("resources/saesam.png")))
+        self.setWindowIcon(
+            QPixmap(get_file_placement_path("resources/saesam.png")))
         self.setFixedWidth(500)
         self.setFixedHeight(self.label_size[1] + 50)
         screen = QGuiApplication.primaryScreen()
@@ -57,7 +59,8 @@ class MainWindow(QMainWindow):
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
-        self.background = QPixmap(get_file_placement_path("resources/background.png"))
+        self.background = QPixmap(
+            get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))

@@ -86,12 +86,14 @@ def draw_masks(img: np.ndarray, masks: np.ndarray, ids: list, colors: list, colo
 def main():
     # Load the best model from the training results
     print("Loading the best model from the training results...")
-    results_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs/segment")
+    results_folder = os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), "runs/segment")
     train_result_folder = "train_colunas/weights/best.pt"
     trained_model = YOLO(os.path.join(results_folder, train_result_folder))
 
     # Test images list for inference
-    test_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../full_train_set/train/images")
+    test_folder = os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), "../full_train_set/train/images")
     test_images = os.listdir(test_folder)
 
     # Try in test images

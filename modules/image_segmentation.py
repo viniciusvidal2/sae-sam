@@ -213,7 +213,7 @@ class ImageSegmentation:
             print("No masked image available.")
             return None
         return self.masked_original_image
-    
+
     def get_colormap(self) -> list:
         """Returns the colormap used for the classes.
 

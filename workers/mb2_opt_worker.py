@@ -129,7 +129,7 @@ class Mb2OptWorker(QObject):
         # Obtain merged cloud to display
         self.log.emit("We are finished optimizing the HSX file GPS points.")
         self.slot_process_finished.emit()
-        
+
     @Slot()
     def run_hsx_mission_split(self) -> None:
         """Splits the original HSX file into multiple HSX files based on the mission in the pixhawk log.
@@ -180,7 +180,7 @@ class Mb2OptWorker(QObject):
         self.log.emit(
             f"Done spliting original content into {len(ardupilot_pct_pairs_list)} files (100%).")
         self.slot_process_finished.emit()
-        
+
     @Slot()
     def create_map_data_figure(self) -> None:
         """Create the map data figure with GPS points from ardupilot log and HSX file.
@@ -221,4 +221,3 @@ class Mb2OptWorker(QObject):
         self.log.emit(
             "Map data generated. Canvas updated with the new map (100%).")
         self.slot_process_finished.emit()
-        

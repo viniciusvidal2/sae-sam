@@ -20,7 +20,8 @@ class ApexWorker(QObject):
             barrier_dimensions (dict): The dimensions of the barriers in the image.
         """
         super().__init__()
-        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)  # Initialize the pipeline with a pixel ratio
+        # Initialize the pipeline with a pixel ratio
+        self.apex_pipeline = ApexPipeline(undistort_m_pixel_ratio=0.1)
         self.image_path = image_path
         self.barrier_dimensions = barrier_dimensions
 

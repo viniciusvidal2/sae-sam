@@ -106,7 +106,8 @@ class SaescWindow(QMainWindow):
         self.merged_ptc_ply = None
 
         self.setWindowTitle("SAESC - SAE Scene Creator")
-        self.setWindowIcon(QPixmap(get_file_placement_path("resources/saesc.jpeg")))
+        self.setWindowIcon(
+            QPixmap(get_file_placement_path("resources/saesc.jpeg")))
         self.setMinimumSize(1700, 600)
         # Setup background with proper image and style
         self.setup_background()
@@ -178,7 +179,8 @@ class SaescWindow(QMainWindow):
     def setup_background(self) -> None:
         """Set up the background image for the main window.
         """
-        self.background = QPixmap(get_file_placement_path("resources/background.png"))
+        self.background = QPixmap(
+            get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))

@@ -73,7 +73,8 @@ class ApexPipeline:
         image = array(Image.open(image_path))
 
         # Lets segment the image to find the collumns
-        image_segmentation = ImageSegmentation(model_path=get_file_placement_path("models/image_segmentation/weights/best.pt"))
+        image_segmentation = ImageSegmentation(model_path=get_file_placement_path(
+            "models/image_segmentation/weights/best.pt"))
         collumn_boxes = []
         barrier_boxes = []
         if image_segmentation.segment_classes(image=image):
@@ -103,7 +104,7 @@ class ApexPipeline:
         yield 60, "Image rectified successfully. Starting metrics estimation..."
 
         # Lets estimate the metrics
-        metrics_estimation = MetricsEstimation(model_local_path=get_file_placement_path("models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc"), 
+        metrics_estimation = MetricsEstimation(model_local_path=get_file_placement_path("models/distill_any_depth/22c685bb9cd0d99520f2438644d2a9ad2cea41dc"),
                                                m_per_pixel=meter_pixel_ratios, class_ids=class_ids)
         total_area, total_volume = 0, 0
         for k, desired_class in enumerate(self.desired_classes):
@@ -125,7 +126,8 @@ class ApexPipeline:
                     {"area": area, "volume": volume, "box": box, "class": desired_class})
                 total_area += area
                 total_volume += volume
-            self.image_total_metrics[desired_class] = {"area": total_area, "volume": total_volume}
+            self.image_total_metrics[desired_class] = {
+                "area": total_area, "volume": total_volume}
             yield pct, f"{desired_class} metrics estimated successfully."
 
         yield pct, "Metrics estimation completed successfully. Generating image with detections..."
@@ -140,7 +142,7 @@ class ApexPipeline:
             color = tuple(int(c) for c in colormap[class_id])
             rectangle(self.segmented_image, pt1, pt2, color, 2)
             putText(self.segmented_image, str(d), pt3,
-                        FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
+                    FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
         yield 100, "Masked image with detections was generated successfully."
 
     def get_detections_metrics(self) -> tuple:

@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, 
+    QMainWindow, QWidget, QPushButton, QLabel, QFileDialog,
     QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QSizePolicy
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
@@ -18,7 +18,8 @@ class ApexWindow(QMainWindow):
         """
         super().__init__()
         self.setWindowTitle("Apex Window")
-        self.setWindowIcon(QPixmap(get_file_placement_path("resources/apex.png")))
+        self.setWindowIcon(
+            QPixmap(get_file_placement_path("resources/apex.png")))
         self.setGeometry(300, 300, 1500, 900)
 
         # Default values for the window control
@@ -152,7 +153,8 @@ class ApexWindow(QMainWindow):
     def setup_background(self) -> None:
         """Generates the background with proper image and scales
         """
-        self.background = QPixmap(get_file_placement_path("resources/background.png"))
+        self.background = QPixmap(
+            get_file_placement_path("resources/background.png"))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(self.background.scaled(
             self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
@@ -197,7 +199,8 @@ class ApexWindow(QMainWindow):
             self.load_image_text_box.setText(filename)
             self.image_original = QPixmap(self.image_path)
             self.image_panel_state = "original"
-            self.editable_image_label.set_image(image=self.image_original, state=self.image_panel_state)
+            self.editable_image_label.set_image(
+                image=self.image_original, state=self.image_panel_state)
             # Remove any old segmented image
             self.image_segmented = None
         else:
@@ -251,7 +254,8 @@ class ApexWindow(QMainWindow):
             return
         self.log_output("Segmented image generated successfully.")
         self.image_panel_state = "segmented"
-        self.editable_image_label.set_image(image=self.image_segmented, state=self.image_panel_state)        
+        self.editable_image_label.set_image(
+            image=self.image_segmented, state=self.image_panel_state)
 
     def _log_metrics(self, metrics: tuple) -> None:
         """Logs the metrics from the pipeline
@@ -287,11 +291,13 @@ class ApexWindow(QMainWindow):
         if self.image_panel_state == "segmented" and self.image_original:
             self.log_output("Displaying original image.")
             self.image_panel_state = "original"
-            self.editable_image_label.set_image(image=self.image_original, state=self.image_panel_state)
+            self.editable_image_label.set_image(
+                image=self.image_original, state=self.image_panel_state)
         elif self.image_panel_state == "original" and self.image_segmented:
             self.log_output("Displaying segmented image.")
             self.image_panel_state = "segmented"
-            self.editable_image_label.set_image(image=self.image_segmented, state=self.image_panel_state)
+            self.editable_image_label.set_image(
+                image=self.image_segmented, state=self.image_panel_state)
         else:
             self.log_output("No image to toggle.")
             self.image_panel_state = "None"
@@ -305,9 +311,11 @@ class ApexWindow(QMainWindow):
             self, "Save Image As", "output.png", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)"
         )
         if save_path:
-            painted_image = self.editable_image_label.get_painted_image(state=self.image_panel_state)
+            painted_image = self.editable_image_label.get_painted_image(
+                state=self.image_panel_state)
             painted_image.save(save_path)
-            self.log_output(f"{self.image_panel_state} image saved to {save_path}")
+            self.log_output(
+                f"{self.image_panel_state} image saved to {save_path}")
         self.enable_buttons()
 
     def download_report_btn_callback(self) -> None:
