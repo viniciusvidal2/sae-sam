@@ -39,14 +39,14 @@ class PointCloudEntry(QWidget):
         group.addButton(self.radio_drone)
         group.addButton(self.radio_sonar)
         # Label to ask for the acquisition quote
-        self.label = QLabel("Acquisition Quote [m]:")
-        self.label.setStyleSheet(radio_style)
+        self.acquisition_quote_label = QLabel("Acquisition Quote [m]:")
         # Line edit for the acquisition quote
         self.quote_edit = QLineEdit()
         self.quote_edit.setText("0")
         self.quote_edit.setFixedWidth(70)
         # Preprocess checkbox, ticked by default
         self.preprocess_checkbox = QCheckBox("Preprocess Point Cloud")
+        self.preprocess_checkbox.setStyleSheet(radio_style)
         self.preprocess_checkbox.setChecked(False)
         # Remove button
         self.remove_btn = QPushButton("Remove")
@@ -57,7 +57,7 @@ class PointCloudEntry(QWidget):
         layout.addWidget(self.browse_btn)
         layout.addWidget(self.radio_drone)
         layout.addWidget(self.radio_sonar)
-        layout.addWidget(self.label)
+        layout.addWidget(self.acquisition_quote_label)
         layout.addWidget(self.quote_edit)
         layout.addWidget(self.preprocess_checkbox)
         layout.addWidget(self.remove_btn)
