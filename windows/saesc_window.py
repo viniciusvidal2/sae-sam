@@ -67,12 +67,12 @@ class PointCloudEntry(QWidget):
         """Open a file dialog to select a point cloud file.
         """
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Point Cloud", "", "Point Cloud Files (*.ply *.xyz)")
+            self, "Select Point Cloud", "", "Point Cloud Files (*.ply *.xyz *.XYZ)")
         if file_path:
             self.full_path = file_path
             self.line_edit.setText(path.basename(file_path))
             # If the extension is xyz we should mark the sonar radio button, ply for drone instead
-            if file_path.endswith(".xyz"):
+            if file_path.endswith(".xyz") or file_path.endswith(".XYZ"):
                 self.radio_sonar.setChecked(True)
                 self.radio_drone.setChecked(False)
                 self.preprocess_checkbox.setChecked(True)

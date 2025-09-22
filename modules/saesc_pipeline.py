@@ -189,7 +189,7 @@ class SaescPipeline:
 
             # Load the point cloud
             cloud = o3d.io.read_point_cloud(
-                c_path) if c_type == "drone" else self.xyz_to_point_cloud(c_path)
+                c_path) if c_path.endswith(".ply") else self.xyz_to_point_cloud(c_path)
             if cloud is None:
                 yield {"status": f"Error: could not load point cloud from {c_path}", "result": False, "pct": 0}
 
