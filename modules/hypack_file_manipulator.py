@@ -1,7 +1,7 @@
 from numpy import array
 from os import path
 from datetime import datetime, timedelta
-from utm import to_latlon
+from utm import to_latlon, from_latlon
 
 
 class HypackFileManipulator:
@@ -14,6 +14,8 @@ class HypackFileManipulator:
         self.input_raw_log_file_path = ""
         # list of dictionaries containing utm_east, utm_north and timestamp
         self.gps_coordinates = []
+        # UTM zone we are working with
+        self.utm_zone = None
 
 # region Setters
     def set_project_paths(self, hsx_file_path: str, raw_file_path: str, hsx_log_file_path: str, raw_log_file_path: str) -> None:
@@ -52,19 +54,46 @@ class HypackFileManipulator:
         # If a mission is loaded, do not read again
         if len(self.gps_coordinates) > 0:
             return
-        # Fill the gps_coordinates list with the UTM coordinates and the timestamp
+        # Fill in a temporary dict with several data from different lines, but the same timestamp
+        timestamp_dict = {}
         with open(self.input_hsx_file_path, 'r') as f:
             lines = f.readlines()
             for line in lines:
                 line_split = line.split()
-                if line_split[0] == 'POS' and len(line_split) >= 4:
-                    gps_point = {
-                        'utm_east': float(line.split()[3]),
-                        'utm_north': float(line.split()[4]),
-                        'timestamp': float(line.split()[2])
+                if line_split[0] == 'RAW' and len(line_split) >= 4:
+                    # Obtain UTM zone and altitude
+                    lat = float(line_split[3]) * 1e-4
+                    lon = float(line_split[4]) * 1e-4
+                    _, _, self.utm_zone, _ = from_latlon(lat, lon)
+                    altitude = float(line_split[6])
+                    timestamp = float(line_split[2])
+                    timestamp_dict[timestamp] = {
+                        'altitude': altitude,
                     }
-                    self.gps_coordinates.append(gps_point)
+                if line_split[0] == 'POS' and len(line_split) >= 4:
+                    # Obtain UTM coordinates
+                    utm_east = float(line_split[3])
+                    utm_north = float(line_split[4])
+                    lat, lon = to_latlon(
+                        easting=utm_east, northing=utm_north, zone_number=self.utm_zone, northern=False)
+                    timestamp = float(line_split[2])
+                    timestamp_dict[timestamp]['utm_east'] = utm_east
+                    timestamp_dict[timestamp]['utm_north'] = utm_north
+                    timestamp_dict[timestamp]["lat"] = lat
+                    timestamp_dict[timestamp]["lon"] = lon
             f.close()
+        # Fill the gps points
+        for key, item in timestamp_dict.items():
+            self.gps_coordinates.append(
+                {
+                    "timestamp": key,
+                    "utm_east": item["utm_east"],
+                    "utm_north": item["utm_north"],
+                    "lat": item["lat"],
+                    "lon": item["lon"],
+                    "altitude": item["altitude"],
+                }
+            )
 
     def reset_data(self) -> None:
         """Reset the data from the HSX file
@@ -286,6 +315,8 @@ class HypackFileManipulator:
             previous_ref_point = None
             next_ref_point = None
             for i, ref_point in enumerate(reference_gps_points):
+                # Substitute Hypack altitude in the reference point
+                ref_point['altitude'] = hypack_point['altitude']
                 if i == len(reference_gps_points) - 1:
                     continue
                 ref_time = ref_point['timestamp']
@@ -294,8 +325,10 @@ class HypackFileManipulator:
                     break
                 elif hypack_time > ref_time:
                     previous_ref_point = ref_point
+                    previous_ref_point["altitude"] = hypack_point["altitude"]
                 elif hypack_time < ref_time and previous_ref_point is not None:
                     next_ref_point = ref_point
+                    next_ref_point["altitude"] = hypack_point["altitude"]
                     break
             if previous_ref_point is not None and next_ref_point is not None:
                 previous_time = previous_ref_point['timestamp']
@@ -311,8 +344,11 @@ class HypackFileManipulator:
                 scaled_point_utm = previous_utm + \
                     (next_utm - previous_utm) * \
                     (diff_time_hypack / diff_time_ref)
+                # Convert to latlon as well and add to optimized data
+                lat, lon = to_latlon(
+                    scaled_point_utm[0], scaled_point_utm[1], zone_number=self.utm_zone, northern=False)
                 optimized_gps_data.append(
-                    {'utm_east': scaled_point_utm[0], 'utm_north': scaled_point_utm[1], 'altitude': scaled_point_utm[2], 'timestamp': original_hypack_time})
+                    {'utm_east': scaled_point_utm[0], 'utm_north': scaled_point_utm[1], 'altitude': scaled_point_utm[2], 'timestamp': original_hypack_time, 'lat': lat, 'lon': lon})
         return optimized_gps_data
 
     def write_optimized_files(self, optimized_gps_data: list, output_files_base_path: str) -> bool:

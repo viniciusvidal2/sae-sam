@@ -48,7 +48,6 @@ class ArdupilotLogReader:
         """Generates the data from the log file.
         """
         if self.log_file_path == '':
-            print('No file path set')
             return
         if len(self.gps_data) > 0 and len(self.missions_in_log) > 0:
             return
