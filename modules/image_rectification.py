@@ -17,7 +17,7 @@ class ImageRectification:
         self.collumn_width_m = barrier_dimensions["collumn_width"]
         self.meters_pixel_ratio = undistort_meters_pixel_ratio
         self.grid_width_px = int(self.grid_width_m / self.meters_pixel_ratio)
-        self.grid_height_px = None
+        self.grid_height_px = int(self.grid_height_m / self.meters_pixel_ratio)
         self.row_direction_meters_pixel_ratio = None
         self.collumn_width_px = int(
             self.collumn_width_m / self.meters_pixel_ratio)
@@ -51,12 +51,13 @@ class ImageRectification:
             box[3] = int(grid_lowest_point)
 
         # For each box, rectify according to the desired dimension and add to the output image
+        # Resize the rows so we have the intended meters per pixel ratio in Y direction
         if len(image.shape) == 2:
             self.rectified_image = ndarray(
-                shape=(grid_lowest_point - grid_highest_point, 1), dtype=uint8)
+                shape=(self.grid_height_px, 1), dtype=uint8)
         else:
             self.rectified_image = ndarray(
-                shape=(grid_lowest_point - grid_highest_point, 1, image.shape[2]), dtype=uint8)
+                shape=(self.grid_height_px, 1, image.shape[2]), dtype=uint8)
         for box, box_type in zip(boxes, types):
             image_section = image[box[1]:box[3], box[0]:box[2]]
             rectified_section = self.rectify_image_section(
@@ -116,7 +117,7 @@ class ImageRectification:
         img = Image.fromarray(image_section)
         # Desired new width from the box type, keeping the same height
         new_width = self.grid_width_px if box_type == 'grid' else self.collumn_width_px
-        new_height = img.size[1]
+        new_height = self.grid_height_px
         resized_img = img.resize(
             (new_width, new_height), Image.Resampling.LANCZOS)
         return array(resized_img)
