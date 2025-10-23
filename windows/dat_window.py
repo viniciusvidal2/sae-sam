@@ -1,19 +1,16 @@
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog,
-    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QSizePolicy
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread
-from workers.apex_worker import ApexWorker
 from modules.path_tool import get_file_placement_path
-from modules.report_generator import ReportGenerator
-from windows.editable_labels import EditableImageLabel
 
 
 class DatWindow(QMainWindow):
-    ##############################################################################################
-    # region Constructor
+##############################################################################################
+# region Constructor
     def __init__(self) -> None:
         """Constructor for the main window
         """
@@ -26,6 +23,7 @@ class DatWindow(QMainWindow):
         # Default values for the window control
         self.skip_print = "------------------------------------------------"
         self.dat_son_idx_files_found = False
+        self.label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
 
         # Setup the UI background
         self.setup_background()
@@ -43,7 +41,7 @@ class DatWindow(QMainWindow):
             }
         """)
 
-        # Left panel layout - data input btns, dat process and 
+        # Left panel layout - data input btns, dat process and
         self.left_panel = QWidget()
         left_layout = QVBoxLayout(self.left_panel)
         self.setup_left_panel(left_layout)
@@ -62,21 +60,24 @@ class DatWindow(QMainWindow):
         splitter.addWidget(self.left_panel)
         splitter.addWidget(self.middle_panel)
         splitter.addWidget(self.right_panel)
-        splitter.setSizes([self.width() // 3, self.width() // 3, self.width() // 3])
+        splitter.setSizes(
+            [self.width() // 3, self.width() // 3, self.width() // 3])
         main_layout.addWidget(splitter)
 
-    # endregion
-    ##############################################################################################
-    # region Setup UI
+# endregion
+##############################################################################################
+# region Setup UI
     def setup_left_panel(self, layout: QVBoxLayout) -> None:
         """Setups the left panel in the main window
         """
         # Input dat path layout
         input_dat_layout = QHBoxLayout()
         self.dat_path_label = QLabel("DAT File:", self)
+        self.dat_path_label.setStyleSheet(self.label_style)
         self.dat_path_line_edit = QLineEdit(self)
         self.dat_path_browse_btn = QPushButton("Browse", self)
-        self.dat_path_browse_btn.clicked.connect(self.dat_path_browse_btn_callback)
+        self.dat_path_browse_btn.clicked.connect(
+            self.dat_path_browse_btn_callback)
         input_dat_layout.addWidget(self.dat_path_label)
         input_dat_layout.addWidget(self.dat_path_line_edit)
         input_dat_layout.addWidget(self.dat_path_browse_btn)
@@ -87,9 +88,6 @@ class DatWindow(QMainWindow):
         self.output_panel = QTextEdit(self)
         self.output_panel.setReadOnly(True)
         self.output_panel.setPlaceholderText("Output log for the user...")
-        # Setting styles
-        label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
-        self.dat_path_label.setStyleSheet(label_style)
         # Add widgets to the layout
         layout.addLayout(input_dat_layout)
         layout.addWidget(self.dat_process_btn)
@@ -98,7 +96,34 @@ class DatWindow(QMainWindow):
     def setup_middle_panel(self, layout: QVBoxLayout) -> None:
         """Setups the middle panel in the main window
         """
-        pass
+        # Image labels
+        self.image_label = QLabel("Extracted image processing:", self)
+        self.image_label.setStyleSheet(self.label_style)
+        self.extracted_image_label = QLabel(self)
+        self.extracted_image_label.setStyleSheet(self.label_style)
+        self.extracted_image_label.setAlignment(Qt.AlignCenter)
+        self.extracted_image_label.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.extracted_image_label.setScaledContents(True)
+        # Add the background image for starters
+        placeholder_pixmap = QPixmap(
+            get_file_placement_path("resources/dat.png"))
+        self.extracted_image_label.setPixmap(placeholder_pixmap)
+        # Buttons
+        btns_layout = QHBoxLayout()
+        self.crop_btn = QPushButton("Crop Image", self)
+        self.crop_btn.clicked.connect(self.crop_btn_callback)
+        self.reset_image_btn = QPushButton("Reset Image", self)
+        self.reset_image_btn.clicked.connect(self.reset_image_btn_callback)
+        self.save_image_btn = QPushButton("Save Image", self)
+        self.save_image_btn.clicked.connect(self.save_image_btn_callback)
+        btns_layout.addWidget(self.crop_btn)
+        btns_layout.addWidget(self.reset_image_btn)
+        btns_layout.addWidget(self.save_image_btn)
+        # Add widgets to the layout
+        layout.addWidget(self.image_label)
+        layout.addWidget(self.extracted_image_label)
+        layout.addLayout(btns_layout)
 
     def setup_right_panel(self, layout: QVBoxLayout) -> None:
         """Setups the right panel in the main window
@@ -137,9 +162,9 @@ class DatWindow(QMainWindow):
         self.editable_image_label.text_labels.clear()
         super().destroyEvent()
 
-    # endregion
-    ##############################################################################################
-    # region Callbacks
+# endregion
+##############################################################################################
+# region Callbacks
     def dat_path_browse_btn_callback(self) -> None:
         """Callback for the browse button
         """
@@ -158,15 +183,20 @@ class DatWindow(QMainWindow):
             if os.path.isdir(folder_path):
                 # The folder should have several .IDX and .SON files
                 # Count them up and return
-                idx_files = [f for f in os.listdir(folder_path) if f.endswith(".idx")]
-                son_files = [f for f in os.listdir(folder_path) if f.endswith(".son")]
-                self.log_output(f"Found {len(idx_files)} IDX files and {len(son_files)} SON files.")
+                idx_files = [f for f in os.listdir(
+                    folder_path) if f.endswith(".idx")]
+                son_files = [f for f in os.listdir(
+                    folder_path) if f.endswith(".son")]
+                self.log_output(
+                    f"Found {len(idx_files)} IDX files and {len(son_files)} SON files.")
                 if len(idx_files) != len(son_files):
-                    self.log_output("Warning: The number of IDX and SON files do not match, corrupted data!")
+                    self.log_output(
+                        "Warning: The number of IDX and SON files do not match, corrupted data!")
                 else:
                     self.dat_son_idx_files_found = True
             else:
-                self.log_output("No subfolder found with the same name of the DAT file. Missing SON/IDX files!")
+                self.log_output(
+                    "No subfolder found with the same name of the DAT file. Missing SON/IDX files!")
         else:
             self.log_output("No valid DAT path was inserted.")
         self.enable_buttons()
@@ -178,6 +208,35 @@ class DatWindow(QMainWindow):
         self.log_output(self.skip_print)
         self.log_output("Starting process...")
         self.enable_buttons()
+
+    def crop_btn_callback(self) -> None:
+        """Callback for the crop image btn
+        """
+        self.disable_buttons()
+        self.log_output(self.skip_print)
+        self.log_output("Crop image button clicked.")
+        self.enable_buttons()
+
+    def reset_image_btn_callback(self) -> None:
+        """Callback for the reset image btn
+        """
+        self.disable_buttons()
+        self.log_output(self.skip_print)
+        self.log_output("Reset image button clicked.")
+        self.enable_buttons()
+
+    def save_image_btn_callback(self) -> None:
+        """Callback for the save image btn
+        """
+        self.disable_buttons()
+        self.log_output(self.skip_print)
+        self.log_output("Save image button clicked.")
+        self.enable_buttons()
+
+
+# endregion
+##############################################################################################
+# region Utility functions
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
@@ -204,11 +263,12 @@ class DatWindow(QMainWindow):
         self.toggle_btn.setEnabled(False)
         self.download_image_btn.setEnabled(False)
         self.download_report_btn.setEnabled(False)
-    # endregion
 
-
+# endregion
 ##############################################################################################
 # region Main
+
+
 if __name__ == "__main__":
     import sys
     from PySide6.QtWidgets import QApplication
