@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog,
-    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QSizePolicy
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
-from PySide6.QtCore import Qt, QThread, QSize
+from PySide6.QtCore import Qt, QThread
 from workers.apex_worker import ApexWorker
 from modules.path_tool import get_file_placement_path
 from modules.report_generator import ReportGenerator

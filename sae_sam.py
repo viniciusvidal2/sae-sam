@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QFont, QGuiApplication
 from PySide6.QtCore import Qt, QTimer
 from windows.apex_window import ApexWindow
+from windows.dat_window import DatWindow
 from windows.saesc_window import SaescWindow
 from windows.mb2_opt_window import Mb2OptWindow
 from modules.path_tool import get_file_placement_path
@@ -191,7 +192,12 @@ class MainWindow(QMainWindow):
         """
         # Create and add to the list of child windows
         # The child windows are stored in a list to be closed when the main window is closed
-        pass
+        dat_window = DatWindow()
+        self.child_windows.append(dat_window)
+        dat_window.setAttribute(Qt.WA_DeleteOnClose)
+        dat_window.destroyed.connect(
+            lambda: self.child_windows.remove(dat_window))
+        dat_window.show()
 
     def open_apex_window(self) -> None:
         """Open the Apex window.
