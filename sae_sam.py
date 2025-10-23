@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         self.setup_buttons(left_layout)
         # Right panel with the label
         self.right_panel = QWidget()
+        self.right_panel.setFixedWidth(self.label_size[0])
         right_layout = QVBoxLayout(self.right_panel)
         self.setup_label_panel(right_layout)
         # Add the panels to the main layout
