@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
         self.child_windows = []
         # Variables to control labels
         self.label_size = (300, 300)
+        self.dat_label_path = get_file_placement_path("resources/dat.png")
         self.apex_label_path = get_file_placement_path("resources/apex.png")
         self.hypack_label_path = get_file_placement_path(
             "resources/mb2_opt.png")
@@ -31,8 +32,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SAE SAM")
         self.setWindowIcon(
             QPixmap(get_file_placement_path("resources/saesam.png")))
-        self.setFixedWidth(500)
-        self.setFixedHeight(self.label_size[1] + 50)
+        self.setFixedWidth(600)
+        self.setFixedHeight(self.label_size[1])
         screen = QGuiApplication.primaryScreen()
         screen_geometry = screen.geometry()
         window_geometry = self.frameGeometry()
@@ -80,6 +81,28 @@ class MainWindow(QMainWindow):
         """Set up the buttons for the main window.
         """
         # Create one button for each isolated program module
+        self.button_dat = QPushButton("Apex DAT processing", self)
+        self.button_dat.clicked.connect(self.open_dat_window)
+        self.button_dat.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.button_dat.enterEvent = lambda event: self.label_programs.setPixmap(
+            QPixmap(self.dat_label_path).scaled(
+                self.label_size[0], self.label_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.button_dat.setStyleSheet("""
+            QPushButton {
+                background-color: #f9f9f0;
+                color: black;
+                font-size: 18px;
+                border-radius: 8px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #f0f0f9;
+            }
+            QPushButton:pressed {
+                background-color: #f0f0f9;
+            }
+        """)
         self.button_appex = QPushButton("Apex image processing", self)
         self.button_appex.clicked.connect(self.open_apex_window)
         self.button_appex.setSizePolicy(
@@ -147,6 +170,7 @@ class MainWindow(QMainWindow):
             }
         """)
         # Add them the layout
+        layout.addWidget(self.button_dat)
         layout.addWidget(self.button_appex)
         layout.addWidget(self.button_hypack)
         layout.addWidget(self.button_saesc)
@@ -161,6 +185,13 @@ class MainWindow(QMainWindow):
         self.label_programs.setAlignment(Qt.AlignCenter)
         # Add the label to the layout
         layout.addWidget(self.label_programs)
+
+    def open_dat_window(self) -> None:
+        """Open the Sonar DAT processing window.
+        """
+        # Create and add to the list of child windows
+        # The child windows are stored in a list to be closed when the main window is closed
+        pass
 
     def open_apex_window(self) -> None:
         """Open the Apex window.
