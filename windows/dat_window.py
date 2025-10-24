@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread
 from modules.path_tool import get_file_placement_path
+from windows.son_proc_label import SonProcLabel
 
 
 class DatWindow(QMainWindow):
@@ -97,9 +98,10 @@ class DatWindow(QMainWindow):
         """Setups the middle panel in the main window
         """
         # Image labels
-        self.image_label = QLabel("Extracted image processing:", self)
-        self.image_label.setStyleSheet(self.label_style)
-        self.extracted_image_label = QLabel(self)
+        self.image_description_label = QLabel("Extracted image processing:", self)
+        self.image_description_label.setAlignment(Qt.AlignCenter)
+        self.image_description_label.setStyleSheet(self.label_style)
+        self.extracted_image_label = SonProcLabel()
         self.extracted_image_label.setStyleSheet(self.label_style)
         self.extracted_image_label.setAlignment(Qt.AlignCenter)
         self.extracted_image_label.setSizePolicy(
@@ -108,10 +110,13 @@ class DatWindow(QMainWindow):
         # Add the background image for starters
         placeholder_pixmap = QPixmap(
             get_file_placement_path("resources/dat.png"))
-        self.extracted_image_label.setPixmap(placeholder_pixmap)
+        self.extracted_image_label.set_pixmap(placeholder_pixmap)
         # Buttons
         btns_layout = QHBoxLayout()
-        self.crop_btn = QPushButton("Crop Image", self)
+        self.crop_btn = QPushButton("Enable Crop Tool", self)
+        self.crop_btn.setToolTip("Crop the image based on selection (ENTER to confirm, ESC to cancel)")
+        self.crop_btn.setCheckable(True)
+        self.crop_btn.setChecked(False)
         self.crop_btn.clicked.connect(self.crop_btn_callback)
         self.reset_image_btn = QPushButton("Reset Image", self)
         self.reset_image_btn.clicked.connect(self.reset_image_btn_callback)
@@ -121,7 +126,7 @@ class DatWindow(QMainWindow):
         btns_layout.addWidget(self.reset_image_btn)
         btns_layout.addWidget(self.save_image_btn)
         # Add widgets to the layout
-        layout.addWidget(self.image_label)
+        layout.addWidget(self.image_description_label)
         layout.addWidget(self.extracted_image_label)
         layout.addLayout(btns_layout)
 
@@ -209,13 +214,23 @@ class DatWindow(QMainWindow):
         self.log_output("Starting process...")
         self.enable_buttons()
 
-    def crop_btn_callback(self) -> None:
+    def crop_btn_callback(self, checked: bool) -> None:
         """Callback for the crop image btn
         """
-        self.disable_buttons()
         self.log_output(self.skip_print)
-        self.log_output("Crop image button clicked.")
-        self.enable_buttons()
+        """Enable or disable crop mode."""
+        if checked:
+            self.disable_buttons()
+            self.crop_btn.setEnabled(True)
+            self.log_output("Image cropping enabled.")
+            self.extracted_image_label.enable_crop_mode(True)
+            self.crop_btn.setText("Cancel Crop Tool")
+            self.extracted_image_label.setFocus()
+        else:
+            self.enable_buttons()
+            self.log_output("Image cropping disabled.")
+            self.extracted_image_label.enable_crop_mode(False)
+            self.crop_btn.setText("Enable Crop Tool")
 
     def reset_image_btn_callback(self) -> None:
         """Callback for the reset image btn
@@ -249,20 +264,20 @@ class DatWindow(QMainWindow):
     def enable_buttons(self) -> None:
         """Enables the buttons in the window
         """
-        self.load_btn.setEnabled(True)
-        self.process_btn.setEnabled(True)
-        self.toggle_btn.setEnabled(True)
-        self.download_image_btn.setEnabled(True)
-        self.download_report_btn.setEnabled(True)
+        self.dat_path_browse_btn.setEnabled(True)
+        self.dat_process_btn.setEnabled(True)
+        self.crop_btn.setEnabled(True)
+        self.reset_image_btn.setEnabled(True)
+        self.save_image_btn.setEnabled(True)
 
     def disable_buttons(self) -> None:
         """Disables the buttons in the window
         """
-        self.load_btn.setEnabled(False)
-        self.process_btn.setEnabled(False)
-        self.toggle_btn.setEnabled(False)
-        self.download_image_btn.setEnabled(False)
-        self.download_report_btn.setEnabled(False)
+        self.dat_path_browse_btn.setEnabled(False)
+        self.dat_process_btn.setEnabled(False)
+        self.crop_btn.setEnabled(False)
+        self.reset_image_btn.setEnabled(False)
+        self.save_image_btn.setEnabled(False)
 
 # endregion
 ##############################################################################################
