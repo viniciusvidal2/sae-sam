@@ -16,3 +16,10 @@ onnxruntime==1.16.3
 pyinstaller==6.11.1
 reportlab==4.4.0
 pillow==10.4.0
+joblib==1.4.2
+scikit-image==0.21.0
+PyWavelets==1.4.1
+lazy_loader==0.4
+tifffile==2023.7.10
+pingverter==2.0.8
+pyproj==3.5.0
