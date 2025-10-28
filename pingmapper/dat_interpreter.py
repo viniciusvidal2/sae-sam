@@ -2,6 +2,8 @@ import os
 import json
 import time
 import datetime
+import numpy as np
+import cv2
 from pingmapper.main_readFiles import read_master_func
 from modules.path_tool import get_file_placement_path
 
@@ -137,12 +139,72 @@ class DatInterpreter:
         # Try to acquire the images from the DAT and SON files, and save them in the project path
         start_time = time.time()
         try:
+            # Generate image tiles
             read_master_func(**self.params)
+            # Merge and save waterfall images
+            merged = self.merge_save_waterfall_images()
+            if not merged:
+                return "Error during merging and saving waterfall images."
             process_time = datetime.timedelta(
                 seconds=round(time.time() - start_time, ndigits=0))
             return f"Waterfall images generated successfully in {self.output_project_path}.\nTotal Processing Time: {process_time}"
         except Exception as Argument:
             return f"Error during processing: {str(Argument)}"
 
-    def get_image_root_path(self):
-        pass
+    def merge_save_waterfall_images(self) -> bool:
+        """Merge and save the waterfall images
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Subfolders in project folder
+        if not self.output_project_path:
+            return False
+        high_freq_folder = os.path.join(
+            self.output_project_path, "ds_highfreq", "wcp")
+        very_high_freq_folder = os.path.join(
+            self.output_project_path, "ds_vhighfreq", "wcp")
+        if not os.path.exists(high_freq_folder) or not os.path.exists(very_high_freq_folder):
+            return False
+        # Get the list of files in each folder
+        high_freq_files = sorted(
+            [f for f in os.listdir(high_freq_folder) if f.endswith('.jpg')])
+        very_high_freq_files = sorted(
+            [f for f in os.listdir(very_high_freq_folder) if f.endswith('.jpg')])
+        high_freq_image = self._merge_image_tiles(
+            image_files_list=high_freq_files, folder=high_freq_folder)
+        very_high_freq_image = self._merge_image_tiles(
+            image_files_list=very_high_freq_files, folder=very_high_freq_folder)
+        # Save merged images
+        merged_high_freq_path = os.path.join(
+            self.output_project_path, "highfreq_image_merged.jpg")
+        merged_very_high_freq_path = os.path.join(
+            self.output_project_path, "very_highfreq_image_merged.jpg")
+        cv2.imwrite(merged_high_freq_path, high_freq_image)
+        cv2.imwrite(merged_very_high_freq_path, very_high_freq_image)
+        return True
+
+    def _merge_image_tiles(self, image_files_list: list, folder: str) -> np.ndarray:
+        """
+        Merge image tiles into a single image
+
+        Args:
+            image_files_list (list): List of image paths to merge
+            folder (str): Folder where the image files are located
+
+        Returns:
+            np.ndarray: Merged image array
+        """
+        # Read every image and get the one with the lowest height
+        min_height = float('inf')
+        images = []
+        for img_file in image_files_list:
+            img = cv2.imread(os.path.join(folder, img_file))
+            images.append(img)
+            if img.shape[0] < min_height:
+                min_height = img.shape[0]
+        # Resize images to the minimum height and concatenate vertically
+        resized_images = [cv2.resize(
+            img, (img.shape[1], min_height)) for img in images]
+        merged_image = cv2.hconcat(resized_images)
+        return merged_image
