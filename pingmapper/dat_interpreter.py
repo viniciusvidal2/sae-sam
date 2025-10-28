@@ -4,12 +4,13 @@ import time
 import datetime
 import numpy as np
 import cv2
+import shutil
 from pingmapper.main_readFiles import read_master_func
 from modules.path_tool import get_file_placement_path
 
 
 class DatInterpreter:
-    def __init__(self):
+    def __init__(self) -> None:
         """Class constructor"""
         # Initialize default parameters
         self.default_params_file = get_file_placement_path(
@@ -145,6 +146,9 @@ class DatInterpreter:
             merged = self.merge_save_waterfall_images()
             if not merged:
                 return "Error during merging and saving waterfall images."
+            # Clean temporary files in the project folder
+            self._clean_project_folder()
+            # Return success message with processing time
             process_time = datetime.timedelta(
                 seconds=round(time.time() - start_time, ndigits=0))
             return f"Waterfall images generated successfully in {self.output_project_path}.\nTotal Processing Time: {process_time}"
@@ -208,3 +212,18 @@ class DatInterpreter:
             img, (img.shape[1], min_height)) for img in images]
         merged_image = cv2.hconcat(resized_images)
         return merged_image
+    
+    def _clean_project_folder(self) -> None:
+        """Clean temporary files in the project folder"""
+        # Folders to remove, independently if they are empty or not
+        temp_folders = ['ds_highfreq', 'ds_vhighfreq', 'unknown',
+                        'meta', 'processing_scripts']
+        for folder in temp_folders:
+            folder_path = os.path.join(
+                self.output_project_path, folder)
+            if os.path.exists(folder_path):
+                try:
+                    # Remove the folder and its contents
+                    shutil.rmtree(folder_path)
+                except Exception as e:
+                    print(f"Error removing folder {folder_path}: {str(e)}")
