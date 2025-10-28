@@ -70,6 +70,7 @@ class DatWindow(QMainWindow):
         input_dat_layout = QHBoxLayout()
         self.dat_path_label = QLabel("DAT File:", self)
         self.dat_path_label.setStyleSheet(self.label_style)
+        self.dat_path_label.setFixedWidth(75)
         self.dat_path_line_edit = QLineEdit(self)
         self.dat_path_browse_btn = QPushButton("Browse", self)
         self.dat_path_browse_btn.clicked.connect(
@@ -77,6 +78,18 @@ class DatWindow(QMainWindow):
         input_dat_layout.addWidget(self.dat_path_label)
         input_dat_layout.addWidget(self.dat_path_line_edit)
         input_dat_layout.addWidget(self.dat_path_browse_btn)
+        # Project output path layout
+        project_output_layout = QHBoxLayout()
+        self.project_output_label = QLabel("Project path:", self)
+        self.project_output_label.setStyleSheet(self.label_style)
+        self.project_output_label.setFixedWidth(75)
+        self.project_output_line_edit = QLineEdit(self)
+        self.project_output_browse_btn = QPushButton("Browse", self)
+        self.project_output_browse_btn.clicked.connect(
+            self.project_output_browse_btn_callback)
+        project_output_layout.addWidget(self.project_output_label)
+        project_output_layout.addWidget(self.project_output_line_edit)
+        project_output_layout.addWidget(self.project_output_browse_btn)
         # Process button
         self.dat_process_btn = QPushButton("Process DAT", self)
         self.dat_process_btn.clicked.connect(self.dat_process_btn_callback)
@@ -229,6 +242,7 @@ class DatWindow(QMainWindow):
         reset_buttons_layout.addWidget(self.reset_filters_btn)
         # Add them all to the left layout
         layout.addLayout(input_dat_layout)
+        layout.addLayout(project_output_layout)
         layout.addWidget(self.dat_process_btn)
         layout.addWidget(self.output_panel)
         layout.addLayout(contrast_layout)
@@ -347,6 +361,21 @@ class DatWindow(QMainWindow):
                     "No subfolder found with the same name of the DAT file. Missing SON/IDX files!")
         else:
             self.log_output("No valid DAT path was inserted.")
+        self.enable_buttons()
+
+    def project_output_browse_btn_callback(self) -> None:
+        """Callback for the project output browse button
+        """
+        self.disable_buttons()
+        self.log_output(self.skip_print)
+        self.project_output_path = QFileDialog.getExistingDirectory(
+            self, "Select Project Output Directory", ""
+        )
+        if self.project_output_path:
+            self.log_output(f"Selected project output path: {self.project_output_path}")
+            self.project_output_line_edit.setText(self.project_output_path)
+        else:
+            self.log_output("No valid project output path was selected.")
         self.enable_buttons()
 
     def dat_process_btn_callback(self) -> None:
