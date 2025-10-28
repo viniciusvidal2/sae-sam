@@ -260,9 +260,6 @@ class sonObj(object):
         self._loadSonMeta()
         sonDF = self.sonMetaDF
 
-        # print('len', len(sonDF))
-        # print(sonDF)
-
         #############################
         # Do Heading Deviation Filter
         if max_heading_dev > 0:
@@ -445,7 +442,6 @@ class sonObj(object):
                 # Find 'polygon' coords in nested json
                 # polys = []
                 # poly_coords = getPolyCoords(f, 'polygon')
-                # print(poly_coords)
 
                 f = f['mission']
                 f = f['items']
@@ -475,7 +471,6 @@ class sonObj(object):
             aoi_poly_all = gpd.read_file(aoi)
 
         else:
-            print(os.path.basename, ' is not a valid aoi file type.')
             sys.exit()
 
         # Reproject to utm
@@ -1348,15 +1343,8 @@ class sonObj(object):
                         preserve_range=True
                     )
                 if estimated_MB > safe_limit_MB:
-                    print(
-                        f"Resize skipped for chunk {chunk}: estimated {estimated_MB:.2f} MB exceeds safe limit of {safe_limit_MB:.2f} MB.")
+                    pass
                     # Optionally: fallback to chunked resize or downsampling
-                elif new_cols > 65500:
-                    print(
-                        f"Resize skipped for chunk {chunk}: Maximum supported image dimension is 65500 pixels.")
-                elif d == 0:
-                    print(
-                        f"Resize skipped for chunk {chunk}: Vessel did not move.")
                 else:
                     pass
 
@@ -1698,19 +1686,6 @@ class sonObj(object):
         return
 
     # ======================================================================
-
-    def __str__(self):
-        '''
-        Generic print function to print contents of sonObj.
-        '''
-        output = "sonObj Contents"
-        output += '\n\t'
-        output += self.__repr__()
-        temp = vars(self)
-        for item in temp:
-            output += '\n\t'
-            output += "{} : {}".format(item, temp[item])
-        return output
 
     ############################################################################
     # Corrections                                                              #

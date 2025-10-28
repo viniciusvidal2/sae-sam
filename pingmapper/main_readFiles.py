@@ -247,7 +247,6 @@ def read_master_func(logfilename='',
     #####################################
     # Show version
     from pingmapper.version import __version__
-    print("\nPING-Mapper v{}".format(__version__))
 
     ###############################################
     # Specify multithreaded processing thread count
@@ -268,7 +267,6 @@ def read_master_func(logfilename='',
 
     if threadCnt > cpu_count():  # If more than total avail. threads, make cpu_count()
         threadCnt = cpu_count()
-        print("\nWARNING: Specified more process threads then available, \nusing {} threads instead.".format(threadCnt))
 
     #######################################
     # Use PINGVerter to read the sonar file
@@ -318,8 +316,6 @@ def read_master_func(logfilename='',
         son.son8bit = sonar_obj.son8bit
         son.export_beam = True
 
-        # print(son.beamName, son.son8bit)
-
         if pix_res_son == 0:
             son.pix_res_son = 0
         else:
@@ -350,37 +346,21 @@ def read_master_func(logfilename='',
         if son.beamName == 'ss_port' or son.beamName == 'ss_star':
             ss_chan_avail.append(son)
     if len(ss_chan_avail) == 0:
-        # print('\n\nNo side-scan channels available. Aborting!')
-        # sys.exit()
-
-        print('\n\nNo side-scan channels available!\nUpdating processing parameters as necessary...')
-        print('\nFiltering not avaialable...')
         max_heading_deviation = 0
         min_speed = 0
         max_speed = 0
         aoi = ''
         time_table = ''
-
-        print('\nAuto depth picking not available...')
         detectDep = 0
         pltBedPick = False
-
-        print('\nShadow removal not available')
         remShadow = 0
         pred_sub = False
-
-        print('\nEGN not available...')
         egn = False
-
-        print('\nWCO and WCM not available...')
         wco = False
         wcm = False
 
     elif len(ss_chan_avail) == 1:
-        print('\n\nMaking copy of {} to ensure PINGMapper compatibility'.format(
-            son.beamName))
         origBeam = son.beamName
-        print(son.beam, son.beamName)
         son_copy = copy.deepcopy(ss_chan_avail[0])
         son_copy.beamName = ss_dups[origBeam][0]
         son_copy.beam = ss_dups[origBeam][1]
@@ -523,7 +503,6 @@ def read_master_func(logfilename='',
 
         # Output pixel resolution
         if son.pix_res_son != pix_res_son:
-            print("\nSetting output pixel resolution to {}".format(pix_res_son))
             for son in sonObjs:
                 if pix_res_son == 0:
                     son.pix_res_son = son.pixM
@@ -538,13 +517,9 @@ def read_master_func(logfilename='',
         if son.fixNoDat == True:
             # Missing pings already located, set fixNoDat to False
             fixNoDat = False
-            print("\nMissing pings detected previously.")
-            print("\tSetting fixNoDat to FALSE.")
 
         if son.detectDep == detectDep:
             detectDep = -1
-            print("\nUsing previously exported depths.")
-            print("\tSetting detectDep to -1.")
             if detectDep > 0:
                 autoBed = True
             else:
@@ -555,9 +530,6 @@ def read_master_func(logfilename='',
                 if son.beamName == "ss_port":
                     if son.remShadow == remShadow:
                         remShadow = -1*remShadow
-                        print(
-                            "\nUsing previous shadow settings. No need to re-process.")
-                        print("\tSetting remShadow to {}.".format(remShadow))
                 else:
                     pass
 
@@ -566,9 +538,6 @@ def read_master_func(logfilename='',
                 if son.beamName == "ss_port":
                     if son.egn == egn:
                         egn = False
-                        print(
-                            "\nUsing previous empiracal gain normalization settings. No need to re-process.")
-                        print("\tSetting egn to 0.")
                 else:
                     pass
 
@@ -577,10 +546,6 @@ def read_master_func(logfilename='',
                 if son.beamName == "ss_port":
                     if son.remShadow > 0:
                         pred_sub = 0
-                        # remShadow = 0
-                        print(
-                            "\nSetting pred_sub to 0 so shadow settings aren't effected.")
-                        print("\tDon't worry, substrate will still be predicted...")
                 else:
                     pass
 
@@ -608,7 +573,6 @@ def read_master_func(logfilename='',
 
     if fixNoDat:
         # Open each beam df, store beam name in new field, then concatenate df's into one
-        print("\nLocating missing pings and adding NoData...")
         frames = []
         for son in sonObjs:
             son._loadSonMeta()
@@ -710,28 +674,13 @@ def read_master_func(logfilename='',
             for son in sonObjs:
                 son.fixNoDat = fixNoDat
 
-    ############################################################################
-    # Print Metadata Summary                                                   #
-    ############################################################################
-    # Print a summary of min/max/avg metadata values. At same time, do simple
-    # check to make sure data are valid.
-
     if project_mode != 2:
-        print("\nSummary of Ping Metadata:\n")
 
         invalid = defaultdict()  # store invalid values
 
         for son in sonObjs:  # Iterate each sonar object
-            print(son.beam, ":", son.beamName)
             son._loadSonMeta()
             df = son.sonMetaDF
-            print("Ping Count:", len(df))
-            print(
-                "______________________________________________________________________________")
-            print("{:<20s} | {:<15s} | {:<15s} | {:<15s} | {:<5s}".format(
-                "Attribute", "Minimum", "Maximum", "Average", "Valid"))
-            print(
-                "______________________________________________________________________________")
             for att in df.columns:
 
                 # Find min/max/avg of each column
@@ -765,28 +714,9 @@ def read_master_func(logfilename='',
                     valid = False
                     invalid[son.beam+"."+att] = False
 
-                print("{:<15s} | {:<15s} | {:<15s} | {:<15s} | {:<5s}".format(
-                    att, str(attMin), str(attMax), str(attAvg), str(valid)))
-
             son._cleanup()
-            print("\n")
         del son, df, att, attAvg, attMin, attMax, valid
-
-        if len(invalid) > 0:
-            print("*******************************\n****WARNING: INVALID VALUES****\n*******************************")
-            print("_______________________________")
-            print("{:<15s} | {:<15s}".format("Sonar Channel", "Attribute"))
-            print("_______________________________")
-            for key, val in invalid.items():
-                print("{:<15s} | {:<15s}".format(
-                    key.split(".")[0], key.split(".")[1]))
-            print("\n*******************************\n****WARNING: INVALID VALUES****\n*******************************")
-            print("\nPING-Mapper detected issues with\nthe values stored in the above\nsonar channels and attributes.")
         del invalid
-
-        print("\nDone!")
-        print("Time (s):", round(time.time() - start_time, ndigits=1))
-        # printUsage()
 
     for son in sonObjs:
         son._pickleSon()
@@ -798,8 +728,6 @@ def read_master_func(logfilename='',
     if max_heading_deviation > 0 or min_speed > 0 or max_speed > 0 or aoi or time_table:
 
         start_time = time.time()
-
-        print('\n\nFiltering sonar log...')
 
         # Do port/star and down beams seperately
         downbeams = []
@@ -885,10 +813,6 @@ def read_master_func(logfilename='',
             del df
             son._cleanup()
 
-        print("\nDone!")
-        print("Time (s):", round(time.time() - start_time, ndigits=1))
-        # printUsage()
-
     ############################################################################
     # For Depth Detection                                                      #
     ############################################################################
@@ -922,8 +846,6 @@ def read_master_func(logfilename='',
 
     # # Automatically estimate depth
     if detectDep > 0:
-        print('\n\nAutomatically estimating depth for', len(chunks), 'chunks:')
-
         # Dictionary to store chunk : np.array(depth estimate)
         psObj.portDepDetect = {}
         psObj.starDepDetect = {}
@@ -940,12 +862,7 @@ def read_master_func(logfilename='',
                 modelDir, depthModelVer, 'config', depthModelVer+'.json')
             psObj.weights = os.path.join(
                 modelDir, depthModelVer, 'weights', depthModelVer+'_fullmodel.h5')
-            print('\n\tUsing Zheng et al. 2021 method. Loading model:',
-                  os.path.basename(psObj.weights))
 
-        # With binary thresholding
-        elif detectDep == 2:
-            print('\n\tUsing binary thresholding...')
 
         # Parallel estimate depth for each chunk using appropriate method
         r = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(psObj._detectDepth)(
@@ -965,7 +882,6 @@ def read_master_func(logfilename='',
 
     # Don't estimate depth, use instrument depth estimate (sonar derived)
     elif detectDep == 0:
-        print('\n\nUsing instrument depth:')
         autoBed = False
         saveDepth = True
 
@@ -1019,21 +935,12 @@ def read_master_func(logfilename='',
         # Cleanup
         psObj._cleanup()
 
-        print("\nDone!")
-        print("Time (s):", round(time.time() - start_time, ndigits=1))
-        # printUsage()
-
     # Plot sonar depth and auto depth estimate (if available) on sonogram
     if pltBedPick:
         start_time = time.time()
 
-        print("\n\nExporting bedpick plots to {}...".format(tileFile))
         Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(psObj._plotBedPick)(
             int(chunk), True, autoBed, tileFile) for chunk in tqdm(chunks))
-
-        print("\nDone!")
-        print("Time (s):", round(time.time() - start_time, ndigits=1))
-        # printUsage()
 
     # Cleanup
     psObj._cleanup()
@@ -1064,16 +971,12 @@ def read_master_func(logfilename='',
         for son in sonObjs:
             if son.beamName == "ss_port":
                 if son.remShadow == 0:
-                    print('\n\nExporting banklines requires shadow removal')
-                    print('Setting remShadow==2...')
                     remShadow = 2
                     keepShadow = False
 
     # Need to detect shadows if mapping substrate
     if pred_sub:
         if remShadow == 0:
-            print('\n\nSubstrate mapping requires shadow removal')
-            print('Setting remShadow==2...')
             remShadow = 2
             keepShadow = True
         else:
@@ -1081,12 +984,6 @@ def read_master_func(logfilename='',
 
     if remShadow > 0:
         start_time = time.time()
-        print('\n\nAutomatically detecting shadows for', len(chunks), 'chunks:')
-
-        if remShadow == 1:
-            print('MODE: 1 | Remove all shadows...')
-        elif remShadow == 2:
-            print('MODE: 2 | Remove shadows in far-field (river bankpick)...')
 
         # Determine which sonObj is port/star
         portstar = []
@@ -1126,10 +1023,6 @@ def read_master_func(logfilename='',
 
         del r
 
-        print("\nDone!")
-        print("Time (s):", round(time.time() - start_time, ndigits=1))
-        # printUsage()
-
     else:
         if project_mode != 2:
             for son in sonObjs:
@@ -1155,10 +1048,8 @@ def read_master_func(logfilename='',
 
     if egn:
         start_time = time.time()
-        print("\nPerforming empirical gain normalization (EGN) on sonar intensities:\n")
         for son in sonObjs:
             if son.beamName == 'ss_port' or son.beamName == 'ss_star':
-                print('\n\tCalculating EGN for', son.beamName)
                 son.egn = True
                 son.egn_stretch = egn_stretch
 
@@ -1170,17 +1061,14 @@ def read_master_func(logfilename='',
                 son._loadSonMeta()
 
                 # Calculate range-wise mean intensity for each chunk
-                print('\n\tCalculating range-wise mean intensity for each chunk...')
                 chunk_means = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(
                     delayed(son._egnCalcChunkMeans)(i) for i in tqdm(chunks))
 
                 # Calculate global means
-                print('\n\tCalculating range-wise global means...')
                 son._egnCalcGlobalMeans(chunk_means)
                 del chunk_means
 
                 # Calculate egn min and max for each chunk
-                print('\n\tCalculating EGN min and max values for each chunk...')
                 min_max = Parallel(n_jobs=np.min([len(chunks)]))(
                     delayed(son._egnCalcMinMax)(i) for i in tqdm(chunks))
 
@@ -1232,12 +1120,8 @@ def read_master_func(logfilename='',
                     # Determine what chunks to process
                     chunks = son._getChunkID()
                     chunks = chunks[:-1]  # remove last chunk
-
-                    print('\n\tCalculating EGN corrected histogram for', son.beamName)
                     hist = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(
                         delayed(son._egnCalcHist)(i) for i in tqdm(chunks))
-
-                    print('\n\tCalculating global EGN corrected histogram')
                     son._egnCalcGlobalHist(hist)
 
             # Now calculate true global histogram
@@ -1300,12 +1184,6 @@ def read_master_func(logfilename='',
                     son.egn_wcr_stretch_min = wcr_stretch[0]
                     son.egn_wcr_stretch_max = wcr_stretch[1]
 
-                    print('\n\n\nMinMax Global Stretch Vals')
-                    print('wcr', son.egn_wcr_stretch_min,
-                          son.egn_wcr_stretch_max)
-                    print('wcp', son.egn_wcp_stretch_min,
-                          son.egn_wcp_stretch_max)
-
                     # Tidy up
                     son._cleanup()
                     son._pickleSon()
@@ -1332,7 +1210,6 @@ def read_master_func(logfilename='',
 
     if wcp or wcr or wco or wcm:
         start_time = time.time()
-        print("\nExporting sonogram tiles:\n")
         for son in sonObjs:
             if (son.wcp or son.wcr_src or son.wco or son.wcm) and son.export_beam:
                 # Set outDir
@@ -1352,8 +1229,6 @@ def read_master_func(logfilename='',
                     chunkCnt += len(chunks)
                 if son.wco:
                     chunkCnt += len(chunks)
-
-                print('\n\tExporting', chunkCnt, 'sonograms for', son.beamName)
 
                 # Load sonMetaDF
                 son._loadSonMeta()
@@ -1452,9 +1327,6 @@ def read_master_func(logfilename='',
             gc.collect()
 
         del son
-        print("\nDone!")
-        print("Time (s):", round(time.time() - start_time, ndigits=1))
-        # printUsage()
 
     ##############################################
     # Let's pickle sonObj so we can reload later #

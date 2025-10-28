@@ -110,8 +110,6 @@ class portstarObj(object):
                 self.port = obj
             elif obj.beamName == 'ss_star':
                 self.star = obj
-            else:
-                print("Object is unknown...")
         return
 
     ############################################################################
@@ -917,7 +915,6 @@ class portstarObj(object):
             starInstDepth = starDF['inst_dep_m']
 
             if smthDep:
-                # print("\nSmoothing depth values...")
                 portInstDepth = savgol_filter(portInstDepth, 51, 3)
                 starInstDepth = savgol_filter(starInstDepth, 51, 3)
 
@@ -2040,7 +2037,6 @@ class portstarObj(object):
         if not os.path.exists(outDir):
             os.mkdir(outDir)
 
-        print("\n\tExporting to shapefile...")
         # r = Parallel(n_jobs= np.min([len(rasterFiles), threadCnt]), verbose=10)(delayed(self._createBanklinePolygon)(f, outDir) for f in rasterFiles)
         r = []
         for f in rasterFiles:
@@ -2097,17 +2093,3 @@ class portstarObj(object):
 
         gc.collect()
         return  # self
-
-    # ======================================================================
-    def __str__(self):
-        '''
-        Generic print function to print contents of sonObj.
-        '''
-        output = "portstarObj Contents"
-        output += '\n\t'
-        output += self.__repr__()
-        temp = vars(self)
-        for item in temp:
-            output += '\n\t'
-            output += "{} : {}".format(item, temp[item])
-        return output
