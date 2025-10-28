@@ -7,6 +7,7 @@ from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread
 from modules.path_tool import get_file_placement_path
 from windows.son_proc_label import SonProcLabel
+from pingmapper.dat_interpreter import DatInterpreter
 
 
 class DatWindow(QMainWindow):
@@ -23,8 +24,10 @@ class DatWindow(QMainWindow):
 
         # Default values for the window control
         self.skip_print = "------------------------------------------------"
-        self.dat_son_idx_files_found = False
         self.label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
+
+        # The DAT, SON and IDX interpreter object
+        self.dat_interpreter = DatInterpreter()
 
         # Setup the UI background
         self.setup_background()
@@ -236,7 +239,8 @@ class DatWindow(QMainWindow):
         self.clear_last_filter_btn = QPushButton("Clear Last Filter", self)
         self.clear_last_filter_btn.clicked.connect(
             self.clear_last_filter_btn_callback)
-        self.reset_filters_btn = QPushButton("Reset Filters to default values", self)
+        self.reset_filters_btn = QPushButton(
+            "Reset Filters to default values", self)
         self.reset_filters_btn.clicked.connect(self.reset_filters_btn_callback)
         reset_buttons_layout.addWidget(self.clear_last_filter_btn)
         reset_buttons_layout.addWidget(self.reset_filters_btn)
@@ -336,26 +340,30 @@ class DatWindow(QMainWindow):
             self, "Open DAT", "", "DAT Files (*.dat)"
         )
         if self.dat_path:
+            # Set the path in the interpreter
+            self.dat_interpreter.set_dat_path(p=self.dat_path)
             # Set the path in the line edit
             filename = self.dat_path.split("/")[-1]
             self.log_output(f"Loaded DAT: {filename}")
             self.dat_path_line_edit.setText(filename)
             # Check if we have a folder with the same name
-            folder_path = self.dat_path.replace(".dat", "")
-            if os.path.isdir(folder_path):
+            data_subfolder_path = os.path.join(
+                os.path.dirname(self.dat_path), filename.split(".")[0])
+            if os.path.isdir(data_subfolder_path):
                 # The folder should have several .IDX and .SON files
                 # Count them up and return
                 idx_files = [f for f in os.listdir(
-                    folder_path) if f.endswith(".idx")]
+                    data_subfolder_path) if f.endswith(".IDX")]
                 son_files = [f for f in os.listdir(
-                    folder_path) if f.endswith(".son")]
+                    data_subfolder_path) if f.endswith(".SON")]
                 self.log_output(
                     f"Found {len(idx_files)} IDX files and {len(son_files)} SON files.")
-                if len(idx_files) != len(son_files):
+                if len(idx_files) == len(son_files):
+                    self.dat_interpreter.set_son_idx_subfolder_path(
+                        p=data_subfolder_path)
+                else:
                     self.log_output(
                         "Warning: The number of IDX and SON files do not match, corrupted data!")
-                else:
-                    self.dat_son_idx_files_found = True
             else:
                 self.log_output(
                     "No subfolder found with the same name of the DAT file. Missing SON/IDX files!")
@@ -372,8 +380,11 @@ class DatWindow(QMainWindow):
             self, "Select Project Output Directory", ""
         )
         if self.project_output_path:
-            self.log_output(f"Selected project output path: {self.project_output_path}")
+            self.log_output(
+                f"Selected project output path: {self.project_output_path}")
             self.project_output_line_edit.setText(self.project_output_path)
+            # Set the path in the interpreter
+            self.dat_interpreter.set_project_path(self.project_output_path)
         else:
             self.log_output("No valid project output path was selected.")
         self.enable_buttons()
@@ -383,7 +394,9 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        self.log_output("Starting process...")
+        self.log_output(f"Starting Waterfall images extraction from DAT in {self.dat_path}...")
+        result_message = self.dat_interpreter.generate_waterfall_images()
+        self.log_output(result_message)
         self.enable_buttons()
 
     def crop_btn_callback(self, checked: bool) -> None:
@@ -504,7 +517,6 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
-
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
