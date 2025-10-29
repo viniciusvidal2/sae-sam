@@ -278,9 +278,8 @@ class DatWindow(QMainWindow):
         # Extracted image label
         self.extracted_image_label = SonProcLabel()
         # Add the background image for starters
-        placeholder_pixmap = QPixmap(
+        self.extracted_image_label.set_pixmap_from_path(
             get_file_placement_path("resources/dat.png"))
-        self.extracted_image_label.set_pixmap(placeholder_pixmap)
         # Buttons
         btns_layout = QHBoxLayout()
         self.crop_btn = QPushButton("Enable Crop Tool", self)
@@ -418,6 +417,7 @@ class DatWindow(QMainWindow):
         self.dat_worker.finished.connect(self.dat_thread.deleteLater)
         self.dat_worker.finished.connect(self.dat_thread.quit)
         self.dat_worker.finished.connect(self.enable_buttons)
+        self.dat_worker.finished.connect(self.dat_worker.deleteLater)
         self.dat_thread.started.connect(self.dat_worker.run)
         # Set the path in the interpreter
         self.dat_worker.set_dat_path(p=self.dat_path)
@@ -438,8 +438,7 @@ class DatWindow(QMainWindow):
         # Read the first image by default
         if paths:
             first_image_path = list(paths.values())[0]
-            pixmap = QPixmap(first_image_path)
-            self.extracted_image_label.set_pixmap(pixmap)
+            self.extracted_image_label.set_pixmap_from_path(first_image_path)
 
     def crop_btn_callback(self, checked: bool) -> None:
         """Callback for the crop image btn
@@ -577,7 +576,6 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
-
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
