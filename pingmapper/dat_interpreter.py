@@ -22,6 +22,9 @@ class DatInterpreter:
         # DAT and respective SON and IDX paths
         self.dat_file_path = None
         self.son_idx_subfolder_path = None
+        # Output merged images paths
+        self.merged_high_freq_path = None
+        self.merged_very_high_freq_path = None
 
     def _generate_default_params(self, params_file: str) -> dict:
         """
@@ -143,7 +146,7 @@ class DatInterpreter:
             # Generate image tiles
             read_master_func(**self.params)
             # Merge and save waterfall images
-            merged = self.merge_save_waterfall_images()
+            merged = self._merge_save_waterfall_images()
             if not merged:
                 return "Error during merging and saving waterfall images."
             # Clean temporary files in the project folder
@@ -155,7 +158,7 @@ class DatInterpreter:
         except Exception as Argument:
             return f"Error during processing: {str(Argument)}"
 
-    def merge_save_waterfall_images(self) -> bool:
+    def _merge_save_waterfall_images(self) -> bool:
         """Merge and save the waterfall images
 
         Returns:
@@ -180,12 +183,12 @@ class DatInterpreter:
         very_high_freq_image = self._merge_image_tiles(
             image_files_list=very_high_freq_files, folder=very_high_freq_folder)
         # Save merged images
-        merged_high_freq_path = os.path.join(
+        self.merged_high_freq_path = os.path.join(
             self.output_project_path, "highfreq_image_merged.jpg")
-        merged_very_high_freq_path = os.path.join(
+        self.merged_very_high_freq_path = os.path.join(
             self.output_project_path, "very_highfreq_image_merged.jpg")
-        cv2.imwrite(merged_high_freq_path, high_freq_image)
-        cv2.imwrite(merged_very_high_freq_path, very_high_freq_image)
+        cv2.imwrite(self.merged_high_freq_path, high_freq_image)
+        cv2.imwrite(self.merged_very_high_freq_path, very_high_freq_image)
         return True
 
     def _merge_image_tiles(self, image_files_list: list, folder: str) -> np.ndarray:
@@ -212,7 +215,7 @@ class DatInterpreter:
             img, (img.shape[1], min_height)) for img in images]
         merged_image = cv2.hconcat(resized_images)
         return merged_image
-    
+
     def _clean_project_folder(self) -> None:
         """Clean temporary files in the project folder"""
         # Folders to remove, independently if they are empty or not
@@ -227,3 +230,14 @@ class DatInterpreter:
                     shutil.rmtree(folder_path)
                 except Exception as e:
                     print(f"Error removing folder {folder_path}: {str(e)}")
+
+    def get_merged_images_paths(self) -> dict:
+        """Get the paths of the merged waterfall images
+
+        Returns:
+            dict: Dictionary with paths to merged high frequency and very high frequency images
+        """
+        return {
+            'high_freq_image': self.merged_high_freq_path,
+            'very_high_freq_image': self.merged_very_high_freq_path
+        }
