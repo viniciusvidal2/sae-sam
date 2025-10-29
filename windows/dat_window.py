@@ -335,6 +335,7 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Callbacks
+
     def dat_path_browse_btn_callback(self) -> None:
         """Callback for the browse button
         """
@@ -482,6 +483,15 @@ class DatWindow(QMainWindow):
         self.disable_buttons()
         self.log_output(self.skip_print)
         self.log_output("Reset image button clicked.")
+        current_original_image_path = self.merged_images_paths.get(
+            self.image_dropdown.currentText(), None)
+        if current_original_image_path:
+            self.log_output(
+                f"Moving back to original {current_original_image_path} image.")
+            self.extracted_image_label.set_pixmap_from_path(
+                current_original_image_path)
+        else:
+            self.log_output("No original image path found to reset to.")
         self.enable_buttons()
 
     def save_image_btn_callback(self) -> None:
@@ -490,6 +500,12 @@ class DatWindow(QMainWindow):
         self.disable_buttons()
         self.log_output(self.skip_print)
         self.log_output("Save image button clicked.")
+        if not self.project_output_path:
+            self.log_output("No project output path set. Cannot save image.")
+        else:
+            save_message = self.extracted_image_label.save_current_pixmap(
+                self.project_output_path)
+            self.log_output(save_message)
         self.enable_buttons()
 
     def contrast_apply_btn_callback(self) -> None:
@@ -576,6 +592,7 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
+
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel

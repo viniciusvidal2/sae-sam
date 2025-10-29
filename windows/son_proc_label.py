@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import cv2
 from PySide6.QtWidgets import QLabel, QSizePolicy
@@ -66,12 +67,41 @@ class SonProcLabel(QLabel):
         Args:
             pixmap (QPixmap): Pixmap to set.
         """
-        scaled_pixmap = pixmap.scaled(
+        self.pixmap_current_displayed = pixmap.scaled(
             self.size(),
             Qt.KeepAspectRatio,
             Qt.SmoothTransformation
         )
-        super().setPixmap(scaled_pixmap)
+        super().setPixmap(self.pixmap_current_displayed)
+
+    def save_current_pixmap(self, project_path: str) -> str:
+        """
+        Save the currently displayed pixmap to the specified path.
+
+        Args:
+            project_path (str): Path to save the image.
+
+        Returns:
+            str: Full path of the saved image.
+        """
+        snapshot_prefix = "extracted_sonogram_"
+        if self.image_current is not None:
+            # Check all the images in the project folder that start with 'extracted_sonogram_' and create the
+            # next index, using 001 format
+            existing_files = [f for f in os.listdir(
+                project_path) if f.startswith(snapshot_prefix)]
+            if existing_files:
+                # Extract the highest index number from existing files
+                indices = [int(f.split('_')[-1].split('.')[0])
+                           for f in existing_files]
+                next_index = max(indices) + 1
+            else:
+                next_index = 1
+            # Save the current image, with its full resolution
+            cv2.imwrite(
+                f"{project_path}/{snapshot_prefix}{next_index:03d}.png", self.image_current)
+            return f"Image saved at: {project_path}/{snapshot_prefix}{next_index:03d}.png"
+        return "No image to save."
 
     # endregion
     # region Crop Selection Methods
@@ -232,7 +262,7 @@ class SonProcLabel(QLabel):
     # endregion
     # region Image Conversion Utilities
 
-    def numpy_to_qpixmap(cv_img: np.ndarray) -> QPixmap:
+    def numpy_to_qpixmap(self, cv_img: np.ndarray) -> QPixmap:
         """
         Convert a BGR OpenCV image (numpy array) to QPixmap.
 
@@ -250,7 +280,7 @@ class SonProcLabel(QLabel):
                       bytes_per_line, QImage.Format_RGB888)
         return QPixmap.fromImage(qimg)
 
-    def qpixmap_to_numpy(pixmap: QPixmap) -> np.ndarray:
+    def qpixmap_to_numpy(self, pixmap: QPixmap) -> np.ndarray:
         """
         Convert a QPixmap to a BGR OpenCV image (numpy array).
 
@@ -264,11 +294,9 @@ class SonProcLabel(QLabel):
         width = qimg.width()
         height = qimg.height()
         ptr = qimg.bits()
-        ptr.setsize(height * width * 3)
-        arr = np.array(ptr).reshape((height, width, 3))
-        # Convert RGB (Qt) to BGR (OpenCV)
-        cv_img_bgr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
-        return cv_img_bgr
+        arr = np.array(ptr, dtype=np.uint8).reshape((height, width, 3))
+        # Convert RGB (Qt) → BGR (OpenCV)
+        return cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
 
     # endregion
     # region filtering methods
