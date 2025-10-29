@@ -7,7 +7,7 @@ from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread
 from modules.path_tool import get_file_placement_path
 from windows.son_proc_label import SonProcLabel
-from pingmapper.dat_interpreter import DatInterpreter
+from workers.dat_worker import DatWorker
 
 
 class DatWindow(QMainWindow):
@@ -26,8 +26,11 @@ class DatWindow(QMainWindow):
         self.skip_print = "------------------------------------------------"
         self.label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
 
-        # The DAT, SON and IDX interpreter object
-        self.dat_interpreter = DatInterpreter()
+        # The DAT, SON and IDX worker in a dedicated thread
+        self.merged_images_paths = {}
+        self.dat_path = None
+        self.dat_subfolder_path = None
+        self.project_output_path = None
 
         # Setup the UI background
         self.setup_background()
@@ -340,8 +343,6 @@ class DatWindow(QMainWindow):
             self, "Open DAT", "", "DAT Files (*.dat)"
         )
         if self.dat_path:
-            # Set the path in the interpreter
-            self.dat_interpreter.set_dat_path(p=self.dat_path)
             # Set the path in the line edit
             filename = self.dat_path.split("/")[-1]
             self.log_output(f"Loaded DAT: {filename}")
@@ -359,8 +360,7 @@ class DatWindow(QMainWindow):
                 self.log_output(
                     f"Found {len(idx_files)} IDX files and {len(son_files)} SON files.")
                 if len(idx_files) == len(son_files):
-                    self.dat_interpreter.set_son_idx_subfolder_path(
-                        p=data_subfolder_path)
+                    self.dat_subfolder_path = data_subfolder_path
                 else:
                     self.log_output(
                         "Warning: The number of IDX and SON files do not match, corrupted data!")
@@ -383,8 +383,6 @@ class DatWindow(QMainWindow):
             self.log_output(
                 f"Selected project output path: {self.project_output_path}")
             self.project_output_line_edit.setText(self.project_output_path)
-            # Set the path in the interpreter
-            self.dat_interpreter.set_project_path(self.project_output_path)
         else:
             self.log_output("No valid project output path was selected.")
         self.enable_buttons()
@@ -392,12 +390,46 @@ class DatWindow(QMainWindow):
     def dat_process_btn_callback(self) -> None:
         """Callback for the dat process btn
         """
+        if not self.dat_path:
+            self.log_output(
+                "No DAT file path set. Please select a valid DAT file.")
+            return
+        if not self.dat_subfolder_path:
+            self.log_output(
+                "No SON/IDX subfolder path set. Please select a valid DAT file with corresponding SON/IDX files.")
+            return
+        if not self.project_output_path:
+            self.log_output(
+                "No project output path set. Please select a valid output directory.")
+            return
         self.disable_buttons()
         self.log_output(self.skip_print)
-        self.log_output(f"Starting Waterfall images extraction from DAT in {self.dat_path}...")
-        result_message = self.dat_interpreter.generate_waterfall_images()
-        self.log_output(result_message)
-        self.enable_buttons()
+        self.log_output(
+            f"Starting Waterfall images extraction from DAT in {self.dat_path}...")
+        # Start and connect the worker thread
+        self.dat_worker = DatWorker()
+        self.dat_thread = QThread()
+        self.dat_worker.moveToThread(self.dat_thread)
+        self.dat_worker.log.connect(self.log_output)
+        self.dat_worker.merged_images_paths_signal.connect(
+            self._set_merged_images_paths)
+        self.dat_worker.finished.connect(self.dat_thread.deleteLater)
+        self.dat_worker.finished.connect(self.dat_thread.quit)
+        self.dat_worker.finished.connect(self.enable_buttons)
+        self.dat_thread.started.connect(self.dat_worker.run)
+        # Set the path in the interpreter
+        self.dat_worker.set_dat_path(p=self.dat_path)
+        self.dat_worker.set_son_idx_subfolder_path(p=self.dat_subfolder_path)
+        self.dat_worker.set_project_path(p=self.project_output_path)
+        self.dat_thread.start()
+
+    def _set_merged_images_paths(self, paths: dict) -> None:
+        """Sets the merged images paths after processing is finished
+
+        Args:
+            paths (dict): The merged images paths
+        """
+        self.merged_images_paths = paths
 
     def crop_btn_callback(self, checked: bool) -> None:
         """Callback for the crop image btn
@@ -517,6 +549,7 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
+
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
