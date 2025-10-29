@@ -596,19 +596,41 @@ class DatWindow(QMainWindow):
         """Enables the buttons in the window
         """
         self.dat_path_browse_btn.setEnabled(True)
+        self.project_output_browse_btn.setEnabled(True)
         self.dat_process_btn.setEnabled(True)
         self.crop_btn.setEnabled(True)
         self.reset_image_btn.setEnabled(True)
         self.save_image_btn.setEnabled(True)
+        self.image_dropdown.setEnabled(True)
+        self.contrast_apply_btn.setEnabled(True)
+        self.brightness_apply_btn.setEnabled(True)
+        self.gamma_apply_btn.setEnabled(True)
+        self.sharpness_apply_btn.setEnabled(True)
+        self.saturation_apply_btn.setEnabled(True)
+        self.clahe_apply_btn.setEnabled(True)
+        self.detail_enhancement_apply_btn.setEnabled(True)
+        self.clear_last_filter_btn.setEnabled(True)
+        self.reset_filters_btn.setEnabled(True)
 
     def disable_buttons(self) -> None:
         """Disables the buttons in the window
         """
         self.dat_path_browse_btn.setEnabled(False)
+        self.project_output_browse_btn.setEnabled(False)
         self.dat_process_btn.setEnabled(False)
         self.crop_btn.setEnabled(False)
         self.reset_image_btn.setEnabled(False)
         self.save_image_btn.setEnabled(False)
+        self.image_dropdown.setEnabled(False)
+        self.contrast_apply_btn.setEnabled(False)
+        self.brightness_apply_btn.setEnabled(False)
+        self.gamma_apply_btn.setEnabled(False)
+        self.sharpness_apply_btn.setEnabled(False)
+        self.saturation_apply_btn.setEnabled(False)
+        self.clahe_apply_btn.setEnabled(False)
+        self.detail_enhancement_apply_btn.setEnabled(False)
+        self.clear_last_filter_btn.setEnabled(False)
+        self.reset_filters_btn.setEnabled(False)
 
 # endregion
 ##############################################################################################
