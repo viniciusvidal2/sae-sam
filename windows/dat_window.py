@@ -1,6 +1,6 @@
 import os
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QSlider,
+    QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QSlider, QComboBox,
     QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QSizePolicy
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
@@ -23,7 +23,7 @@ class DatWindow(QMainWindow):
         self.setGeometry(300, 300, 1500, 900)
 
         # Default values for the window control
-        self.skip_print = "------------------------------------------------"
+        self.skip_print = "-------------------------"
         self.label_style = "color: white; background-color: rgba(0,0,0,150); padding: 4px; border-radius: 4px;"
 
         # The DAT, SON and IDX worker in a dedicated thread
@@ -264,11 +264,18 @@ class DatWindow(QMainWindow):
     def setup_right_panel(self, layout: QVBoxLayout) -> None:
         """Setups the right panel in the main window
         """
-        # Image labels
+        # Image selection layout
+        image_selection_layout = QHBoxLayout()
         self.image_description_label = QLabel(
             "Extracted image processing:", self)
-        self.image_description_label.setAlignment(Qt.AlignCenter)
         self.image_description_label.setStyleSheet(self.label_style)
+        self.image_description_label.setFixedWidth(210)
+        self.image_dropdown = QComboBox(self)
+        self.image_dropdown.currentIndexChanged.connect(
+            self.image_dropdown_callback)
+        image_selection_layout.addWidget(self.image_description_label)
+        image_selection_layout.addWidget(self.image_dropdown)
+        # Extracted image label
         self.extracted_image_label = SonProcLabel()
         self.extracted_image_label.setStyleSheet(self.label_style)
         self.extracted_image_label.setAlignment(Qt.AlignCenter)
@@ -295,7 +302,7 @@ class DatWindow(QMainWindow):
         btns_layout.addWidget(self.reset_image_btn)
         btns_layout.addWidget(self.save_image_btn)
         # Add widgets to the layout
-        layout.addWidget(self.image_description_label)
+        layout.addLayout(image_selection_layout)
         layout.addWidget(self.extracted_image_label)
         layout.addLayout(btns_layout)
 
@@ -430,6 +437,14 @@ class DatWindow(QMainWindow):
             paths (dict): The merged images paths
         """
         self.merged_images_paths = paths
+        # Add the image names to the dropdown
+        self.image_dropdown.clear()
+        self.image_dropdown.addItems(paths.keys())
+        # Read the first image by default
+        if paths:
+            first_image_path = list(paths.values())[0]
+            pixmap = QPixmap(first_image_path)
+            self.extracted_image_label.set_pixmap(pixmap)
 
     def crop_btn_callback(self, checked: bool) -> None:
         """Callback for the crop image btn
@@ -448,6 +463,24 @@ class DatWindow(QMainWindow):
             self.log_output("Image cropping disabled.")
             self.extracted_image_label.enable_crop_mode(False)
             self.crop_btn.setText("Enable Crop Tool")
+
+    def image_dropdown_callback(self, index: int) -> None:
+        """Callback for the image dropdown change
+
+        Args:
+            index (int): The selected index
+        """
+        self.disable_buttons()
+        self.log_output(self.skip_print)
+        image_name = self.image_dropdown.currentText()
+        if image_name in self.merged_images_paths:
+            image_path = self.merged_images_paths[image_name]
+            pixmap = QPixmap(image_path)
+            self.extracted_image_label.set_pixmap(pixmap)
+            self.log_output(f"Loaded image: {image_name}")
+        else:
+            self.log_output(f"Image {image_name} not found in paths.")
+        self.enable_buttons()
 
     def reset_image_btn_callback(self) -> None:
         """Callback for the reset image btn
