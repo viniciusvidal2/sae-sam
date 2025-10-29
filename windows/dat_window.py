@@ -277,11 +277,6 @@ class DatWindow(QMainWindow):
         image_selection_layout.addWidget(self.image_dropdown)
         # Extracted image label
         self.extracted_image_label = SonProcLabel()
-        self.extracted_image_label.setStyleSheet(self.label_style)
-        self.extracted_image_label.setAlignment(Qt.AlignCenter)
-        self.extracted_image_label.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.extracted_image_label.setScaledContents(True)
         # Add the background image for starters
         placeholder_pixmap = QPixmap(
             get_file_placement_path("resources/dat.png"))

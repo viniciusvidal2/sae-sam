@@ -1,11 +1,10 @@
 from PySide6.QtWidgets import (
-    QApplication, QLabel, QPushButton, QLineEdit, QWidget,
-    QVBoxLayout, QFileDialog, QSizePolicy
+    QLabel, QLineEdit, QWidget, QSizePolicy
 )
 from PySide6.QtGui import (
-    QPixmap, QPainter, QImage, QColor, QFont, QMouseEvent, QResizeEvent
+    QPixmap, QPainter, QFont, QMouseEvent, QResizeEvent
 )
-from PySide6.QtCore import Qt, QPoint, QPointF, QSize
+from PySide6.QtCore import Qt, QPoint, QPointF
 
 
 DEFAULT_FONT = QFont("Arial", 11)

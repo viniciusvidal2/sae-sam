@@ -1,5 +1,8 @@
-from PySide6.QtWidgets import QLabel
-from PySide6.QtGui import QPixmap, QPainter, QPen, QColor, QKeyEvent, QMouseEvent, QPaintEvent
+from PySide6.QtWidgets import QLabel, QSizePolicy
+from PySide6.QtGui import (
+    QPixmap, QPainter, QPen, QColor, QKeyEvent,
+    QMouseEvent, QPaintEvent, QResizeEvent
+)
 from PySide6.QtCore import Qt, QRect, QPoint
 
 
@@ -12,12 +15,15 @@ class SonProcLabel(QLabel):
             parent (QLabel, optional): Parent label. Defaults to None.
         """
         super().__init__(parent)
+        self.setAlignment(Qt.AlignCenter)
+        self.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMouseTracking(True)
         self._start_point = QPoint()
         self._end_point = QPoint()
         self._is_selecting = False
         self._is_crop_mode = False
-        self._pixmap_original = None
+        self.pixmap_original = None
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
         """
@@ -26,13 +32,18 @@ class SonProcLabel(QLabel):
         Args:
             pixmap (QPixmap): Pixmap to set.
         """
-        self._pixmap_original = pixmap
-        super().setPixmap(pixmap)
+        self.pixmap_original = pixmap
+        scaled_pixmap = pixmap.scaled(
+            self.size(),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
+        )
+        super().setPixmap(scaled_pixmap)
 
     def enable_crop_mode(self, enable: bool) -> None:
         """
         Enable or disable crop selection mode.
-        
+
         Args:
             enable (bool): True to enable crop mode, False to disable.
         """
@@ -88,7 +99,7 @@ class SonProcLabel(QLabel):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """
         Handle keyboard shortcuts: ESC clears, ENTER crops.
-        
+
         Args:
             event (QKeyEvent): Key press event.
         """
@@ -105,7 +116,7 @@ class SonProcLabel(QLabel):
     def paintEvent(self, event: QPaintEvent) -> None:
         """
         Draw the selection rectangle on top of the QLabel pixmap.
-        
+
         Args:
             event (QPaintEvent): Paint event.
         """
@@ -124,7 +135,7 @@ class SonProcLabel(QLabel):
     def get_selection_rect(self) -> QRect:
         """
         Return the QRect of the selected region in label coordinates.
-        
+
         Returns:
             QRect: The selection rectangle.
         """
@@ -133,29 +144,29 @@ class SonProcLabel(QLabel):
     def crop_selection(self) -> QPixmap:
         """
         Return a cropped QPixmap from the original image based on the selection.
-        
+
         Returns:
             QPixmap: The cropped pixmap.
         """
-        if self._pixmap_original and not self._start_point.isNull() and not self._end_point.isNull():
+        if self.pixmap_original and not self._start_point.isNull() and not self._end_point.isNull():
             rect = self.get_selection_rect()
             scaled_rect = self._scale_rect_to_pixmap(rect)
-            return self._pixmap_original.copy(scaled_rect)
+            return self.pixmap_original.copy(scaled_rect)
         return QPixmap()
 
     def _scale_rect_to_pixmap(self, rect: QRect) -> QRect:
         """
         Convert the selection rect from label coordinates to pixmap coordinates.
-        
+
         Args:
             rect (QRect): Rectangle in label
 
         Returns:
             QRect: Rectangle in pixmap coordinates.
         """
-        if not self._pixmap_original:
+        if not self.pixmap_original:
             return rect
-        pixmap_size = self._pixmap_original.size()
+        pixmap_size = self.pixmap_original.size()
         label_size = self.size()
         x_scale = pixmap_size.width() / label_size.width()
         y_scale = pixmap_size.height() / label_size.height()
@@ -165,3 +176,19 @@ class SonProcLabel(QLabel):
             int(rect.width() * x_scale),
             int(rect.height() * y_scale),
         )
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """
+        Handle resize events to scale the pixmap appropriately.
+
+        Args:
+            event: Resize event.
+        """
+        if self.pixmap():
+            pixmap = self.pixmap_original.scaled(
+                self.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+            self.setPixmap(pixmap)
+        super().resizeEvent(event)
