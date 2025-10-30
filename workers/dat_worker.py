@@ -41,7 +41,7 @@ class DatWorker(QObject):
     @Slot()
     def run(self) -> None:
         """Run the waterfall generation pipeline and image manipulation."""
-        self.log.emit("Starting waterfall image generation ...")
+        self.log.emit("Processing waterfall images ...")
         result = self.dat_interpreter.generate_waterfall_images()
         self.log.emit(result)
         self.merged_images_paths_signal.emit(

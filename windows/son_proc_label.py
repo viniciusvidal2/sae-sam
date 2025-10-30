@@ -53,12 +53,11 @@ class SonProcLabel(QLabel):
         Args:
             image_path (str): Path to the image file.
         """
-        self.pixmap_current_displayed = QPixmap(image_path)
         self.image_original = cv2.imread(image_path)
         self.image_current = self.image_original.copy()
         self.image_filter_base = self.image_original.copy()
         self.image_filter_base_history = []
-        self.set_pixmap(self.pixmap_current_displayed)
+        self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
         """
@@ -84,24 +83,24 @@ class SonProcLabel(QLabel):
         Returns:
             str: Full path of the saved image.
         """
+        if self.image_current is None:
+            return "No image to save."
+        # Check all the images in the project folder that start with 'extracted_sonogram_' and create the
+        # next index, using 001 format
         snapshot_prefix = "extracted_sonogram_"
-        if self.image_current is not None:
-            # Check all the images in the project folder that start with 'extracted_sonogram_' and create the
-            # next index, using 001 format
-            existing_files = [f for f in os.listdir(
-                project_path) if f.startswith(snapshot_prefix)]
-            if existing_files:
-                # Extract the highest index number from existing files
-                indices = [int(f.split('_')[-1].split('.')[0])
-                           for f in existing_files]
-                next_index = max(indices) + 1
-            else:
-                next_index = 1
-            # Save the current image, with its full resolution
-            cv2.imwrite(
-                f"{project_path}/{snapshot_prefix}{next_index:03d}.png", self.image_current)
-            return f"Image saved at: {project_path}/{snapshot_prefix}{next_index:03d}.png"
-        return "No image to save."
+        existing_files = [f for f in os.listdir(
+            project_path) if f.startswith(snapshot_prefix)]
+        if existing_files:
+            # Extract the highest index number from existing files
+            indices = [int(f.split('_')[-1].split('.')[0])
+                       for f in existing_files]
+            next_index = max(indices) + 1
+        else:
+            next_index = 1
+        # Save the current image, with its full resolution
+        cv2.imwrite(
+            f"{project_path}/{snapshot_prefix}{next_index:03d}.png", self.image_current)
+        return f"Image saved at: {project_path}/{snapshot_prefix}{next_index:03d}.png"
 
     # endregion
     # region Crop Selection Methods
@@ -251,12 +250,12 @@ class SonProcLabel(QLabel):
             event: Resize event.
         """
         if self.pixmap():
-            pixmap = self.pixmap_current_displayed.scaled(
+            self.pixmap_current_displayed = self.pixmap_current_displayed.scaled(
                 self.size(),
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation
             )
-            self.setPixmap(pixmap)
+            self.setPixmap(self.pixmap_current_displayed)
         super().resizeEvent(event)
 
     # endregion
@@ -311,25 +310,62 @@ class SonProcLabel(QLabel):
         """
         if not self.pixmap_current_displayed:
             return
+        if filter_name not in self.AVAILABLE_FILTERS:
+            return
+        # Check if we are applying the same filter, or if we must renew the base image
+        if self.filters_state["current_filter"] is not None:
+            if self.filters_state["current_filter"] != filter_name:
+                self.image_filter_base_history.append(
+                    {
+                        "filter_name": self.filters_state["current_filter"],
+                        "image": self.image_current.copy()
+                    }
+                )
+                self.image_filter_base = self.image_current.copy()
         # Temp image to be filtered
         image_temp = self.image_filter_base.copy()
-        # Check if we are applying the same filter, or must renew the base image
-        if self.filters_state["current_filter"] and self.filters_state["current_filter"] == filter_name:
-            if self.filters_state["current_filter"] != filter_name and filter_name in self.AVAILABLE_FILTERS:
-                new_base_image_for_filtering = {
-                    "filter_name": filter_name,
-                    "image": self.image_current.copy()
-                }
-                self.image_filter_base_history.append(
-                    new_base_image_for_filtering)
-                self.image_filter_base = self.image_current.copy()
-                image_temp = self.image_filter_base.copy()
 
         # Apply each filter accordingly
+        if filter_name == "contrast":
+            image_temp = cv2.convertScaleAbs(
+                image_temp, alpha=value, beta=0)
+        elif filter_name == "brightness":
+            image_temp = cv2.convertScaleAbs(
+                image_temp, alpha=1, beta=value)
+        elif filter_name == "gamma":
+            inv_gamma = 1.0 / value
+            table = np.array(
+                [((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]
+            ).astype("uint8")
+            image_temp = cv2.LUT(image_temp, table)
+        elif filter_name == "sharpness":
+            blurred = cv2.GaussianBlur(image_temp, (9, 9), 0)
+            high_pass = cv2.addWeighted(image_temp, 1.5, blurred, -0.5, 0)
+            image_temp = cv2.addWeighted(
+                image_temp, 1.0, high_pass, 0.5 * value, 0)
+        elif filter_name == "saturation":
+            hsv_img = cv2.cvtColor(
+                image_temp, cv2.COLOR_BGR2HSV).astype("float32")
+            (h, s, v) = cv2.split(hsv_img)
+            s = s * value
+            s = np.clip(s, 0, 255)
+            hsv_img = cv2.merge([h, s, v])
+            image_temp = cv2.cvtColor(
+                hsv_img.astype("uint8"), cv2.COLOR_HSV2BGR)
+        elif filter_name == "clahe":
+            lab = cv2.cvtColor(image_temp, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=value, tileGridSize=(8, 8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            image_temp = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        elif filter_name == "detail_enhancement":
+            image_temp = cv2.detailEnhance(
+                image_temp, sigma_s=10, sigma_r=value)
 
         # Set the images after filtering and control the logic states
-        self.pixmap_current_displayed = self.numpy_to_qpixmap(image_temp)
-        self.setPixmap(self.pixmap_current_displayed)
+        self.image_current = image_temp.copy()
+        self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
         self.filters_state["last_filter"] = self.filters_state["current_filter"]
         self.filters_state["current_filter"] = filter_name
 
@@ -342,9 +378,10 @@ class SonProcLabel(QLabel):
         """
         if self.image_filter_base_history:
             image_filter_base_data = self.image_filter_base_history.pop()
-            self.pixmap_current_displayed = self.numpy_to_qpixmap(
-                image_filter_base_data["image"])
-            self.setPixmap(self.pixmap_current_displayed)
+            self.image_current = image_filter_base_data["image"].copy()
+            self.image_filter_base = self.image_current.copy()
+            self.set_pixmap(
+                self.numpy_to_qpixmap(self.image_current))
             self.filters_state["current_filter"] = image_filter_base_data["filter_name"]
             self.filters_state["last_filter"] = None
             return f"Moving back to when we were filtering {image_filter_base_data['filter_name']}."

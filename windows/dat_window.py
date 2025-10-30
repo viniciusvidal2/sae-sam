@@ -166,7 +166,7 @@ class DatWindow(QMainWindow):
         self.sharpness_label.setStyleSheet(self.label_style)
         self.sharpness_label.setFixedWidth(75)
         self.sharpness_slider = QSlider(Qt.Horizontal, self)
-        self.sharpness_slider.setRange(0, 300)
+        self.sharpness_slider.setRange(0, 500)
         self.sharpness_slider.setValue(0)
         self.sharpness_value_label = QLabel("0", self)
         self.sharpness_value_label.setFixedWidth(25)
@@ -334,7 +334,7 @@ class DatWindow(QMainWindow):
 
 # endregion
 ##############################################################################################
-# region Callbacks
+# region Dat processing callbacks
 
     def dat_path_browse_btn_callback(self) -> None:
         """Callback for the browse button
@@ -407,7 +407,7 @@ class DatWindow(QMainWindow):
         self.disable_buttons()
         self.log_output(self.skip_print)
         self.log_output(
-            f"Starting Waterfall images extraction from DAT in {self.dat_path}...")
+            f"Starting waterfall images extraction from DAT in {self.dat_path}...")
         # Start and connect the worker thread
         self.dat_worker = DatWorker()
         self.dat_thread = QThread()
@@ -440,6 +440,10 @@ class DatWindow(QMainWindow):
         if paths:
             first_image_path = list(paths.values())[0]
             self.extracted_image_label.set_pixmap_from_path(first_image_path)
+
+# endregion
+##############################################################################################
+# region Image processing callbacks
 
     def crop_btn_callback(self, checked: bool) -> None:
         """Callback for the crop image btn
@@ -508,12 +512,18 @@ class DatWindow(QMainWindow):
             self.log_output(save_message)
         self.enable_buttons()
 
+# endregion
+##############################################################################################
+# region Filter application callbacks
+
     def contrast_apply_btn_callback(self) -> None:
         """Callback for the contrast apply btn
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        contrast_value = self.contrast_slider.value()
+        contrast_value = float(self.contrast_slider.value()) / 100.0
+        self.extracted_image_label.apply_filter(
+            filter_name="contrast", value=contrast_value)
         self.log_output(f"Applying contrast: {contrast_value}")
         self.enable_buttons()
 
@@ -522,7 +532,9 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        brightness_value = self.brightness_slider.value()
+        brightness_value = float(self.brightness_slider.value())
+        self.extracted_image_label.apply_filter(
+            filter_name="brightness", value=brightness_value)
         self.log_output(f"Applying brightness: {brightness_value}")
         self.enable_buttons()
 
@@ -531,7 +543,9 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        gamma_value = self.gamma_slider.value()
+        gamma_value = float(self.gamma_slider.value()) / 100.0
+        self.extracted_image_label.apply_filter(
+            filter_name="gamma", value=gamma_value)
         self.log_output(f"Applying gamma: {gamma_value}")
         self.enable_buttons()
 
@@ -540,7 +554,9 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        sharpness_value = self.sharpness_slider.value()
+        sharpness_value = float(self.sharpness_slider.value()) / 100.0
+        self.extracted_image_label.apply_filter(
+            filter_name="sharpness", value=sharpness_value)
         self.log_output(f"Applying sharpness: {sharpness_value}")
         self.enable_buttons()
 
@@ -549,7 +565,9 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        saturation_value = self.saturation_slider.value()
+        saturation_value = float(self.saturation_slider.value()) / 100.0
+        self.extracted_image_label.apply_filter(
+            filter_name="saturation", value=saturation_value)
         self.log_output(f"Applying saturation: {saturation_value}")
         self.enable_buttons()
 
@@ -558,7 +576,9 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        clahe_value = self.clahe_slider.value()
+        clahe_value = float(self.clahe_slider.value()) / 100.0
+        self.extracted_image_label.apply_filter(
+            filter_name="clahe", value=clahe_value)
         self.log_output(f"Applying CLAHE: {clahe_value}")
         self.enable_buttons()
 
@@ -567,7 +587,10 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        detail_enhancement_value = self.detail_enhancement_slider.value()
+        detail_enhancement_value = float(
+            self.detail_enhancement_slider.value()) / 100.0
+        self.extracted_image_label.apply_filter(
+            filter_name="detail_enhancement", value=detail_enhancement_value)
         self.log_output(
             f"Applying detail enhancement: {detail_enhancement_value}")
         self.enable_buttons()
@@ -577,7 +600,8 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
-        self.log_output("Clearing last applied filter.")
+        self.log_output("Clear last filter requested...")
+        self.log_output(self.extracted_image_label.undo_last_filter())
         self.enable_buttons()
 
     def reset_filters_btn_callback(self) -> None:
@@ -585,6 +609,20 @@ class DatWindow(QMainWindow):
         """
         self.disable_buttons()
         self.log_output(self.skip_print)
+        # Sets the slider values back to default
+        self.contrast_slider.setValue(100)
+        self.brightness_slider.setValue(0)
+        self.gamma_slider.setValue(100)
+        self.sharpness_slider.setValue(0)
+        self.saturation_slider.setValue(100)
+        self.clahe_slider.setValue(200)
+        self.detail_enhancement_slider.setValue(0)
+        # Moves back to the original image - must take crop into account
+        current_original_image_path = self.merged_images_paths.get(
+            self.image_dropdown.currentText(), None)
+        if current_original_image_path:
+            self.extracted_image_label.set_pixmap_from_path(
+                current_original_image_path)
         self.log_output("Resetting all applied filters.")
         self.enable_buttons()
 
@@ -592,7 +630,6 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
-
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
