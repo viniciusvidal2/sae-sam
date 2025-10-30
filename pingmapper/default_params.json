@@ -26,7 +26,7 @@
     "wcm":true,
     "wcr":false,
     "wco":false,
-    "tileFile":".jpg",
+    "tileFile":".png",
     "sonogram_colorMap":"copper",
     "spdCor":false,
     "maxCrop":false,

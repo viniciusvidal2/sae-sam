@@ -175,9 +175,9 @@ class DatInterpreter:
             return False
         # Get the list of files in each folder
         high_freq_files = sorted(
-            [f for f in os.listdir(high_freq_folder) if f.endswith('.jpg')])
+            [f for f in os.listdir(high_freq_folder) if f.endswith('.png')])
         very_high_freq_files = sorted(
-            [f for f in os.listdir(very_high_freq_folder) if f.endswith('.jpg')])
+            [f for f in os.listdir(very_high_freq_folder) if f.endswith('.png')])
         high_freq_image = self._merge_image_tiles(
             image_files_list=high_freq_files, folder=high_freq_folder)
         very_high_freq_image = self._merge_image_tiles(
@@ -189,9 +189,9 @@ class DatInterpreter:
         very_high_freq_image = very_high_freq_image[:bottom_foreground_row, :]
         # Save merged images
         self.merged_high_freq_path = os.path.join(
-            self.output_project_path, "highfreq_image_merged.jpg")
+            self.output_project_path, "highfreq_image_merged.png")
         self.merged_very_high_freq_path = os.path.join(
-            self.output_project_path, "very_highfreq_image_merged.jpg")
+            self.output_project_path, "very_highfreq_image_merged.png")
         cv2.imwrite(self.merged_high_freq_path, high_freq_image)
         cv2.imwrite(self.merged_very_high_freq_path, very_high_freq_image)
         return True
