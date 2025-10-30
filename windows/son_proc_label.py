@@ -36,7 +36,8 @@ class SonProcLabel(QLabel):
         self.pixmap_current_displayed = None
         # Image control variables
         self.AVAILABLE_FILTERS = ["contrast", "brightness", "gamma",
-                                  "sharpness", "saturation", "clahe", "detail_enhancement"]
+                                  "sharpness", "saturation", "clahe", 
+                                  "detail_enhancement", "crop"]
         self.filters_state = {"last_filter": None, "current_filter": None}
         self.image_original = None
         self.image_current = None
@@ -173,10 +174,26 @@ class SonProcLabel(QLabel):
         if event.key() == Qt.Key_Escape:
             self.clear_selection()
         elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            cropped = self.crop_selection()
-            if cropped:
-                self.set_pixmap(cropped)
-            self.enable_crop_mode(False)
+            rect = self.crop_rectangle()
+            if rect:
+                # Get the cropping rectangle in scale to crop the current image
+                self.image_current = self.image_current[
+                    rect.y():rect.y() + rect.height(),
+                    rect.x():rect.x() + rect.width()
+                ]
+                self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
+                # Update the filters state to reflect cropping
+                self.filters_state["last_filter"] = self.filters_state["current_filter"]
+                self.filters_state["current_filter"] = "crop"
+                # Updating base image and history
+                self.image_filter_base = self.image_current.copy()
+                self.image_filter_base_history.append(
+                    {
+                        "image": self.image_filter_base,
+                        "filter_name": "crop"
+                    }
+                )
+            self.clear_selection()
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """
@@ -197,50 +214,44 @@ class SonProcLabel(QLabel):
             painter.setPen(pen)
             painter.drawRect(rect)
 
-    def get_selection_rect(self) -> QRect:
+    def crop_rectangle(self) -> QRect:
         """
-        Return the QRect of the selected region in label coordinates.
+        Return a cropped QRect from the original image based on the selection.
 
         Returns:
-            QRect: The selection rectangle.
+            QRect: The scaled cropping rectangle.
         """
-        return QRect(self._start_point, self._end_point).normalized()
-
-    def crop_selection(self) -> QPixmap:
-        """
-        Return a cropped QPixmap from the original image based on the selection.
-
-        Returns:
-            QPixmap: The cropped pixmap.
-        """
-        if self.pixmap_current_displayed and not self._start_point.isNull() and not self._end_point.isNull():
-            rect = self.get_selection_rect()
-            scaled_rect = self._scale_rect_to_pixmap(rect)
-            return self.pixmap_current_displayed.copy(scaled_rect)
-        return QPixmap()
-
-    def _scale_rect_to_pixmap(self, rect: QRect) -> QRect:
-        """
-        Convert the selection rect from label coordinates to pixmap coordinates.
-
-        Args:
-            rect (QRect): Rectangle in label
-
-        Returns:
-            QRect: Rectangle in pixmap coordinates.
-        """
-        if not self.pixmap_current_displayed:
-            return rect
-        pixmap_size = self.pixmap_current_displayed.size()
-        label_size = self.size()
-        x_scale = pixmap_size.width() / label_size.width()
-        y_scale = pixmap_size.height() / label_size.height()
-        return QRect(
-            int(rect.x() * x_scale),
-            int(rect.y() * y_scale),
-            int(rect.width() * x_scale),
-            int(rect.height() * y_scale),
-        )
+        if self.pixmap_current_displayed \
+                and not self._start_point.isNull() and not self._end_point.isNull() \
+                and self.image_current is not None:
+            # Selection in label coordinates
+            rect_label = QRect(self._start_point, self._end_point).normalized()
+            # Get label and pixmap sizes
+            label_w, label_h = self.width(), self.height()
+            pixmap = self.pixmap_current_displayed
+            pixmap_w, pixmap_h = pixmap.width(), pixmap.height()
+            # Compute aspect ratio fit scaling
+            ratio = min(label_w / pixmap_w, label_h / pixmap_h)
+            scaled_w = pixmap_w * ratio
+            scaled_h = pixmap_h * ratio
+            # Compute offset (margins) if pixmap is centered inside the label
+            offset_x = (label_w - scaled_w) / 2
+            offset_y = (label_h - scaled_h) / 2
+            # Adjust selection to pixmap coordinates (remove offsets)
+            x_in_pixmap = (rect_label.x() - offset_x) * (pixmap_w / scaled_w)
+            y_in_pixmap = (rect_label.y() - offset_y) * (pixmap_h / scaled_h)
+            w_in_pixmap = rect_label.width() * (pixmap_w / scaled_w)
+            h_in_pixmap = rect_label.height() * (pixmap_h / scaled_h)
+            # Map to original image coordinates
+            image_h, image_w = self.image_current.shape[:2]
+            x_ratio = image_w / pixmap_w
+            y_ratio = image_h / pixmap_h
+            x0 = int(x_in_pixmap * x_ratio)
+            y0 = int(y_in_pixmap * y_ratio)
+            w = int(w_in_pixmap * x_ratio)
+            h = int(h_in_pixmap * y_ratio)
+            return QRect(x0, y0, w, h)
+        return QRect()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """
