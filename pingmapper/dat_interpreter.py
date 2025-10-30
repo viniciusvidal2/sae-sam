@@ -182,6 +182,11 @@ class DatInterpreter:
             image_files_list=high_freq_files, folder=high_freq_folder)
         very_high_freq_image = self._merge_image_tiles(
             image_files_list=very_high_freq_files, folder=very_high_freq_folder)
+        # Get the part that is not background based on brightness
+        bottom_foreground_row = self._find_background_region(image=very_high_freq_image)
+        # Crop both images
+        high_freq_image = high_freq_image[:bottom_foreground_row, :]
+        very_high_freq_image = very_high_freq_image[:bottom_foreground_row, :]
         # Save merged images
         self.merged_high_freq_path = os.path.join(
             self.output_project_path, "highfreq_image_merged.jpg")
@@ -241,3 +246,36 @@ class DatInterpreter:
             'high_freq_image': self.merged_high_freq_path,
             'very_high_freq_image': self.merged_very_high_freq_path
         }
+    
+    def _find_background_region(self, image: np.ndarray) -> int:
+        """
+        Find a background region in the given image based on a brightness threshold.
+
+        Args:
+            image (np.ndarray): The input image in which to find the background region.
+
+        Returns:
+            int: The bottom row coordinate where the background should start.
+        """
+        # convert to grayscale if image is colored
+        if len(image.shape) == 3:
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray_image = image
+        # Get the bottom section of the image, maybe a third of the height
+        height = gray_image.shape[0]
+        bottom_section = gray_image[int(height*2/3):, :]
+        # Calculate the mean and standard deviation of the bottom section
+        mean_brightness = np.mean(bottom_section)
+        std_brightness = np.std(bottom_section)
+        # Define a brightness threshold to identify background pixels
+        brightness_threshold = mean_brightness + std_brightness
+        # Go every thickness lines in the image from this bottom up, calculating the percentage of pixels below the threshold
+        thickness = 50  # pixels
+        for row in range(gray_image.shape[0] - bottom_section.shape[0], int(gray_image.shape[0] / 4) - thickness + 1, -thickness):
+            line_region = gray_image[row - thickness:row, :]
+            line_region_mean = np.mean(line_region)
+            if line_region_mean > brightness_threshold:
+                return row - thickness
+        # If no suitable region found, return half the image height
+        return int(gray_image.shape[0] / 2)
