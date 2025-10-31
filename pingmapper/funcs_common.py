@@ -32,7 +32,6 @@
 import zipfile
 import requests
 import subprocess
-from tqdm import tqdm
 import logging
 import json
 import psutil
@@ -67,6 +66,8 @@ import gc
 
 ################################################################################
 warnings.simplefilter("ignore")
+import joblib
+logging.getLogger('joblib').setLevel(logging.ERROR)
 ################################################################################
 
 

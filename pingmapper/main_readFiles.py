@@ -29,8 +29,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import contextlib
 import copy
-import cv2
 from pingverter import hum2pingmapper
 import os
 import sys
@@ -47,10 +47,21 @@ from collections import defaultdict
 
 from scipy.signal import savgol_filter
 
-sys.path.insert(0, r'Z:\UDEL\PythonRepos\PINGVerter')
 
+class DevNull:
+    def write(self, msg):
+        pass
+
+    def flush(self):
+        pass
+
+
+sys.stdout = DevNull()
+sys.stderr = DevNull()
 
 # ===========================================
+
+
 def read_master_func(logfilename='',
                      project_mode=0,
                      script='',
@@ -276,10 +287,9 @@ def read_master_func(logfilename='',
     start_time = time.time()
     # Determine sonar recording type
     _, file_type = os.path.splitext(inFile)
-
-    # # Prepare Humminbird file for PINGMapper
-    # if file_type == '.DAT':
-    sonar_obj = hum2pingmapper(inFile, projDir, nchunk, tempC, exportUnknown)
+    with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f), contextlib.redirect_stderr(f):
+        sonar_obj = hum2pingmapper(
+            inFile, projDir, nchunk, tempC, exportUnknown)
 
     ####################
     # Create son objects
@@ -385,16 +395,6 @@ def read_master_func(logfilename='',
 
     if (project_mode != 2):
 
-        #####
-        ###
-        # Save main script to metaDir
-        scriptDir = os.path.join(os.path.dirname(
-            logfilename), 'processing_scripts')
-        if not os.path.exists(scriptDir):
-            os.mkdir(scriptDir)
-        outScript = os.path.join(scriptDir, script[1])
-        shutil.copy(script[0], outScript)
-
         ###
         ####
 
@@ -489,14 +489,6 @@ def read_master_func(logfilename='',
                         dir = dir.replace(toReplace, replaceWith)
                         dir = os.path.normpath(dir)
                         setattr(son, t, dir)
-
-        #############################
-        # Save main script to metaDir
-        scriptDir = os.path.join(projDir, 'meta', 'processing_scripts')
-        if not os.path.exists(scriptDir):
-            os.mkdir(scriptDir)
-        outScript = os.path.join(scriptDir, script[1])
-        shutil.copy(script[0], outScript)
 
         ##########################################################
         # Do some checks to see if additional processing is needed
@@ -611,8 +603,8 @@ def read_master_func(logfilename='',
         del c, r, n, startB, rowCnt
 
         # Fix no data in parallel
-        r = Parallel(n_jobs=threadCnt)(delayed(son._fixNoDat)(
-            dfAll[r[0]:r[1]].copy().reset_index(drop=True), beams) for r in tqdm(rowsToProc))
+        r = Parallel(n_jobs=threadCnt, verbose=0)(delayed(son._fixNoDat)(
+            dfAll[r[0]:r[1]].copy().reset_index(drop=True), beams) for r in rowsToProc)
         gc.collect()
 
         # Concatenate results from parallel processing
@@ -666,8 +658,6 @@ def read_master_func(logfilename='',
             son._saveSonMetaCSV(df)
             son._cleanup()
         del df, rowsToProc, dfAll, son, chunks, rdr, beams
-
-        # printUsage()
 
     else:
         if project_mode != 2:
@@ -850,23 +840,9 @@ def read_master_func(logfilename='',
         psObj.portDepDetect = {}
         psObj.starDepDetect = {}
 
-        # Estimate depth using:
-        # Zheng et al. 2021
-        # Load model weights and configuration file
-        if detectDep == 1:
-
-            # Store configuration file and model weights
-            # These were downloaded at the beginning of the script
-            depthModelVer = 'Bedpick_Zheng2021_Segmentation_unet_v1.0'
-            psObj.configfile = os.path.join(
-                modelDir, depthModelVer, 'config', depthModelVer+'.json')
-            psObj.weights = os.path.join(
-                modelDir, depthModelVer, 'weights', depthModelVer+'_fullmodel.h5')
-
-
         # Parallel estimate depth for each chunk using appropriate method
-        r = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(psObj._detectDepth)(
-            detectDep, int(chunk), USE_GPU, tileFile) for chunk in tqdm(chunks))
+        r = Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(delayed(psObj._detectDepth)(
+            detectDep, int(chunk), USE_GPU, tileFile) for chunk in chunks)
 
         # store the depth predictions in the class
         for ret in r:
@@ -939,8 +915,8 @@ def read_master_func(logfilename='',
     if pltBedPick:
         start_time = time.time()
 
-        Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(psObj._plotBedPick)(
-            int(chunk), True, autoBed, tileFile) for chunk in tqdm(chunks))
+        Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(delayed(psObj._plotBedPick)(
+            int(chunk), True, autoBed, tileFile) for chunk in chunks)
 
     # Cleanup
     psObj._cleanup()
@@ -1013,8 +989,8 @@ def read_master_func(logfilename='',
         psObj.port.shadow = defaultdict()
         psObj.star.shadow = defaultdict()
 
-        r = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(psObj._detectShadow)(
-            remShadow, int(chunk), USE_GPU, False, tileFile) for chunk in tqdm(chunks))
+        r = Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(delayed(psObj._detectShadow)(
+            remShadow, int(chunk), USE_GPU, False, tileFile) for chunk in chunks)
 
         for ret in r:
             psObj.port.shadow[ret[0]] = ret[1]
@@ -1061,16 +1037,16 @@ def read_master_func(logfilename='',
                 son._loadSonMeta()
 
                 # Calculate range-wise mean intensity for each chunk
-                chunk_means = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(
-                    delayed(son._egnCalcChunkMeans)(i) for i in tqdm(chunks))
+                chunk_means = Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(
+                    delayed(son._egnCalcChunkMeans)(i) for i in chunks)
 
                 # Calculate global means
                 son._egnCalcGlobalMeans(chunk_means)
                 del chunk_means
 
                 # Calculate egn min and max for each chunk
-                min_max = Parallel(n_jobs=np.min([len(chunks)]))(
-                    delayed(son._egnCalcMinMax)(i) for i in tqdm(chunks))
+                min_max = Parallel(n_jobs=np.min([len(chunks)]), verbose=0)(
+                    delayed(son._egnCalcMinMax)(i) for i in chunks)
 
                 # Calculate global min max for each channel
                 son._egnCalcGlobalMinMax(min_max)
@@ -1080,7 +1056,6 @@ def read_master_func(logfilename='',
                 son._pickleSon()
 
                 gc.collect()
-                # printUsage()
 
             else:
                 son.egn = False  # Dont bother with down-facing beams
@@ -1120,8 +1095,8 @@ def read_master_func(logfilename='',
                     # Determine what chunks to process
                     chunks = son._getChunkID()
                     chunks = chunks[:-1]  # remove last chunk
-                    hist = Parallel(n_jobs=np.min([len(chunks), threadCnt]))(
-                        delayed(son._egnCalcHist)(i) for i in tqdm(chunks))
+                    hist = Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(
+                        delayed(son._egnCalcHist)(i) for i in chunks)
                     son._egnCalcGlobalHist(hist)
 
             # Now calculate true global histogram
@@ -1188,8 +1163,6 @@ def read_master_func(logfilename='',
                     son._cleanup()
                     son._pickleSon()
                     gc.collect()
-
-        # printUsage()
     else:
         if project_mode != 2:
             for son in sonObjs:
@@ -1233,11 +1206,8 @@ def read_master_func(logfilename='',
                 # Load sonMetaDF
                 son._loadSonMeta()
 
-                Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(son._exportTilesSpd)(
-                    i, tileFile=imgType, spdCor=spdCor, mask_shdw=mask_shdw, maxCrop=maxCrop) for i in tqdm(chunks))
-                # for i in tqdm(chunks):
-                #     son._exportTilesSpd(i, tileFile=imgType, spdCor=spdCor, mask_shdw=mask_shdw, maxCrop=maxCrop)
-                #     sys.exit()
+                Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(delayed(son._exportTilesSpd)(
+                    i, tileFile=imgType, spdCor=spdCor, mask_shdw=mask_shdw, maxCrop=maxCrop) for i in chunks)
 
                 if moving_window and not spdCor:
 
@@ -1269,8 +1239,8 @@ def read_master_func(logfilename='',
                     if son.wco:
                         tileType.append('wco')
 
-                    Parallel(n_jobs=np.min([len(chunks), threadCnt]))(delayed(son._exportMovWin)(
-                        i, stride=window_stride, tileType=tileType, pingMax=pingMax, depMax=depMax) for i in tqdm(chunks))
+                    Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=0)(delayed(son._exportMovWin)(
+                        i, stride=window_stride, tileType=tileType, pingMax=pingMax, depMax=depMax) for i in chunks)
 
                     # son._exportMovWin(chunks,
                     #                   stride=window_stride,
@@ -1278,47 +1248,6 @@ def read_master_func(logfilename='',
 
                     for t in tileType:
                         shutil.rmtree(os.path.join(son.outDir, t))
-
-                    # Create a movie
-                    if tileFile == '.mp4' and moving_window and not spdCor:
-                        for t in tileType:
-                            inDir = os.path.join(son.outDir, t+'_mw')
-
-                            imgs = os.listdir(inDir)
-                            imgs.sort()
-
-                            frame = cv2.imread(os.path.join(inDir, imgs[0]))
-                            height, width, layers = frame.shape
-
-                            outName = '_'.join(imgs[0].split('_')[:-2])
-                            vidPath = os.path.join(inDir, outName+tileFile)
-
-                            video = cv2.VideoWriter(
-                                vidPath, cv2.VideoWriter_fourcc(*'mp4v'), 3, (width, height))
-                            for image in imgs:
-                                frame = cv2.imread(os.path.join(inDir, image))
-
-                                # Pad end
-                                if frame.shape[1] < nchunk:
-                                    n_dims = frame.ndim
-                                    if n_dims == 2:
-                                        padding = (
-                                            (0, 0), (0, nchunk-frame.shape[1]))
-                                    else:
-                                        padding = (
-                                            (0, 0), (0, nchunk-frame.shape[1]), (0, 0))
-                                    frame = np.pad(
-                                        frame, padding, mode='constant', constant_values=0)
-
-                                video.write(frame)
-
-                            video.release()
-
-                            # Removs
-                            for image in imgs:
-                                os.remove(os.path.join(inDir, image))
-
-                            # shutil.rmtree(os.path.join(son.outDir, t))
 
                 son._pickleSon()
 
@@ -1335,7 +1264,6 @@ def read_master_func(logfilename='',
     for son in sonObjs:
         son._pickleSon()
     gc.collect()
-    # printUsage()
 
     if len(ss_chan_avail) == 0:
         return False

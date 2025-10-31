@@ -131,9 +131,8 @@ class DatInterpreter:
             os.listdir(self.son_idx_subfolder_path)) if f.endswith('.SON')]
         logfilename = os.path.join(
             self.output_project_path, 'log_'+time.strftime("%Y-%m-%d_%H%M")+'.txt')
-        copied_script_name = os.path.basename(__file__).split(
-            '.')[0]+'_'+time.strftime("%Y-%m-%d_%H%M")+'.py'
-        script = os.path.abspath(__file__)
+        copied_script_name = "not_used"
+        script = "not_used"
         self.params['projDir'] = self.output_project_path
         self.params['inFile'] = self.dat_file_path
         self.params['sonFiles'] = sonFiles

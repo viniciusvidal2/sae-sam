@@ -1,7 +1,7 @@
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QSlider, QComboBox,
-    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QSizePolicy
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread
@@ -409,8 +409,8 @@ class DatWindow(QMainWindow):
         self.log_output(
             f"Starting waterfall images extraction from DAT in {self.dat_path}...")
         # Start and connect the worker thread
-        self.dat_worker = DatWorker()
         self.dat_thread = QThread()
+        self.dat_worker = DatWorker()
         self.dat_worker.moveToThread(self.dat_thread)
         self.dat_worker.log.connect(self.log_output)
         self.dat_worker.merged_images_paths_signal.connect(
