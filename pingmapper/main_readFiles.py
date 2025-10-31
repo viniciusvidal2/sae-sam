@@ -31,14 +31,18 @@
 
 import contextlib
 import copy
-from pingverter import hum2pingmapper
 import os
 import sys
 import time
+from venv import logger
 import pandas as pd
 from pingmapper.funcs_common import *
 from pingmapper.class_sonObj import sonObj
 import shutil
+os.environ["JOBLIB_MULTIPROCESSING"] = "0"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_MAX_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 
 class DevNull:
@@ -247,11 +251,7 @@ def read_master_func(logfilename='',
     |     |--*.PNG : Starboard side scan (ss) sonar tiles (non-rectified), w/
     |     |          water column present (wcp)
     '''
-
-    #####################################
-    # Show version
-    from pingmapper.version import __version__
-
+    from pingverter import hum2pingmapper
     threadCnt = 1
 
     #######################################
@@ -261,9 +261,10 @@ def read_master_func(logfilename='',
     start_time = time.time()
     # Determine sonar recording type
     _, file_type = os.path.splitext(inFile)
-    with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f), contextlib.redirect_stderr(f):
-        sonar_obj = hum2pingmapper(
-            inFile, projDir, nchunk, tempC, exportUnknown)
+    with open(os.devnull, 'w') as devnull, \
+        contextlib.redirect_stdout(devnull), \
+        contextlib.redirect_stderr(devnull):
+        sonar_obj = hum2pingmapper(inFile, projDir, nchunk, tempC, exportUnknown)
 
     ####################
     # Create son objects
@@ -785,3 +786,7 @@ def read_master_func(logfilename='',
         return False
     else:
         return True
+
+
+if __name__ == "__main__":
+    pass

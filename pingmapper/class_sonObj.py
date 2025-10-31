@@ -1956,3 +1956,7 @@ class sonObj(object):
         self.sonDat = sonDat.astype('uint8')
         del sonDat
         return
+
+
+if __name__ == "__main__":
+    pass

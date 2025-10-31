@@ -7,6 +7,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('modules/*', 'modules'),
+        ('pingmapper/*', 'pingmapper'),
         ('windows/*', 'windows'),
         ('workers/*', 'workers'),
         ('resources/*', 'resources'),

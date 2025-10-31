@@ -182,7 +182,8 @@ class DatInterpreter:
         very_high_freq_image = self._merge_image_tiles(
             image_files_list=very_high_freq_files, folder=very_high_freq_folder)
         # Get the part that is not background based on brightness
-        bottom_foreground_row = self._find_background_region(image=very_high_freq_image)
+        bottom_foreground_row = self._find_background_region(
+            image=very_high_freq_image)
         # Crop both images
         high_freq_image = high_freq_image[:bottom_foreground_row, :]
         very_high_freq_image = very_high_freq_image[:bottom_foreground_row, :]
@@ -245,7 +246,7 @@ class DatInterpreter:
             'high_freq_image': self.merged_high_freq_path,
             'very_high_freq_image': self.merged_very_high_freq_path
         }
-    
+
     def _find_background_region(self, image: np.ndarray) -> int:
         """
         Find a background region in the given image based on a brightness threshold.
@@ -278,3 +279,7 @@ class DatInterpreter:
                 return row - thickness
         # If no suitable region found, return half the image height
         return int(gray_image.shape[0] / 2)
+
+
+if __name__ == "__main__":
+    pass
