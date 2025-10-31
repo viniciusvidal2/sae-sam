@@ -57,7 +57,6 @@ from numpy.lib.stride_tricks import as_strided as ast
 import numpy as np
 import warnings
 from glob import glob
-from joblib import Parallel, delayed, cpu_count
 import os
 import sys
 import struct
@@ -66,8 +65,6 @@ import gc
 
 ################################################################################
 warnings.simplefilter("ignore")
-import joblib
-logging.getLogger('joblib').setLevel(logging.ERROR)
 ################################################################################
 
 
