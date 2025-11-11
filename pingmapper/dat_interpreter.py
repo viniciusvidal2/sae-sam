@@ -225,7 +225,8 @@ class DatInterpreter:
         """Clean temporary files in the project folder"""
         # Folders to remove, independently if they are empty or not
         temp_folders = ['ds_highfreq', 'ds_vhighfreq', 'unknown',
-                        'meta', 'processing_scripts']
+                        'meta', 'processing_scripts',
+                        'ss_start', 'ss_port']
         for folder in temp_folders:
             folder_path = os.path.join(
                 self.output_project_path, folder)

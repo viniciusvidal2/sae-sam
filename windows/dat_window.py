@@ -267,7 +267,7 @@ class DatWindow(QMainWindow):
         # Image selection layout
         image_selection_layout = QHBoxLayout()
         self.image_description_label = QLabel(
-            "Extracted image processing:", self)
+            "Extracted image being processed (frequency dependent):", self)
         self.image_description_label.setStyleSheet(self.label_style)
         self.image_description_label.setFixedWidth(210)
         self.image_dropdown = QComboBox(self)
