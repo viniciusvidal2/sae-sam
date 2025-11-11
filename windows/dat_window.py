@@ -267,9 +267,9 @@ class DatWindow(QMainWindow):
         # Image selection layout
         image_selection_layout = QHBoxLayout()
         self.image_description_label = QLabel(
-            "Extracted image being processed (frequency dependent):", self)
+            "Extracted image being processed (frequency):", self)
         self.image_description_label.setStyleSheet(self.label_style)
-        self.image_description_label.setFixedWidth(210)
+        self.image_description_label.setFixedWidth(280)
         self.image_dropdown = QComboBox(self)
         self.image_dropdown.currentIndexChanged.connect(
             self.image_dropdown_callback)
@@ -474,8 +474,7 @@ class DatWindow(QMainWindow):
         image_name = self.image_dropdown.currentText()
         if image_name in self.merged_images_paths:
             image_path = self.merged_images_paths[image_name]
-            pixmap = QPixmap(image_path)
-            self.extracted_image_label.set_pixmap(pixmap)
+            self.extracted_image_label.set_pixmap_from_path(image_path)
             self.log_output(f"Loaded image: {image_name}")
         else:
             self.log_output(f"Image {image_name} not found in paths.")

@@ -261,12 +261,7 @@ class SonProcLabel(QLabel):
             event: Resize event.
         """
         if self.pixmap():
-            self.pixmap_current_displayed = self.pixmap_current_displayed.scaled(
-                self.size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-            self.setPixmap(self.pixmap_current_displayed)
+            self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
         super().resizeEvent(event)
 
     # endregion
