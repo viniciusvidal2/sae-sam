@@ -156,19 +156,27 @@ class ArdupilotLogReader:
         """
         # Get the mission where the end time is the closest to the first gps point, but lower than it
         first_gps_time = log_gps_points[0]['TimeUS']
-        closest_mission = None
+        main_mission = None
         closest_diff = 1e10
         for mission in self.missions_in_log:
             if mission['end_timestamp'] < first_gps_time:
                 diff = first_gps_time - mission['end_timestamp']
                 if diff < closest_diff:
                     closest_diff = diff
-                    closest_mission = mission
+                    main_mission = mission
+        # If no mission is found, just take the one with the most waypoints
+        # Getting the mission with the greatest number of waypoints if multiple are found
+        for mission in self.missions_in_log:
+            if main_mission is None:
+                main_mission = mission
+                continue
+            if len(mission['waypoints']) > len(main_mission['waypoints']):
+                main_mission = mission
         # If we have a mission, find the percentages by matching the GPS points with the mission points
-        if closest_mission is not None:
+        if main_mission is not None:
             gps_mission_match_indices = []
             last_matched_index = 0
-            for mission_point in closest_mission['waypoints']:
+            for mission_point in main_mission['waypoints']:
                 for i, gps_point in enumerate(log_gps_points):
                     if i <= last_matched_index:
                         continue
