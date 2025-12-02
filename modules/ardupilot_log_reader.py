@@ -1,6 +1,7 @@
 from pymavlink import mavutil
 from datetime import datetime, timedelta
 from utm import from_latlon
+import numpy as np
 
 
 class ArdupilotLogReader:
@@ -120,7 +121,7 @@ class ArdupilotLogReader:
                     'end_timestamp': mission[-1].TimeUS,
                     'waypoints': waypoints_utm_coords
                 })
-                
+
     def reset_data(self) -> None:
         """Resets the data from the log file.
         """
@@ -145,6 +146,55 @@ class ArdupilotLogReader:
             })
         return utm_data
 
+    def covariance_eigenvalues(self, points: list) -> np.ndarray:
+        """Compute sorted eigenvalues of the 2D covariance matrix of points.
+
+        Args:
+            points (list): list of 2D points [[x1, y1], [x2, y2], ...]
+
+        Returns:
+            np.ndarray: sorted eigenvalues in descending order
+        """
+        pts = np.asarray(points)
+        centered = pts - pts.mean(axis=0)
+        cov = np.cov(centered.T)
+        # eigenvalues sorted largest->smallest
+        evals, _ = np.linalg.eigh(cov)
+        return np.sort(evals)[::-1]
+
+    def eval_mission_comparison_to_path(self, gps_points: list) -> list:
+        """Evaluates the mission against the performed path using eigenvalues of each group of points
+
+        Args:
+            gps_points (list): the list of GPS points of the mission
+
+        Returns:
+            list: the best mission according to the comparison score
+        """
+        # If we only have one mission, return it directly
+        if len(self.missions_in_log) == 1:
+            return self.missions_in_log[0]
+        # Path descriptor using eigenvalues of covariance matrix
+        gps_array = np.array(
+            [[p['utm_east'], p['utm_north']] for p in gps_points])
+        eigenvalues_gps = self.covariance_eigenvalues(points=gps_array)
+        # Compare with each mission
+        best_mission_index = None
+        best_score = float('inf')
+        for k, mission in enumerate(self.missions_in_log):
+            mission_points = mission['waypoints']
+            mission_array = np.array(
+                [[p['utm_east'], p['utm_north']] for p in mission_points])
+            # Calculate the eigenvalues of the covariance matrices
+            eigenvalues_mission = self.covariance_eigenvalues(
+                points=mission_array)
+            # Calculate the comparison score as the sum of squared differences of eigenvalues
+            score = np.sum((eigenvalues_gps - eigenvalues_mission) ** 2)
+            if score < best_score:
+                best_score = score
+                best_mission_index = k
+        return self.missions_in_log[best_mission_index]
+
     def get_data_percentages_from_mission_waypoints(self, log_gps_points: list) -> list:
         """Returns a list of pairs representing the percentages of each scan line according to mission waypoint synchronization.
 
@@ -154,24 +204,10 @@ class ArdupilotLogReader:
         Returns:
             list: the list of pairs representing the percentages of each scan line
         """
-        # Get the mission where the end time is the closest to the first gps point, but lower than it
-        first_gps_time = log_gps_points[0]['TimeUS']
-        main_mission = None
-        closest_diff = 1e10
-        for mission in self.missions_in_log:
-            if mission['end_timestamp'] < first_gps_time:
-                diff = first_gps_time - mission['end_timestamp']
-                if diff < closest_diff:
-                    closest_diff = diff
-                    main_mission = mission
-        # If no mission is found, just take the one with the most waypoints
-        # Getting the mission with the greatest number of waypoints if multiple are found
-        for mission in self.missions_in_log:
-            if main_mission is None:
-                main_mission = mission
-                continue
-            if len(mission['waypoints']) > len(main_mission['waypoints']):
-                main_mission = mission
+        if len(self.missions_in_log) == 0:
+            return None
+        # Choose the main mission from the waypoints and gps points covariance comparison using eigenvalues
+        main_mission = self.eval_mission_comparison_to_path(gps_points=log_gps_points)
         # If we have a mission, find the percentages by matching the GPS points with the mission points
         if main_mission is not None:
             gps_mission_match_indices = []
