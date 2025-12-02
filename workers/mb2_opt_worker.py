@@ -56,23 +56,34 @@ class Mb2OptWorker(QObject):
                                              raw_file_path=self.raw_path,
                                              raw_log_file_path=self.raw_log_path)
 
-    def crop_data_from_time_range(self, initial_time: float, final_time: float, offset: float, gps_data: dict) -> list:
-        """Crop the GPS data based on the given time range and offset.
+    def crop_data_from_time_range(self, pixhawk_points: list, hypack_points: list, offset: float) -> tuple:
+        """Crop both pixhawk and hypack GPS data based on the overlapping time range with an offset.
 
         Args:
-            initial_time (float): The start time for cropping.
-            final_time (float): The end time for cropping.
+            pixhawk_points (list): The pixhawk GPS data to be cropped.
+            hypack_points (list): The hypack GPS data to be cropped.
             offset (float): The offset to be added to the initial and final times.
-            gps_data (dict): The GPS data to be cropped.
 
         Returns:
-            list: The cropped GPS data.
+            tuple: The cropped pixhawk and hypack GPS data.
         """
-        cropped_data = []
-        for gps in gps_data:
-            if gps['timestamp'] >= initial_time - offset and gps['timestamp'] <= final_time + offset:
-                cropped_data.append(gps)
-        return cropped_data
+        # Check if the timestamps in the files really overlap
+        if (pixhawk_points[0]['timestamp'] > hypack_points[-1]['timestamp']) or (hypack_points[0]['timestamp'] > pixhawk_points[-1]['timestamp']):
+            return [], []
+        # Determine the overlapping time range between pixhawk and hypack points
+        initial_time = max([hypack_points[0]['timestamp'],
+                           pixhawk_points[0]['timestamp']])
+        final_time = min([hypack_points[-1]['timestamp'],
+                         pixhawk_points[-1]['timestamp']])
+        # Add some offset to avoid edge effects
+        low = initial_time - offset
+        high = final_time + offset
+        # Crop both datasets
+        cropped_pixhawk = [
+            gps for gps in pixhawk_points if low < gps["timestamp"] < high]
+        cropped_hypack = [
+            gps for gps in hypack_points if low < gps["timestamp"] < high]
+        return cropped_pixhawk, cropped_hypack
 
     def reset_data(self) -> None:
         """Reset the data in the worker.
@@ -114,11 +125,14 @@ class Mb2OptWorker(QObject):
         points_hypack = self.hypack_reader.get_utm_points_with_utc_timestamps()
         points_pixhawk = self.pixhawk_reader.get_utm_points_with_utc_timestamps()
         self.log.emit("Loaded GPS and points to optimize (30%)...")
-        # Crop pixhawk points data to be in the same time interval as the hypack data
-        initial_time = points_hypack[0]['timestamp']
-        final_time = points_hypack[-1]['timestamp']
-        points_pixhawk = self.crop_data_from_time_range(
-            initial_time=initial_time, final_time=final_time, offset=2, gps_data=points_pixhawk)
+        # Crop both point sets data to be in the valid time interval
+        points_pixhawk, points_hypack = self.crop_data_from_time_range(
+            pixhawk_points=points_pixhawk, hypack_points=points_hypack, offset=2)
+        if not points_pixhawk or not points_hypack:
+            self.log.emit(
+                "No overlapping GPS data found between Pixhawk log and HSX file (100%).")
+            self.slot_process_finished.emit()
+            return
         self.log.emit("Cropped GPS data to the same time interval (60%)...")
         # Optimize the GPS data for the HSX file
         self.log.emit("Starting HSX GPS data optimization (60%)...")
@@ -144,11 +158,14 @@ class Mb2OptWorker(QObject):
         points_hypack = self.hypack_reader.get_utm_points_with_utc_timestamps()
         points_pixhawk = self.pixhawk_reader.get_utm_points_with_utc_timestamps()
         self.log.emit("Loaded GPS and points to optimize (30%)...")
-        # Crop pixhawk points data to be in the same time interval as the hypack data
-        initial_time = points_hypack[0]['timestamp']
-        final_time = points_hypack[-1]['timestamp']
-        points_pixhawk = self.crop_data_from_time_range(
-            initial_time=initial_time, final_time=final_time, offset=2, gps_data=points_pixhawk)
+        # Crop both point sets data to be in the valid time interval
+        points_pixhawk, points_hypack = self.crop_data_from_time_range(
+            pixhawk_points=points_pixhawk, hypack_points=points_hypack, offset=2)
+        if not points_pixhawk or not points_hypack:
+            self.log.emit(
+                "No overlapping GPS data found between Pixhawk log and HSX file (100%).")
+            self.finished.emit()
+            return
         self.log.emit("Cropped GPS data to the same time interval (60%)...")
         # Get the percentages of the initial and final points for each line
         ardupilot_pct_pairs_list = self.pixhawk_reader.get_data_percentages_from_mission_waypoints(
@@ -197,11 +214,14 @@ class Mb2OptWorker(QObject):
         # Get the points to be synchronized
         points_hypack = self.hypack_reader.get_utm_points_with_utc_timestamps()
         points_pixhawk = self.pixhawk_reader.get_utm_points_with_utc_timestamps()
-        # Crop pixhawk points data to be in the same time interval as the hypack data
-        initial_time = points_hypack[0]['timestamp']
-        final_time = points_hypack[-1]['timestamp']
-        points_pixhawk = self.crop_data_from_time_range(
-            initial_time=initial_time, final_time=final_time, offset=2, gps_data=points_pixhawk)
+        # Crop both point sets data to be in the valid time interval
+        points_pixhawk, points_hypack = self.crop_data_from_time_range(
+            pixhawk_points=points_pixhawk, hypack_points=points_hypack, offset=2)
+        if not points_pixhawk or not points_hypack:
+            self.log.emit(
+                "No overlapping GPS data found between Pixhawk log and HSX file (100%).")
+            self.slot_process_finished.emit()
+            return
         self.log.emit("Points synchronized (70%)...")
         fig = Figure(figsize=(5, 4))
         ax = fig.add_subplot(111)
