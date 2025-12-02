@@ -157,7 +157,7 @@ class Mb2OptWorker(QObject):
         # Get the points to be synchronized
         points_hypack = self.hypack_reader.get_utm_points_with_utc_timestamps()
         points_pixhawk = self.pixhawk_reader.get_utm_points_with_utc_timestamps()
-        self.log.emit("Loaded GPS and points to optimize (30%)...")
+        self.log.emit("Loaded GPS and points to split according to log mission (30%)...")
         # Crop both point sets data to be in the valid time interval
         points_pixhawk, points_hypack = self.crop_data_from_time_range(
             pixhawk_points=points_pixhawk, hypack_points=points_hypack, offset=2)

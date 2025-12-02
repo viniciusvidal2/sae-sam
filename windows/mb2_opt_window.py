@@ -522,6 +522,8 @@ class Mb2OptWindow(QMainWindow):
             self.worker.set_project_paths(input_paths=input_paths)
             # Save every file content based on the split data content we got
             for data_section in self.data_split_content_with_mission:
+                if data_section["hsx_content"] is None or data_section["raw_content"] is None:
+                    continue
                 hsx_save_path = path.join(
                     split_files_dir, data_section["hsx_name"])
                 raw_save_path = path.join(
