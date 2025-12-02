@@ -62,8 +62,8 @@ class HypackFileManipulator:
                 line_split = line.split()
                 if line_split[0] == 'RAW' and len(line_split) >= 4:
                     # Obtain UTM zone and altitude
-                    lat = float(line_split[3]) * 1e-4
-                    lon = float(line_split[4]) * 1e-4
+                    lat = float(line_split[4]) * 1e-4
+                    lon = float(line_split[5]) * 1e-4
                     _, _, self.utm_zone, _ = from_latlon(lat, lon)
                     altitude = float(line_split[6])
                     timestamp = float(line_split[2])
