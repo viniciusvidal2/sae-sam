@@ -164,7 +164,7 @@ class Mb2OptWorker(QObject):
         if not points_pixhawk or not points_hypack:
             self.log.emit(
                 "No overlapping GPS data found between Pixhawk log and HSX file (100%).")
-            self.finished.emit()
+            self.slot_process_finished.emit()
             return
         self.log.emit("Cropped GPS data to the same time interval (60%)...")
         # Get the percentages of the initial and final points for each line
@@ -173,7 +173,7 @@ class Mb2OptWorker(QObject):
         if not ardupilot_pct_pairs_list:
             self.log.emit(
                 "No mission sychronized waypoints found in the log file (100%).")
-            self.finished.emit()
+            self.slot_process_finished.emit()
             return
         self.log.emit("Obtained the percentage pairs for each line (80%)...")
         # Get each section content plus the proper name for the generated files
