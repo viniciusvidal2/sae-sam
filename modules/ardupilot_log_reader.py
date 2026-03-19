@@ -163,36 +163,33 @@ class ArdupilotLogReader:
         return np.sort(evals)[::-1]
 
     def eval_mission_comparison_to_path(self, gps_points: list) -> list:
-        """Evaluates the mission against the performed path using eigenvalues of each group of points
-
+        """Evaluates the mission against the performed path using timestamp proximity
+        
         Args:
             gps_points (list): the list of GPS points of the mission
-
+            
         Returns:
-            list: the best mission according to the comparison score
+            list: the best mission according to the timestamp match
         """
         # If we only have one mission, return it directly
         if len(self.missions_in_log) == 1:
             return self.missions_in_log[0]
-        # Path descriptor using eigenvalues of covariance matrix
-        gps_array = np.array(
-            [[p['utm_east'], p['utm_north']] for p in gps_points])
-        eigenvalues_gps = self.covariance_eigenvalues(points=gps_array)
-        # Compare with each mission
-        best_mission_index = None
-        best_score = float('inf')
+            
+        # The user requested to choose the mission that has the likely timestamps
+        # from the incoming 'log_gps_points'. We evaluate the time difference between
+        # the mission's start_timestamp and the average timestamp of gps_points.
+        avg_time = (gps_points[0]['TimeUS'] + gps_points[-1]['TimeUS']) / 2.0
+        
+        best_mission_index = 0
+        min_time_diff = float('inf')
+        
         for k, mission in enumerate(self.missions_in_log):
-            mission_points = mission['waypoints']
-            mission_array = np.array(
-                [[p['utm_east'], p['utm_north']] for p in mission_points])
-            # Calculate the eigenvalues of the covariance matrices
-            eigenvalues_mission = self.covariance_eigenvalues(
-                points=mission_array)
-            # Calculate the comparison score as the sum of squared differences of eigenvalues
-            score = np.sum((eigenvalues_gps - eigenvalues_mission) ** 2)
-            if score < best_score:
-                best_score = score
+            time_diff = abs(mission['start_timestamp'] - avg_time)
+            
+            if time_diff < min_time_diff:
+                min_time_diff = time_diff
                 best_mission_index = k
+                
         return self.missions_in_log[best_mission_index]
 
     def get_data_percentages_from_mission_waypoints(self, log_gps_points: list) -> list:
@@ -213,25 +210,34 @@ class ArdupilotLogReader:
             gps_mission_match_indices = []
             last_matched_index = 0
             for mission_point in main_mission['waypoints']:
-                for i, gps_point in enumerate(log_gps_points):
-                    if i <= last_matched_index:
-                        continue
-                    # If the gps point is closer than 5 meters to the waypoint in the mission, consider it a match
-                    # and take the next mission point as reference
-                    utm_east_diff = gps_point['utm_east'] - \
-                        mission_point['utm_east']
-                    utm_north_diff = gps_point['utm_north'] - \
-                        mission_point['utm_north']
+                best_idx = -1
+                min_dist = float('inf')
+                
+                for i in range(last_matched_index, len(log_gps_points)):
+                    gps_point = log_gps_points[i]
+                    utm_east_diff = gps_point['utm_east'] - mission_point['utm_east']
+                    utm_north_diff = gps_point['utm_north'] - mission_point['utm_north']
                     distance_diff = (utm_east_diff**2 + utm_north_diff**2)**0.5
-                    if distance_diff < 5:
-                        gps_mission_match_indices.append(i)
-                        last_matched_index = i
-                        break
+                    
+                    if distance_diff < min_dist:
+                        min_dist = distance_diff
+                        best_idx = i
+                    elif distance_diff > min_dist + 5: # Drone is moving away from the closest approach
+                        if min_dist < 15: # If it got reasonably close (within 15m)
+                            break
+                            
+                if best_idx != -1 and min_dist < 15:
+                    if not gps_mission_match_indices or best_idx > gps_mission_match_indices[-1]:
+                        gps_mission_match_indices.append(best_idx)
+                        last_matched_index = best_idx
             # Create the points percentages that we must save
             percentage_pairs = []
             for i in range(len(gps_mission_match_indices) - 1):
                 percentage_pairs.append((gps_mission_match_indices[i]/len(
                     log_gps_points), gps_mission_match_indices[i + 1]/len(log_gps_points)))
+            
+            if not percentage_pairs:
+                return None
             # Add the first leg if it is more than 10% of the mission
             if percentage_pairs[0][0] > 0.1:
                 percentage_pairs.insert(
