@@ -144,10 +144,12 @@ class DatInterpreter:
         try:
             # Generate image tiles
             read_master_func(**self.params)
+            
             # Merge and save waterfall images
             merged = self._merge_save_waterfall_images()
             if not merged:
                 return "Error during merging and saving waterfall images."
+            
             # Clean temporary files in the project folder
             self._clean_project_folder()
             # Return success message with processing time
@@ -170,30 +172,61 @@ class DatInterpreter:
             self.output_project_path, "ds_highfreq", "wcp")
         very_high_freq_folder = os.path.join(
             self.output_project_path, "ds_vhighfreq", "wcp")
-        if not os.path.exists(high_freq_folder) or not os.path.exists(very_high_freq_folder):
+        
+        # Instead of failing if one of them is missing, let's gracefully handle what we have
+        high_freq_files = []
+        very_high_freq_files = []
+        
+        if os.path.exists(high_freq_folder):
+            high_freq_files = sorted(
+                [f for f in os.listdir(high_freq_folder) if f.endswith('.png')])
+        
+        if os.path.exists(very_high_freq_folder):
+            very_high_freq_files = sorted(
+                [f for f in os.listdir(very_high_freq_folder) if f.endswith('.png')])
+            
+        if not high_freq_files and not very_high_freq_files:
             return False
-        # Get the list of files in each folder
-        high_freq_files = sorted(
-            [f for f in os.listdir(high_freq_folder) if f.endswith('.png')])
-        very_high_freq_files = sorted(
-            [f for f in os.listdir(very_high_freq_folder) if f.endswith('.png')])
-        high_freq_image = self._merge_image_tiles(
-            image_files_list=high_freq_files, folder=high_freq_folder)
-        very_high_freq_image = self._merge_image_tiles(
-            image_files_list=very_high_freq_files, folder=very_high_freq_folder)
+        high_freq_image = None
+        if high_freq_files:
+            high_freq_image = self._merge_image_tiles(
+                image_files_list=high_freq_files, folder=high_freq_folder)
+                
+        very_high_freq_image = None
+        if very_high_freq_files:
+            very_high_freq_image = self._merge_image_tiles(
+                image_files_list=very_high_freq_files, folder=very_high_freq_folder)
+
         # Get the part that is not background based on brightness
-        bottom_foreground_row = self._find_background_region(
-            image=very_high_freq_image)
+        bottom_foreground_row = None
+        if very_high_freq_image is not None:
+            bottom_foreground_row = self._find_background_region(
+                image=very_high_freq_image)
+        elif high_freq_image is not None:
+            bottom_foreground_row = self._find_background_region(
+                image=high_freq_image)
+
         # Crop both images
-        high_freq_image = high_freq_image[:bottom_foreground_row, :]
-        very_high_freq_image = very_high_freq_image[:bottom_foreground_row, :]
+        if bottom_foreground_row is not None:
+            if high_freq_image is not None:
+                high_freq_image = high_freq_image[:bottom_foreground_row, :]
+            if very_high_freq_image is not None:
+                very_high_freq_image = very_high_freq_image[:bottom_foreground_row, :]
+
         # Save merged images
-        self.merged_high_freq_path = os.path.join(
-            self.output_project_path, "highfreq_image_merged.png")
-        self.merged_very_high_freq_path = os.path.join(
-            self.output_project_path, "very_highfreq_image_merged.png")
-        cv2.imwrite(self.merged_high_freq_path, high_freq_image)
-        cv2.imwrite(self.merged_very_high_freq_path, very_high_freq_image)
+        self.merged_high_freq_path = None
+        self.merged_very_high_freq_path = None
+        
+        if high_freq_image is not None:
+            self.merged_high_freq_path = os.path.join(
+                self.output_project_path, "highfreq_image_merged.png")
+            cv2.imwrite(self.merged_high_freq_path, high_freq_image)
+            
+        if very_high_freq_image is not None:
+            self.merged_very_high_freq_path = os.path.join(
+                self.output_project_path, "very_highfreq_image_merged.png")
+            cv2.imwrite(self.merged_very_high_freq_path, very_high_freq_image)
+
         return True
 
     def _merge_image_tiles(self, image_files_list: list, folder: str) -> np.ndarray:
