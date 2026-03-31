@@ -39,11 +39,19 @@ class DatWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
         # Create splitter for resizable panels
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.setStyleSheet("""
+        vertical_splitter = QSplitter(Qt.Vertical)
+        vertical_splitter.setStyleSheet("""
             QSplitter::handle {
                 background-color: #888;
                 width: 6px;
+                margin: 1px;
+            }
+        """)
+        horizontal_splitter = QSplitter(Qt.Horizontal)
+        horizontal_splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #888;
+                height: 6px;
                 margin: 1px;
             }
         """)
@@ -59,19 +67,76 @@ class DatWindow(QMainWindow):
         right_layout = QVBoxLayout(self.right_panel)
         self.setup_right_panel(right_layout)
 
-        # Fill the splitter with both panels and add to main layout
-        splitter.addWidget(self.left_panel)
-        splitter.addWidget(self.right_panel)
-        splitter.setSizes(
+        # Top pannel with image
+        self.top_panel = QWidget()
+        top_layout = QVBoxLayout(self.top_panel)
+        self.setup_top_panel(top_layout)
+
+        # Fill the vertical splitter with both panels
+        horizontal_splitter.addWidget(self.left_panel)
+        horizontal_splitter.addWidget(self.right_panel)
+        horizontal_splitter.setSizes(
             [self.width() // 3, self.width() // 3, self.width() // 3])
-        main_layout.addWidget(splitter)
+        
+        # Fill the horizontal splitter with the vertical splitter and the top panel
+        vertical_splitter.addWidget(self.top_panel)
+        vertical_splitter.addWidget(horizontal_splitter)
+        vertical_splitter.setSizes([self.height() // 3, self.height() // 3])
+        
+        # Add the horizontal splitter to the main layout
+        main_layout.addWidget(vertical_splitter)
 
 # endregion
 ##############################################################################################
 # region Setup UI
+    def setup_top_panel(self, layout: QVBoxLayout) -> None:
+        """Setups the top panel in the main window
+        """
+        # Image selection layout
+        image_selection_layout = QHBoxLayout()
+        self.image_description_label = QLabel(
+            "Extracted image being processed (frequency):", self)
+        self.image_description_label.setStyleSheet(self.label_style)
+        self.image_description_label.setFixedWidth(280)
+        self.image_dropdown = QComboBox(self)
+        self.image_dropdown.currentIndexChanged.connect(
+            self.image_dropdown_callback)
+        image_selection_layout.addWidget(self.image_description_label)
+        image_selection_layout.addWidget(self.image_dropdown)
+        # Extracted image label
+        self.extracted_image_label = SonProcLabel()
+        # Add the background image for starters
+        self.extracted_image_label.set_pixmap_from_path(
+            get_file_placement_path("resources/dat.png"))
+        # Buttons
+        btns_layout = QHBoxLayout()
+        self.crop_btn = QPushButton("Enable Crop Tool", self)
+        self.crop_btn.setToolTip(
+            "Crop the image based on selection (ENTER to confirm, ESC to cancel)")
+        self.crop_btn.setCheckable(True)
+        self.crop_btn.setChecked(False)
+        self.crop_btn.clicked.connect(self.crop_btn_callback)
+        self.reset_image_btn = QPushButton("Reset Image", self)
+        self.reset_image_btn.clicked.connect(self.reset_image_btn_callback)
+        self.save_image_btn = QPushButton("Save Image", self)
+        self.save_image_btn.clicked.connect(self.save_image_btn_callback)
+        btns_layout.addWidget(self.crop_btn)
+        btns_layout.addWidget(self.reset_image_btn)
+        btns_layout.addWidget(self.save_image_btn)
+        # Add widgets to the layout
+        layout.addLayout(image_selection_layout)
+        layout.addWidget(self.extracted_image_label)
+        layout.addLayout(btns_layout)
+
     def setup_left_panel(self, layout: QVBoxLayout) -> None:
         """Setups the left panel in the main window
         """
+        # Section title
+        self.dat_processing_title = QLabel(
+            "File management", self)
+        self.dat_processing_title.setStyleSheet(self.label_style)
+        self.dat_processing_title.setAlignment(Qt.AlignCenter)
+        self.dat_processing_title.setFixedHeight(30)
         # Input dat path layout
         input_dat_layout = QHBoxLayout()
         self.dat_path_label = QLabel("DAT File:", self)
@@ -103,6 +168,22 @@ class DatWindow(QMainWindow):
         self.output_panel = QTextEdit(self)
         self.output_panel.setReadOnly(True)
         self.output_panel.setPlaceholderText("Output log for the user...")
+        # Add them all to the left layout
+        layout.addWidget(self.dat_processing_title)
+        layout.addLayout(input_dat_layout)
+        layout.addLayout(project_output_layout)
+        layout.addWidget(self.dat_process_btn)
+        layout.addWidget(self.output_panel)
+
+    def setup_right_panel(self, layout: QVBoxLayout) -> None:
+        """Setups the right panel in the main window
+        """
+        # Title to the filter application section
+        self.filter_application_title = QLabel(
+            "Image filters application", self)
+        self.filter_application_title.setStyleSheet(self.label_style)
+        self.filter_application_title.setAlignment(Qt.AlignCenter)
+        self.filter_application_title.setFixedHeight(30)
         # Contrast adjustment layout
         contrast_layout = QHBoxLayout()
         self.contrast_label = QLabel("Contrast:", self)
@@ -247,11 +328,8 @@ class DatWindow(QMainWindow):
         self.reset_filters_btn.clicked.connect(self.reset_filters_btn_callback)
         reset_buttons_layout.addWidget(self.clear_last_filter_btn)
         reset_buttons_layout.addWidget(self.reset_filters_btn)
-        # Add them all to the left layout
-        layout.addLayout(input_dat_layout)
-        layout.addLayout(project_output_layout)
-        layout.addWidget(self.dat_process_btn)
-        layout.addWidget(self.output_panel)
+        # Add all filter layouts to the right panel layout
+        layout.addWidget(self.filter_application_title)
         layout.addLayout(contrast_layout)
         layout.addLayout(brightness_layout)
         layout.addLayout(gamma_layout)
@@ -260,45 +338,6 @@ class DatWindow(QMainWindow):
         layout.addLayout(clahe_layout)
         layout.addLayout(detail_enhancement_layout)
         layout.addLayout(reset_buttons_layout)
-
-    def setup_right_panel(self, layout: QVBoxLayout) -> None:
-        """Setups the right panel in the main window
-        """
-        # Image selection layout
-        image_selection_layout = QHBoxLayout()
-        self.image_description_label = QLabel(
-            "Extracted image being processed (frequency):", self)
-        self.image_description_label.setStyleSheet(self.label_style)
-        self.image_description_label.setFixedWidth(280)
-        self.image_dropdown = QComboBox(self)
-        self.image_dropdown.currentIndexChanged.connect(
-            self.image_dropdown_callback)
-        image_selection_layout.addWidget(self.image_description_label)
-        image_selection_layout.addWidget(self.image_dropdown)
-        # Extracted image label
-        self.extracted_image_label = SonProcLabel()
-        # Add the background image for starters
-        self.extracted_image_label.set_pixmap_from_path(
-            get_file_placement_path("resources/dat.png"))
-        # Buttons
-        btns_layout = QHBoxLayout()
-        self.crop_btn = QPushButton("Enable Crop Tool", self)
-        self.crop_btn.setToolTip(
-            "Crop the image based on selection (ENTER to confirm, ESC to cancel)")
-        self.crop_btn.setCheckable(True)
-        self.crop_btn.setChecked(False)
-        self.crop_btn.clicked.connect(self.crop_btn_callback)
-        self.reset_image_btn = QPushButton("Reset Image", self)
-        self.reset_image_btn.clicked.connect(self.reset_image_btn_callback)
-        self.save_image_btn = QPushButton("Save Image", self)
-        self.save_image_btn.clicked.connect(self.save_image_btn_callback)
-        btns_layout.addWidget(self.crop_btn)
-        btns_layout.addWidget(self.reset_image_btn)
-        btns_layout.addWidget(self.save_image_btn)
-        # Add widgets to the layout
-        layout.addLayout(image_selection_layout)
-        layout.addWidget(self.extracted_image_label)
-        layout.addLayout(btns_layout)
 
     def setup_background(self) -> None:
         """Generates the background with proper image and scales
