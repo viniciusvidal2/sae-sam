@@ -38,6 +38,14 @@ class DatWorker(QObject):
         """
         self.dat_interpreter.set_project_path(p)
 
+    def set_keep_raw_data(self, keep: bool) -> None:
+        """Set whether to keep raw data after processing.
+
+        Args:
+            keep (bool): True to keep raw data, False to delete it after processing.
+        """
+        self.dat_interpreter.set_keep_raw_data(keep)
+
     @Slot()
     def run(self) -> None:
         """Run the waterfall generation pipeline and image manipulation."""

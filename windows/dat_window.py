@@ -1,7 +1,7 @@
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QSlider, QComboBox,
-    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QCheckBox
 )
 from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
 from PySide6.QtCore import Qt, QThread
@@ -162,8 +162,16 @@ class DatWindow(QMainWindow):
         project_output_layout.addWidget(self.project_output_line_edit)
         project_output_layout.addWidget(self.project_output_browse_btn)
         # Process button
+        process_btn_layout = QHBoxLayout()
         self.dat_process_btn = QPushButton("Process DAT", self)
         self.dat_process_btn.clicked.connect(self.dat_process_btn_callback)
+        self.keep_raw_data_checkbox = QCheckBox("Keep raw data", self)
+        self.keep_raw_data_checkbox.setCheckable(True)
+        self.keep_raw_data_checkbox.setChecked(True)
+        self.keep_raw_data_checkbox.setToolTip("Keep raw data after processing, it will be deleted otherwise to save space")
+        self.keep_raw_data_checkbox.setFixedWidth(120)
+        process_btn_layout.addWidget(self.dat_process_btn)
+        process_btn_layout.addWidget(self.keep_raw_data_checkbox)
         # Text output panel
         self.output_panel = QTextEdit(self)
         self.output_panel.setReadOnly(True)
@@ -172,7 +180,7 @@ class DatWindow(QMainWindow):
         layout.addWidget(self.dat_processing_title)
         layout.addLayout(input_dat_layout)
         layout.addLayout(project_output_layout)
-        layout.addWidget(self.dat_process_btn)
+        layout.addLayout(process_btn_layout)
         layout.addWidget(self.output_panel)
 
     def setup_right_panel(self, layout: QVBoxLayout) -> None:
@@ -461,6 +469,7 @@ class DatWindow(QMainWindow):
         self.dat_thread.started.connect(self.dat_worker.run)
         # Set the path in the interpreter
         self.dat_worker.set_dat_path(p=self.dat_path)
+        self.dat_worker.set_keep_raw_data(keep=self.keep_raw_data_checkbox.isChecked())
         self.dat_worker.set_son_idx_subfolder_path(p=self.dat_subfolder_path)
         self.dat_worker.set_project_path(p=self.project_output_path)
         self.dat_thread.start()

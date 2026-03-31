@@ -17,8 +17,9 @@ class DatInterpreter:
             'pingmapper/default_params.json')
         self.params = self._generate_default_params(
             params_file=self.default_params_file)
-        # The project path
+        # The project path and wether to keep raw data or not
         self.output_project_path = None
+        self.keep_raw_data = True
         # DAT and respective SON and IDX paths
         self.dat_file_path = None
         self.son_idx_subfolder_path = None
@@ -118,6 +119,14 @@ class DatInterpreter:
         """
         self.output_project_path = p
 
+    def set_keep_raw_data(self, keep: bool) -> None:
+        """Set whether to keep raw data after processing.
+
+        Args:
+            keep (bool): True to keep raw data, False to delete it after processing.
+        """
+        self.keep_raw_data = keep
+
     def generate_waterfall_images(self) -> str:
         """Generate the waterfall images from the DAT file"""
         if not self.output_project_path:
@@ -151,7 +160,8 @@ class DatInterpreter:
                 return "Error during merging and saving waterfall images."
             
             # Clean temporary files in the project folder
-            self._clean_project_folder()
+            if not self.keep_raw_data:
+                self._clean_project_folder()
             # Return success message with processing time
             process_time = datetime.timedelta(
                 seconds=round(time.time() - start_time, ndigits=0))
