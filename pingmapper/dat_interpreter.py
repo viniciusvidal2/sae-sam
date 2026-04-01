@@ -28,6 +28,8 @@ class DatInterpreter:
         # Output merged images paths
         self.merged_high_freq_path = None
         self.merged_very_high_freq_path = None
+        self.merged_port_si_path = None
+        self.merged_starboard_si_path = None
 
     def _generate_default_params(self, params_file: str) -> dict:
         """
@@ -165,6 +167,8 @@ class DatInterpreter:
 
         self.merged_high_freq_path = None
         self.merged_very_high_freq_path = None
+        self.merged_port_si_path = None
+        self.merged_starboard_si_path = None
 
         # Try to acquire the images from the DAT and SON files, and save them in the project path
         start_time = time.time()
@@ -179,11 +183,22 @@ class DatInterpreter:
                 self.output_project_path, "ds_highfreq", "wcp")
             very_high_freq_folder = os.path.join(
                 self.output_project_path, "ds_vhighfreq", "wcp")
+            port_si_folder = os.path.join(
+                self.output_project_path, "ss_port", "wcp")
+            starboard_si_folder = os.path.join(
+                self.output_project_path, "ss_star", "wcp")
+
             yield "Processing high frequency waterfall image..."
             for status in self._process_waterfall_image(folder=high_freq_folder, output_image_name="highfreq_image_merged.png", freq_type="highfreq"):
                 yield status
             yield "Processing very high frequency waterfall image..."
             for status in self._process_waterfall_image(folder=very_high_freq_folder, output_image_name="very_highfreq_image_merged.png", freq_type="vhighfreq"):
+                yield status
+            yield "Processing port SI waterfall image..."
+            for status in self._process_waterfall_image(folder=port_si_folder, output_image_name="port_si_image_merged.png", freq_type="port_si"):
+                yield status
+            yield "Processing starboard SI waterfall image..."
+            for status in self._process_waterfall_image(folder=starboard_si_folder, output_image_name="starboard_si_image_merged.png", freq_type="starboard_si"):
                 yield status
 
             # Clean temporary files in the project folder
@@ -212,14 +227,12 @@ class DatInterpreter:
             str: Status messages during the processing.
         """
         # Checks for inconsistencies
-        if not self.output_project_path:
-            yield f"Project path not set, cannot process {output_image_name}."
+        if not os.path.exists(folder):
+            yield f"Folder {folder} does not exist, cannot process {output_image_name}."
             return
         yield f"Checking for image tiles in {folder}..."
-        files = []
-        if os.path.exists(folder):
-            files = sorted(
-                [f for f in os.listdir(folder) if f.endswith('.png')])
+        files = sorted(
+            [f for f in os.listdir(folder) if f.endswith('.png')])
         if not files:
             yield f"No image tiles found in {folder}."
             return
@@ -241,8 +254,12 @@ class DatInterpreter:
         # Update paths in instance variables
         if freq_type == "vhighfreq":
             self.merged_very_high_freq_path = merged_path
-        else:
+        elif freq_type == "highfreq":
             self.merged_high_freq_path = merged_path
+        elif freq_type == "port_si":
+            self.merged_port_si_path = merged_path
+        elif freq_type == "starboard_si":
+            self.merged_starboard_si_path = merged_path
         yield f"Successfully processed and saved {output_image_name}."
 
     def _merge_image_tiles(self, image_files_list: list, folder: str) -> np.ndarray:
@@ -294,7 +311,9 @@ class DatInterpreter:
         """
         return {
             'highfreq_image_merged': self.merged_high_freq_path,
-            'very_highfreq_image_merged': self.merged_very_high_freq_path
+            'very_highfreq_image_merged': self.merged_very_high_freq_path,
+            'port_si_image_merged': self.merged_port_si_path,
+            'starboard_si_image_merged': self.merged_starboard_si_path
         }
 
     def _find_background_region(self, image: np.ndarray) -> int:

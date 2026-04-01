@@ -171,7 +171,8 @@ class DatWindow(QMainWindow):
         self.keep_raw_data_checkbox.setToolTip(
             "Keep raw data after processing, it will be deleted otherwise to save space")
         self.keep_raw_data_checkbox.setFixedWidth(120)
-        self.filter_bg_auto_checkbox = QCheckBox("Auto filter background", self)
+        self.filter_bg_auto_checkbox = QCheckBox(
+            "Auto filter background", self)
         self.filter_bg_auto_checkbox.setCheckable(True)
         self.filter_bg_auto_checkbox.setChecked(True)
         self.filter_bg_auto_checkbox.setToolTip(
@@ -442,7 +443,9 @@ class DatWindow(QMainWindow):
             self.project_output_line_edit.setText(self.project_output_path)
             # If we have images inside the project path, we can load them in the dropdown and display the first one
             desired_images = ["highfreq_image_merged.png",
-                              "very_highfreq_image_merged.png"]
+                              "very_highfreq_image_merged.png",
+                              "port_si_image_merged.png",
+                              "starboard_si_image_merged.png"]
             existing_images = [f for f in os.listdir(
                 self.project_output_path) if f in desired_images]
             if existing_images:
@@ -703,6 +706,7 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
+
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
