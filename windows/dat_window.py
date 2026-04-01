@@ -1,13 +1,186 @@
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QSlider, QComboBox,
-    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QCheckBox
+    QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QCheckBox, QSizePolicy
 )
-from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent, QPainter, QColor, QPen, QPaintEvent, QMouseEvent
+from PySide6.QtCore import Qt, QThread, Signal
 from modules.path_tool import get_file_placement_path
 from windows.son_proc_label import SonProcLabel
 from workers.dat_worker import DatWorker
+
+
+class RangeSlider(QWidget):
+    valueChanged = Signal(int, int)
+
+    def __init__(self, orientation: Qt.Orientation = Qt.Horizontal, parent: QWidget = None) -> None:
+        """
+        Custom range slider widget for selecting a range of values.
+
+        Args:
+            orientation (Qt.Orientation): The orientation of the slider (horizontal or vertical).
+            parent (QWidget): The parent widget.
+        """
+        super().__init__(parent)
+        self.orientation = orientation
+        if self.orientation == Qt.Horizontal:
+            self.setMinimumSize(100, 30)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        else:
+            self.setMinimumSize(30, 100)
+            self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        self._minimum = 0
+        self._maximum = 100
+        self._min_value = 0
+        self._max_value = 100
+        self._handle_radius = 8
+        self._active_handle = None
+
+    def minimum(self) -> int:
+        """Get the lower bound of the slider domain."""
+        return self._minimum
+
+    def maximum(self) -> int:
+        """Get the upper bound of the slider domain."""
+        return self._maximum
+
+    def minValue(self) -> int:
+        """Get the currently selected minimum value."""
+        return self._min_value
+
+    def maxValue(self) -> int:
+        """Get the currently selected maximum value."""
+        return self._max_value
+
+    def setMinValue(self, val: int) -> None:
+        """Set minimum value
+
+        Args:
+            val (int): The minimum value to set, will be clamped between the allowed range and the current max value.
+        """
+        self._min_value = max(self._minimum, min(val, self._max_value))
+        self.update()
+        self.valueChanged.emit(self._min_value, self._max_value)
+
+    def setMaxValue(self, val: int) -> None:
+        """Set maximum selected value.
+
+        Args:
+            val (int): The maximum value to set, clamped to the allowed range and current minimum value.
+        """
+        self._max_value = max(self._min_value, min(val, self._maximum))
+        self.update()
+        self.valueChanged.emit(self._min_value, self._max_value)
+
+    def _val_to_pos(self, val: int) -> int:
+        """Convert a slider value into a pixel position along the active axis.
+
+        Args:
+            val (int): Value in the slider domain.
+
+        Returns:
+            int: Pixel position of the handle center.
+        """
+        length = self.width() if self.orientation == Qt.Horizontal else self.height()
+        w = length - 2 * self._handle_radius
+        return int((val - self._minimum) / (self._maximum - self._minimum) * w) + self._handle_radius
+
+    def _pos_to_val(self, pos: float) -> int:
+        """Convert a pixel position into a slider value.
+
+        Args:
+            pos (float): Pixel position along the active axis.
+
+        Returns:
+            int: Value clamped to the slider domain.
+        """
+        length = self.width() if self.orientation == Qt.Horizontal else self.height()
+        w = length - 2 * self._handle_radius
+        val = self._minimum + (pos - self._handle_radius) / \
+            w * (self._maximum - self._minimum)
+        return int(max(self._minimum, min(self._maximum, val)))
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """Paint the range slider track, selected range, and both handles.
+
+        Args:
+            event (QPaintEvent): Qt paint event payload.
+        """
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        is_horiz = self.orientation == Qt.Horizontal
+        w = self.width()
+        h = self.height()
+        track_pos = h // 2 if is_horiz else w // 2
+
+        painter.setPen(QPen(QColor(150, 150, 150),
+                       4, Qt.SolidLine, Qt.RoundCap))
+        if is_horiz:
+            painter.drawLine(self._handle_radius, track_pos,
+                             w - self._handle_radius, track_pos)
+        else:
+            painter.drawLine(track_pos, self._handle_radius,
+                             track_pos, h - self._handle_radius)
+
+        p1 = self._val_to_pos(self._min_value)
+        p2 = self._val_to_pos(self._max_value)
+
+        painter.setPen(QPen(QColor(0, 120, 215), 4, Qt.SolidLine, Qt.RoundCap))
+        if is_horiz:
+            painter.drawLine(p1, track_pos, p2, track_pos)
+        else:
+            painter.drawLine(track_pos, p1, track_pos, p2)
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(0, 120, 215))
+        if is_horiz:
+            painter.drawEllipse(p1 - self._handle_radius, track_pos -
+                                self._handle_radius, self._handle_radius*2, self._handle_radius*2)
+            painter.drawEllipse(p2 - self._handle_radius, track_pos -
+                                self._handle_radius, self._handle_radius*2, self._handle_radius*2)
+        else:
+            painter.drawEllipse(track_pos - self._handle_radius, p1 -
+                                self._handle_radius, self._handle_radius*2, self._handle_radius*2)
+            painter.drawEllipse(track_pos - self._handle_radius, p2 -
+                                self._handle_radius, self._handle_radius*2, self._handle_radius*2)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        """Select and move the closest handle on mouse press.
+
+        Args:
+            event (QMouseEvent): Mouse press event.
+        """
+        pos = event.position().x() if self.orientation == Qt.Horizontal else event.position().y()
+        p1 = self._val_to_pos(self._min_value)
+        p2 = self._val_to_pos(self._max_value)
+
+        if abs(pos - p1) < abs(pos - p2):
+            self._active_handle = 'min'
+            self.setMinValue(self._pos_to_val(pos))
+        else:
+            self._active_handle = 'max'
+            self.setMaxValue(self._pos_to_val(pos))
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        """Update the active handle value while dragging.
+
+        Args:
+            event (QMouseEvent): Mouse move event.
+        """
+        pos = event.position().x() if self.orientation == Qt.Horizontal else event.position().y()
+        if self._active_handle == 'min':
+            self.setMinValue(self._pos_to_val(pos))
+        elif self._active_handle == 'max':
+            self.setMaxValue(self._pos_to_val(pos))
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        """Release the active handle after a drag operation.
+
+        Args:
+            event (QMouseEvent): Mouse release event.
+        """
+        self._active_handle = None
 
 
 class DatWindow(QMainWindow):
@@ -108,6 +281,21 @@ class DatWindow(QMainWindow):
         # Add the background image for starters
         self.extracted_image_label.set_pixmap_from_path(
             get_file_placement_path("resources/dat.png"))
+
+        # Range Slider Layout
+        slider_layout = QHBoxLayout()
+        self.crop_sliderlabel = QLabel("Crop Range:", self)
+        self.crop_sliderlabel.setStyleSheet(self.label_style)
+        self.crop_slider = RangeSlider(Qt.Horizontal, self)
+        self.crop_slider.valueChanged.connect(
+            self.crop_slider_changed_callback)
+        self.crop_slider_apply_btn = QPushButton("Apply Preview", self)
+        self.crop_slider_apply_btn.clicked.connect(
+            self.crop_slider_apply_btn_callback)
+        slider_layout.addWidget(self.crop_sliderlabel)
+        slider_layout.addWidget(self.crop_slider)
+        slider_layout.addWidget(self.crop_slider_apply_btn)
+
         # Buttons
         btns_layout = QHBoxLayout()
         self.crop_btn = QPushButton("Enable Crop Tool", self)
@@ -125,6 +313,7 @@ class DatWindow(QMainWindow):
         btns_layout.addWidget(self.save_image_btn)
         # Add widgets to the layout
         layout.addLayout(image_selection_layout)
+        layout.addLayout(slider_layout)
         layout.addWidget(self.extracted_image_label)
         layout.addLayout(btns_layout)
 
@@ -588,6 +777,25 @@ class DatWindow(QMainWindow):
             self.log_output(save_message)
         self.enable_buttons()
 
+    def crop_slider_changed_callback(self, min_val: int, max_val: int) -> None:
+        """Callback for the double side slider moving
+        """
+        self.extracted_image_label.preview_horizontal_crop(min_val, max_val)
+
+    def crop_slider_apply_btn_callback(self) -> None:
+        """Callback for the double side slider apply button
+        """
+        self.disable_buttons()
+        self.log_output(self.skip_print)
+        self.log_output("Applying crop from slider selection.")
+        self.extracted_image_label.commit_crop()
+        # Reset the slider to 0-100 without triggering preview
+        self.crop_slider.blockSignals(True)
+        self.crop_slider.setMinValue(0)
+        self.crop_slider.setMaxValue(100)
+        self.crop_slider.blockSignals(False)
+        self.enable_buttons()
+
 # endregion
 ##############################################################################################
 # region Filter application callbacks
@@ -707,7 +915,6 @@ class DatWindow(QMainWindow):
 ##############################################################################################
 # region Utility functions
 
-
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel
 
@@ -735,6 +942,10 @@ class DatWindow(QMainWindow):
         self.detail_enhancement_apply_btn.setEnabled(True)
         self.clear_last_filter_btn.setEnabled(True)
         self.reset_filters_btn.setEnabled(True)
+        self.keep_raw_data_checkbox.setEnabled(True)
+        self.filter_bg_auto_checkbox.setEnabled(True)
+        self.crop_slider.setEnabled(True)
+        self.crop_slider_apply_btn.setEnabled(True)
 
     def disable_buttons(self) -> None:
         """Disables the buttons in the window
@@ -755,6 +966,10 @@ class DatWindow(QMainWindow):
         self.detail_enhancement_apply_btn.setEnabled(False)
         self.clear_last_filter_btn.setEnabled(False)
         self.reset_filters_btn.setEnabled(False)
+        self.keep_raw_data_checkbox.setEnabled(False)
+        self.filter_bg_auto_checkbox.setEnabled(False)
+        self.crop_slider.setEnabled(False)
+        self.crop_slider_apply_btn.setEnabled(False)
 
 # endregion
 ##############################################################################################

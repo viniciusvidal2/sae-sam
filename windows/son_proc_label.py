@@ -267,6 +267,45 @@ class SonProcLabel(QLabel):
     # endregion
     # region Image Conversion Utilities
 
+    def preview_horizontal_crop(self, min_pct: float, max_pct: float) -> None:
+        """
+        Temporarily display a horizontal crop based on percentages (0-100), 
+        without saving it to the filter history yet.
+
+        Args:
+            min_pct (float): Minimum percentage to crop from the left.
+            max_pct (float): Maximum percentage to keep until the right.
+        """
+        if self.image_filter_base is None:
+            return
+            
+        h, w = self.image_filter_base.shape[:2]
+        x_start = int((min_pct / 100.0) * w)
+        x_end = int((max_pct / 100.0) * w)
+        if x_start >= x_end:
+            return
+            
+        self.image_current = self.image_filter_base[:, x_start:x_end]
+        self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
+
+    def commit_crop(self) -> None:
+        """
+        Commit the currently previewed image state as a 'crop' filter.
+        """
+        if self.image_current is None:
+            return
+        self.filters_state["last_filter"] = self.filters_state["current_filter"]
+        self.filters_state["current_filter"] = "crop"
+        self.image_filter_base = self.image_current.copy()
+        self.image_filter_base_history.append(
+            {
+                "image": self.image_filter_base,
+                "filter_name": "crop"
+            }
+        )
+
+
+
     def numpy_to_qpixmap(self, cv_img: np.ndarray) -> QPixmap:
         """
         Convert a BGR OpenCV image (numpy array) to QPixmap.
