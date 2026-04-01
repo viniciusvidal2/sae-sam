@@ -5,6 +5,7 @@ import datetime
 import numpy as np
 import cv2
 import shutil
+from typing import Generator
 from pingmapper.main_readFiles import read_master_func
 from modules.path_tool import get_file_placement_path
 
@@ -127,14 +128,19 @@ class DatInterpreter:
         """
         self.keep_raw_data = keep
 
-    def generate_waterfall_images(self) -> str:
-        """Generate the waterfall images from the DAT file"""
+    def generate_waterfall_images(self) -> Generator[str, None, None]:
+        """Generate the waterfall images from the DAT file
+        Yields a string with the status and the result of the process, which can be emitted to the GUI log output
+
+        Yields:
+            str: Status and result messages during the processing of the DAT file and generation of waterfall images
+        """
         if not self.output_project_path:
-            return "No project output path set."
+            yield "No project output path set."
         if not self.dat_file_path:
-            return "No DAT file path set."
+            yield "No DAT file path set."
         if not self.son_idx_subfolder_path:
-            return "No SON/IDX subfolder path set."
+            yield "No SON/IDX subfolder path set."
         # Set the former parameters from the paths
         sonFiles = [os.path.join(self.son_idx_subfolder_path, f) for f in sorted(
             os.listdir(self.son_idx_subfolder_path)) if f.endswith('.SON')]
@@ -151,23 +157,30 @@ class DatInterpreter:
         # Try to acquire the images from the DAT and SON files, and save them in the project path
         start_time = time.time()
         try:
+            yield "Reading the DAT file content..."
             # Generate image tiles
             read_master_func(**self.params)
+            yield "Image tiles generated successfully form DAT file. Now merging them into complete waterfall images..."
             
             # Merge and save waterfall images
             merged = self._merge_save_waterfall_images()
+            yield f"Merging and saving waterfall images process result: {'Success' if merged else 'Failed'}"
             if not merged:
-                return "Error during merging and saving waterfall images."
+                yield "Error during merging and saving waterfall images."
             
             # Clean temporary files in the project folder
             if not self.keep_raw_data:
+                yield "Cleaning temporary files in the project folder..."
                 self._clean_project_folder()
+                yield "Temporary files cleaned successfully."
+            else:
+                yield "Keeping raw data as per user selection. Skipping cleaning of temporary files."
             # Return success message with processing time
             process_time = datetime.timedelta(
                 seconds=round(time.time() - start_time, ndigits=0))
-            return f"Waterfall images generated successfully in {self.output_project_path}.\nTotal Processing Time: {process_time}"
+            yield f"Waterfall images generated successfully in {self.output_project_path}.\nTotal Processing Time: {process_time}"
         except Exception as Argument:
-            return f"Error during processing: {str(Argument)}"
+            yield f"Error during processing: {str(Argument)}"
 
     def _merge_save_waterfall_images(self) -> bool:
         """Merge and save the waterfall images

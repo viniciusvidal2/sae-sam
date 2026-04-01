@@ -50,8 +50,15 @@ class DatWorker(QObject):
     def run(self) -> None:
         """Run the waterfall generation pipeline and image manipulation."""
         self.log.emit("Processing waterfall images, it might take up to 10 minutes depending on the size of the dataset...")
-        result = self.dat_interpreter.generate_waterfall_images()
-        self.log.emit(result)
-        self.merged_images_paths_signal.emit(
-            self.dat_interpreter.get_merged_images_paths())
-        self.finished.emit()
+        process_dat = getattr(
+            self.dat_interpreter,
+            "process_dat",
+            self.dat_interpreter.generate_waterfall_images,
+        )
+        try:
+            for message in process_dat():
+                self.log.emit(message)
+        finally:
+            self.merged_images_paths_signal.emit(
+                self.dat_interpreter.get_merged_images_paths())
+            self.finished.emit()
