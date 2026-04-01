@@ -21,6 +21,7 @@ class DatInterpreter:
         # The project path and wether to keep raw data or not
         self.output_project_path = None
         self.keep_raw_data = True
+        self.auto_filter_background = True
         # DAT and respective SON and IDX paths
         self.dat_file_path = None
         self.son_idx_subfolder_path = None
@@ -128,6 +129,14 @@ class DatInterpreter:
         """
         self.keep_raw_data = keep
 
+    def set_auto_filter_background(self, auto_filter: bool) -> None:
+        """Set whether to automatically filter the background in the extracted images.
+
+        Args:
+            auto_filter (bool): True to automatically filter background, False to skip this step.
+        """
+        self.auto_filter_background = auto_filter
+
     def generate_waterfall_images(self) -> Generator[str, None, None]:
         """Generate the waterfall images from the DAT file
         Yields a string with the status and the result of the process, which can be emitted to the GUI log output
@@ -202,42 +211,38 @@ class DatInterpreter:
         Yields:
             str: Status messages during the processing.
         """
+        # Checks for inconsistencies
         if not self.output_project_path:
             yield f"Project path not set, cannot process {output_image_name}."
             return
-
         yield f"Checking for image tiles in {folder}..."
         files = []
         if os.path.exists(folder):
             files = sorted(
                 [f for f in os.listdir(folder) if f.endswith('.png')])
-
         if not files:
             yield f"No image tiles found in {folder}."
             return
 
+        # Processing the image tiles: merging, filtering background and saving the final image
         yield f"Merging {len(files)} image tiles from {folder}..."
         merged_image = self._merge_image_tiles(
             image_files_list=files, folder=folder)
-
-        yield "Finding background region to crop..."
-        bottom_foreground_row = self._find_background_region(
-            image=merged_image)
-
-        if bottom_foreground_row is not None:
-            yield "Cropping image to remove background..."
-            merged_image = merged_image[:bottom_foreground_row, :]
-
+        if self.auto_filter_background:
+            yield "Finding background region to crop..."
+            bottom_foreground_row = self._find_background_region(
+                image=merged_image)
+            if bottom_foreground_row is not None:
+                yield "Cropping image to remove background..."
+                merged_image = merged_image[:bottom_foreground_row, :]
         merged_path = os.path.join(self.output_project_path, output_image_name)
         yield f"Saving merged image to {merged_path}..."
         cv2.imwrite(merged_path, merged_image)
-
         # Update paths in instance variables
         if freq_type == "vhighfreq":
             self.merged_very_high_freq_path = merged_path
         else:
             self.merged_high_freq_path = merged_path
-
         yield f"Successfully processed and saved {output_image_name}."
 
     def _merge_image_tiles(self, image_files_list: list, folder: str) -> np.ndarray:

@@ -46,6 +46,14 @@ class DatWorker(QObject):
         """
         self.dat_interpreter.set_keep_raw_data(keep)
 
+    def set_auto_filter_background(self, auto_filter: bool) -> None:
+        """Set whether to automatically filter the background in the extracted images.
+
+        Args:
+            auto_filter (bool): True to automatically filter background, False to skip this step.
+        """
+        self.dat_interpreter.set_auto_filter_background(auto_filter)
+
     @Slot()
     def run(self) -> None:
         """Run the waterfall generation pipeline and image manipulation."""

@@ -161,7 +161,7 @@ class DatWindow(QMainWindow):
         project_output_layout.addWidget(self.project_output_label)
         project_output_layout.addWidget(self.project_output_line_edit)
         project_output_layout.addWidget(self.project_output_browse_btn)
-        # Process button
+        # Process buttons layout
         process_btn_layout = QHBoxLayout()
         self.dat_process_btn = QPushButton("Process DAT", self)
         self.dat_process_btn.clicked.connect(self.dat_process_btn_callback)
@@ -171,8 +171,15 @@ class DatWindow(QMainWindow):
         self.keep_raw_data_checkbox.setToolTip(
             "Keep raw data after processing, it will be deleted otherwise to save space")
         self.keep_raw_data_checkbox.setFixedWidth(120)
+        self.filter_bg_auto_checkbox = QCheckBox("Auto filter background", self)
+        self.filter_bg_auto_checkbox.setCheckable(True)
+        self.filter_bg_auto_checkbox.setChecked(True)
+        self.filter_bg_auto_checkbox.setToolTip(
+            "Automatically filter the background in the extracted images, might take more time to process")
+        self.filter_bg_auto_checkbox.setFixedWidth(150)
         process_btn_layout.addWidget(self.dat_process_btn)
         process_btn_layout.addWidget(self.keep_raw_data_checkbox)
+        process_btn_layout.addWidget(self.filter_bg_auto_checkbox)
         # Text output panel
         self.output_panel = QTextEdit(self)
         self.output_panel.setReadOnly(True)
@@ -487,6 +494,8 @@ class DatWindow(QMainWindow):
         self.dat_worker.set_dat_path(p=self.dat_path)
         self.dat_worker.set_keep_raw_data(
             keep=self.keep_raw_data_checkbox.isChecked())
+        self.dat_worker.set_auto_filter_background(
+            auto_filter=self.filter_bg_auto_checkbox.isChecked())
         self.dat_worker.set_son_idx_subfolder_path(p=self.dat_subfolder_path)
         self.dat_worker.set_project_path(p=self.project_output_path)
         self.dat_thread.start()
