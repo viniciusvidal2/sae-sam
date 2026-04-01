@@ -287,8 +287,8 @@ class DatInterpreter:
             dict: Dictionary with paths to merged high frequency and very high frequency images
         """
         return {
-            'high_freq_image': self.merged_high_freq_path,
-            'very_high_freq_image': self.merged_very_high_freq_path
+            'highfreq_image_merged': self.merged_high_freq_path,
+            'very_highfreq_image_merged': self.merged_very_high_freq_path
         }
 
     def _find_background_region(self, image: np.ndarray) -> int:

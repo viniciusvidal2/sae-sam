@@ -432,6 +432,16 @@ class DatWindow(QMainWindow):
             self.log_output(
                 f"Selected project output path: {self.project_output_path}")
             self.project_output_line_edit.setText(self.project_output_path)
+            # If we have images inside the project path, we can load them in the dropdown and display the first one
+            desired_images = ["highfreq_image_merged.png", "very_highfreq_image_merged.png"]
+            existing_images = [f for f in os.listdir(self.project_output_path) if f in desired_images]
+            if existing_images:
+                self.log_output(f"Found {len(existing_images)} existing images in the project output path. Loading them in the dropdown.")
+                self.merged_images_paths = {img.split(".")[0]: os.path.join(self.project_output_path, img) for img in existing_images}
+                self.image_dropdown.clear()
+                self.image_dropdown.addItems(self.merged_images_paths.keys())
+                first_image_path = list(self.merged_images_paths.values())[0]
+                self.extracted_image_label.set_pixmap_from_path(first_image_path)
         else:
             self.log_output("No valid project output path was selected.")
         self.enable_buttons()
