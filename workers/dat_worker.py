@@ -49,7 +49,8 @@ class DatWorker(QObject):
     @Slot()
     def run(self) -> None:
         """Run the waterfall generation pipeline and image manipulation."""
-        self.log.emit("Processing waterfall images, it might take up to 10 minutes depending on the size of the dataset...")
+        self.log.emit(
+            "Processing waterfall images, it might take up to 10 minutes depending on the size of the dataset...")
         process_dat = getattr(
             self.dat_interpreter,
             "process_dat",

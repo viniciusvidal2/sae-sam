@@ -118,7 +118,7 @@ def read_master_func(logfilename='',
                      mosaic_nchunk=50,
                      mosaic=False,
                      map_mosaic=0,
-                     banklines=False):
+                     banklines=False) -> bool:
     '''
     Main script to read data from Humminbird sonar recordings. Scripts have been
     tested on 9xx, 11xx, Helix, Solix and Onyx models but should work with any
@@ -262,9 +262,10 @@ def read_master_func(logfilename='',
     # Determine sonar recording type
     _, file_type = os.path.splitext(inFile)
     with open(os.devnull, 'w') as devnull, \
-        contextlib.redirect_stdout(devnull), \
-        contextlib.redirect_stderr(devnull):
-        sonar_obj = hum2pingmapper(inFile, projDir, nchunk, tempC, exportUnknown)
+            contextlib.redirect_stdout(devnull), \
+            contextlib.redirect_stderr(devnull):
+        sonar_obj = hum2pingmapper(
+            inFile, projDir, nchunk, tempC, exportUnknown)
 
     ####################
     # Create son objects
