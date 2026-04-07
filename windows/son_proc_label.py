@@ -138,6 +138,20 @@ class SonProcLabel(QLabel):
         self._is_selecting = False
         self.update()
 
+    def _clamp_point(self, point: QPoint) -> QPoint:
+        """
+        Clamp coordinate point to the label boundaries.
+
+        Args:
+            point (QPoint): Point to clamp.
+
+        Returns:
+            QPoint: The clamped point.
+        """
+        x = max(0, min(point.x(), self.width()))
+        y = max(0, min(point.y(), self.height()))
+        return QPoint(x, y)
+
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """
         Define the rectangle borders
@@ -148,7 +162,7 @@ class SonProcLabel(QLabel):
         if not self._is_crop_mode:
             return
         if event.button() == Qt.LeftButton:
-            self._start_point = event.position().toPoint()
+            self._start_point = self._clamp_point(event.position().toPoint())
             self._end_point = self._start_point
             self._is_selecting = True
             self.update()
@@ -161,7 +175,7 @@ class SonProcLabel(QLabel):
             event (QMouseEvent): Mouse move event.
         """
         if self._is_crop_mode and self._is_selecting:
-            self._end_point = event.position().toPoint()
+            self._end_point = self._clamp_point(event.position().toPoint())
             self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -172,7 +186,7 @@ class SonProcLabel(QLabel):
             event (QMouseEvent): Mouse release event.
         """
         if self._is_crop_mode and event.button() == Qt.LeftButton:
-            self._end_point = event.position().toPoint()
+            self._end_point = self._clamp_point(event.position().toPoint())
             self._is_selecting = False
             self.update()
 
@@ -260,11 +274,23 @@ class SonProcLabel(QLabel):
             image_h, image_w = self.image_current.shape[:2]
             x_ratio = image_w / pixmap_w
             y_ratio = image_h / pixmap_h
+            
             x0 = int(x_in_pixmap * x_ratio)
             y0 = int(y_in_pixmap * y_ratio)
             w = int(w_in_pixmap * x_ratio)
             h = int(h_in_pixmap * y_ratio)
-            return QRect(x0, y0, w, h)
+            
+            # Double safety array boundaries clamp
+            x1 = max(0, min(x0 + w, image_w))
+            y1 = max(0, min(y0 + h, image_h))
+            x0 = max(0, min(x0, image_w))
+            y0 = max(0, min(y0, image_h))
+            
+            w = x1 - x0
+            h = y1 - y0
+            
+            if w > 0 and h > 0:
+                return QRect(x0, y0, w, h)
         return QRect()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
