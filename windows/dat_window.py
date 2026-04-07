@@ -13,6 +13,7 @@ import numpy as np
 
 class RangeSlider(QWidget):
     valueChanged = Signal(int, int)
+    sliderReleased = Signal(int, int)
 
     def __init__(self, orientation: Qt.Orientation = Qt.Horizontal, parent: QWidget = None) -> None:
         """
@@ -182,6 +183,7 @@ class RangeSlider(QWidget):
             event (QMouseEvent): Mouse release event.
         """
         self._active_handle = None
+        self.sliderReleased.emit(self._min_value, self._max_value)
 
 
 class DatWindow(QMainWindow):
@@ -307,7 +309,7 @@ class DatWindow(QMainWindow):
         self.crop_sliderlabel = QLabel("Crop Range:", self)
         self.crop_sliderlabel.setStyleSheet(self.label_style)
         self.crop_slider = RangeSlider(Qt.Horizontal, self)
-        self.crop_slider.valueChanged.connect(
+        self.crop_slider.sliderReleased.connect(
             self.crop_slider_changed_callback)
         self.crop_slider_apply_btn = QPushButton("Apply Preview", self)
         self.crop_slider_apply_btn.clicked.connect(
