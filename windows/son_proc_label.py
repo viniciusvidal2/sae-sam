@@ -36,7 +36,7 @@ class SonProcLabel(QLabel):
         self.pixmap_current_displayed = None
         # Image control variables
         self.AVAILABLE_FILTERS = ["contrast", "brightness", "gamma",
-                                  "sharpness", "saturation", "clahe", 
+                                  "sharpness", "saturation", "clahe",
                                   "detail_enhancement", "crop"]
         self.filters_state = {"last_filter": None, "current_filter": None}
         self.image_original = None
@@ -55,10 +55,24 @@ class SonProcLabel(QLabel):
             image_path (str): Path to the image file.
         """
         self.image_original = cv2.imread(image_path)
-        self.image_current = self.image_original.copy()
-        self.image_filter_base = self.image_original.copy()
+        self.image_current = self.image_original
+        self.image_filter_base = self.image_original
         self.image_filter_base_history = []
         self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
+
+    def set_loaded_image(self, image_original: np.ndarray, qimage: QImage) -> None:
+        """
+        Set the image from already loaded objects (e.g., from parallel worker), avoiding redundant copies and loading time.
+
+        Args:
+            image_original (np.ndarray): Original numpy image loaded.
+            qimage (QImage): QImage generated to create QPixmap.
+        """
+        self.image_original = image_original
+        self.image_current = self.image_original
+        self.image_filter_base = self.image_original
+        self.image_filter_base_history = []
+        self.set_pixmap(QPixmap.fromImage(qimage))
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
         """
@@ -278,13 +292,13 @@ class SonProcLabel(QLabel):
         """
         if self.image_filter_base is None:
             return
-            
+
         h, w = self.image_filter_base.shape[:2]
         x_start = int((min_pct / 100.0) * w)
         x_end = int((max_pct / 100.0) * w)
         if x_start >= x_end:
             return
-            
+
         self.image_current = self.image_filter_base[:, x_start:x_end]
         self.set_pixmap(self.numpy_to_qpixmap(self.image_current))
 
@@ -303,8 +317,6 @@ class SonProcLabel(QLabel):
                 "filter_name": "crop"
             }
         )
-
-
 
     def numpy_to_qpixmap(self, cv_img: np.ndarray) -> QPixmap:
         """

@@ -3,11 +3,12 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QPushButton, QLabel, QFileDialog, QSlider, QComboBox,
     QTextEdit, QLineEdit, QHBoxLayout, QVBoxLayout, QSplitter, QCheckBox, QSizePolicy
 )
-from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent, QPainter, QColor, QPen, QPaintEvent, QMouseEvent
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QPixmap, QPalette, QBrush, QResizeEvent, QPainter, QColor, QPen, QPaintEvent, QMouseEvent, QImage
+from PySide6.QtCore import Qt, QThread, Signal, Slot
 from modules.path_tool import get_file_placement_path
 from windows.son_proc_label import SonProcLabel
 from workers.dat_worker import DatWorker
+import numpy as np
 
 
 class RangeSlider(QWidget):
@@ -184,6 +185,8 @@ class RangeSlider(QWidget):
 
 
 class DatWindow(QMainWindow):
+    request_image_load_signal = Signal(str)
+
     ##############################################################################################
     # region Constructor
     def __init__(self) -> None:
@@ -259,6 +262,24 @@ class DatWindow(QMainWindow):
         # Add the horizontal splitter to the main layout
         main_layout.addWidget(vertical_splitter)
 
+        # Setup parallel worker for async image loading
+        self.image_load_thread = QThread()
+        self.image_load_worker = DatWorker()
+        self.image_load_worker.moveToThread(self.image_load_thread)
+        self.image_load_worker.log.connect(self.log_output)
+        self.image_load_worker.image_loaded_signal.connect(
+            self.on_image_loaded)
+        self.request_image_load_signal.connect(
+            self.image_load_worker.load_image)
+        self.image_load_thread.start()
+
+    def destroyEvent(self) -> None:
+        """Handles the destruction of the window and cleans up resources"""
+        if hasattr(self, 'image_load_thread'):
+            self.image_load_thread.quit()
+            self.image_load_thread.wait()
+        super().destroyEvent()
+
 # endregion
 ##############################################################################################
 # region Setup UI
@@ -278,9 +299,8 @@ class DatWindow(QMainWindow):
         image_selection_layout.addWidget(self.image_dropdown)
         # Extracted image label
         self.extracted_image_label = SonProcLabel()
-        # Add the background image for starters
-        self.extracted_image_label.set_pixmap_from_path(
-            get_file_placement_path("resources/dat.png"))
+        # Add the background image for starters using async load
+        self.load_image_async(get_file_placement_path("resources/dat.png"))
 
         # Range Slider Layout
         slider_layout = QHBoxLayout()
@@ -571,11 +591,26 @@ class DatWindow(QMainWindow):
         # Call the base class method
         super().resizeEvent(event)
 
-    def destroyEvent(self) -> None:
-        """Handles the destruction of the window and cleans up resources
+    def load_image_async(self, image_path: str) -> None:
+        """Helper tool to call image load in async thread. Ensures UI doesn't hang.
+        
+        Args:
+            image_path (str): The path of the image to load.
         """
-        self.editable_image_label.text_labels.clear()
-        super().destroyEvent()
+        self.request_image_load_signal.emit(image_path)
+
+    @Slot(object, object)
+    def on_image_loaded(self, image_original: np.ndarray, qimage: QImage) -> None:
+        """Slot for the worker thread responding that image load is completed.
+        
+        Args:
+            image_original (np.ndarray): The original image as a numpy array, useful for processing.
+            qimage (QImage): The loaded image as a QImage, ready to be displayed in the UI.
+        """
+        if image_original is not None and qimage is not None:
+            self.extracted_image_label.set_loaded_image(image_original, qimage)
+            self.extracted_image_label.update()
+        self.enable_buttons()
 
 # endregion
 ##############################################################################################
@@ -645,8 +680,8 @@ class DatWindow(QMainWindow):
                 self.image_dropdown.clear()
                 self.image_dropdown.addItems(self.merged_images_paths.keys())
                 first_image_path = list(self.merged_images_paths.values())[0]
-                self.extracted_image_label.set_pixmap_from_path(
-                    first_image_path)
+                self.load_image_async(first_image_path)
+                return  # UI will be re-enabled after on_image_loaded
         else:
             self.log_output("No valid project output path was selected.")
         self.enable_buttons()
@@ -699,13 +734,17 @@ class DatWindow(QMainWindow):
             paths (dict): The merged images paths
         """
         self.merged_images_paths = paths
-        # Add the image names to the dropdown
+        # Add the image names to the dropdown, only if the path is not None and not empty
         self.image_dropdown.clear()
-        self.image_dropdown.addItems(paths.keys())
+        self.image_dropdown.addItems(
+            [k for k, v in paths.items() if v is not None and v != ""])
         # Read the first image by default
         if paths:
             first_image_path = list(paths.values())[0]
-            self.extracted_image_label.set_pixmap_from_path(first_image_path)
+            self.load_image_async(first_image_path)
+            # Re-enable handled internally by on_image_loaded
+        else:
+            self.enable_buttons()
 
 # endregion
 ##############################################################################################
@@ -740,11 +779,11 @@ class DatWindow(QMainWindow):
         image_name = self.image_dropdown.currentText()
         if image_name in self.merged_images_paths:
             image_path = self.merged_images_paths[image_name]
-            self.extracted_image_label.set_pixmap_from_path(image_path)
             self.log_output(f"Loaded image: {image_name}")
+            self.load_image_async(image_path)
         else:
             self.log_output(f"Image {image_name} not found in paths.")
-        self.enable_buttons()
+            self.enable_buttons()
 
     def reset_image_btn_callback(self) -> None:
         """Callback for the reset image btn
@@ -757,11 +796,10 @@ class DatWindow(QMainWindow):
         if current_original_image_path:
             self.log_output(
                 f"Moving back to original {current_original_image_path} image.")
-            self.extracted_image_label.set_pixmap_from_path(
-                current_original_image_path)
+            self.load_image_async(current_original_image_path)
         else:
             self.log_output("No original image path found to reset to.")
-        self.enable_buttons()
+            self.enable_buttons()
 
     def save_image_btn_callback(self) -> None:
         """Callback for the save image btn
@@ -914,6 +952,7 @@ class DatWindow(QMainWindow):
 # endregion
 ##############################################################################################
 # region Utility functions
+
 
     def log_output(self, message: str) -> None:
         """Logs the output in the text panel

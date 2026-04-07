@@ -1,4 +1,7 @@
 from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtGui import QImage
+import cv2
+import numpy as np
 from pingmapper.dat_interpreter import DatInterpreter
 
 
@@ -7,6 +10,7 @@ class DatWorker(QObject):
     finished = Signal()
     log = Signal(str)
     merged_images_paths_signal = Signal(dict)
+    image_loaded_signal = Signal(object, object)  # numpy array, QImage
 
     def __init__(self) -> None:
         """Initialize the worker.
@@ -71,3 +75,29 @@ class DatWorker(QObject):
             self.merged_images_paths_signal.emit(
                 self.dat_interpreter.get_merged_images_paths())
             self.finished.emit()
+
+    @Slot(str)
+    def load_image(self, image_path: str) -> None:
+        """Loads an image from the given path in background and emits a signal.
+
+        Args:
+            image_path (str): Path to the image file to be loaded.
+        """
+        self.log.emit(f"Loading image from {image_path} in parallel...")
+        image_original = cv2.imread(image_path)
+        if image_original is None:
+            self.log.emit(f"Failed to load image from {image_path}")
+            return
+
+        # Convert BGR (OpenCV) to RGB (Qt)
+        height, width, channels = image_original.shape
+        bytes_per_line = channels * width
+        cv_img_rgb = cv2.cvtColor(image_original, cv2.COLOR_BGR2RGB)
+
+        qimg = QImage(cv_img_rgb.data, width, height,
+                      bytes_per_line, QImage.Format_RGB888)
+        # Deep copy to ensure safety when passing to main thread across signal
+        qimg_copied = qimg.copy()
+
+        self.log.emit(f"Image load completed. Displaying...")
+        self.image_loaded_signal.emit(image_original, qimg_copied)
